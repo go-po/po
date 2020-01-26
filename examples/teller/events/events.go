@@ -5,38 +5,30 @@ import (
 	"github.com/kyuff/po"
 )
 
-type Added struct {
+type AddedEvent struct {
 	Value int64
 }
 
-type Subtracted struct {
+type SubtractedEvent struct {
 	Value int64
 }
 
-type Declared struct {
+type DeclaredEvent struct {
 	Name string
 }
 
 func init() {
 	po.RegisterMessages(
-		func() po.MessageType { return Added{} },
-		func() po.MessageType { return Subtracted{} },
-		func() po.MessageType { return Declared{} },
-	)
-}
-
-func init() {
-	po.RegisterMessages(
 		func(b []byte) (interface{}, error) {
-			msg := Added{}
+			msg := AddedEvent{}
 			return msg, json.Unmarshal(b, &msg)
 		},
 		func(b []byte) (interface{}, error) {
-			msg := Subtracted{}
+			msg := SubtractedEvent{}
 			return msg, json.Unmarshal(b, &msg)
 		},
 		func(b []byte) (interface{}, error) {
-			msg := Declared{}
+			msg := DeclaredEvent{}
 			return msg, json.Unmarshal(b, &msg)
 		},
 	)

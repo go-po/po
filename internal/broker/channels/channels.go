@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyuff/po"
+	"github.com/kyuff/po/internal/registry"
 	"github.com/kyuff/po/internal/store"
 	"log"
 	"sync"
@@ -70,13 +71,12 @@ func (ch *Channels) Stop() {
 }
 
 func (ch *Channels) listen() {
-	log.Printf("Started listening")
 	for record := range ch.comm {
 		subs, found := ch.subs[record.Stream]
 		if !found {
 			return
 		}
-		data, err := po.LookupData(record.Type, record.Data)
+		data, err := registry.LookupData(record.Type, record.Data)
 		if err != nil {
 			log.Printf("notify failed data: %s", err)
 			continue

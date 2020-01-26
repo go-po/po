@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/kyuff/po/internal/store"
+	"log"
 	"sync"
 )
 
@@ -16,10 +17,11 @@ type Appender interface {
 }
 
 type Stream struct {
-	ID     string          // Unique ID of the stream
-	ctx    context.Context // to use for the operation
-	store  Store           // used to store records
-	broker Broker
+	ID       string          // Unique ID of the stream
+	ctx      context.Context // to use for the operation
+	store    Store           // used to store records
+	broker   Broker
+	registry Registry
 
 	mu      sync.Mutex     // guards below fields
 	records []store.Record // All data
@@ -53,13 +55,14 @@ func (stream *Stream) Append(messages ...interface{}) error {
 		record := store.Record{
 			Stream: stream.ID,
 			Data:   b,
-			Type:   lookupTypeName(msg),
+			Type:   stream.registry.LookupType(msg),
 		}
 		err = stream.store.Store(tx, record)
 		if err != nil {
 			return err
 		}
 		records = append(records, record)
+		log.Printf("Notify: %s", stream.ID)
 	}
 	err = tx.Commit()
 	if err != nil {
@@ -109,7 +112,7 @@ func (stream *Stream) projectHandler(handler Handler) error {
 	}
 	for _, record := range stream.records {
 
-		data, err := LookupData(record.Type, record.Data)
+		data, err := stream.registry.LookupData(record.Type, record.Data)
 		if err != nil {
 			return err
 		}
@@ -123,4 +126,13 @@ func (stream *Stream) projectHandler(handler Handler) error {
 		}
 	}
 	return nil
+}
+
+// TODO this implementation needs to change as soon as snapshots is introduced
+func (stream *Stream) Size() (int, error) {
+	err := stream.Load()
+	if err != nil {
+		return 0, err
+	}
+	return len(stream.records), nil
 }

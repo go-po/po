@@ -2,6 +2,7 @@ package po
 
 import (
 	"context"
+	"github.com/kyuff/po/internal/registry"
 	"github.com/kyuff/po/internal/store"
 )
 
@@ -14,6 +15,11 @@ type Store interface {
 type Broker interface {
 	Notify(ctx context.Context, records ...store.Record) error
 	Subscribe(ctx context.Context, subscriptionId, streamId string, subscriber interface{}) error
+}
+
+type Registry interface {
+	LookupType(msg interface{}) string
+	LookupData(typeName string, b []byte) (interface{}, error)
 }
 
 func New(store Store, broker Broker) *Po {
@@ -30,10 +36,11 @@ type Po struct {
 
 func (po *Po) Stream(ctx context.Context, streamId string) *Stream {
 	return &Stream{
-		ID:     streamId,
-		ctx:    ctx,
-		store:  po.store,
-		broker: po.broker,
+		ID:       streamId,
+		ctx:      ctx,
+		store:    po.store,
+		broker:   po.broker,
+		registry: registry.DefaultRegistry,
 	}
 }
 
@@ -44,4 +51,8 @@ func (po *Po) Project(ctx context.Context, streamId string, projection interface
 
 func (po *Po) Subscribe(ctx context.Context, subscriptionId, streamId string, subscriber interface{}) error {
 	return po.broker.Subscribe(ctx, subscriptionId, streamId, subscriber)
+}
+
+func RegisterMessages(initializers ...registry.MessageUnmarshaller) {
+	registry.Register(initializers...)
 }
