@@ -74,7 +74,7 @@ func (ch *Channels) listen() {
 	for record := range ch.comm {
 		subs, found := ch.subs[record.Stream]
 		if !found {
-			return
+			continue
 		}
 		data, err := registry.Unmarshal(record.Type, record.Data)
 		if err != nil {

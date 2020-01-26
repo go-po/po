@@ -25,12 +25,13 @@ func main() {
 		Stream(ctx, "vars:commands").
 		Append(
 			commands.DeclareCommand{Name: "a"},
-			commands.AddCommand{Name: "a", Number: 10},
 			commands.DeclareCommand{Name: "b"},
+			commands.AddCommand{Name: "a", Number: 10},
 			commands.AddCommand{Name: "a", Number: 15},
 			commands.AddCommand{Name: "b", Number: 7},
 			commands.SubCommand{Name: "b", Number: 2},
 			commands.SubCommand{Name: "a", Number: 13},
+			commands.AddCommand{Name: "a", Number: 12},
 		)
 	if err != nil {
 		log.Fatalf("failed declaring a and b: %s", err)
