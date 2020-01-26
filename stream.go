@@ -110,17 +110,11 @@ func (stream *Stream) projectHandler(handler Handler) error {
 		return err
 	}
 	for _, record := range stream.records {
-
-		data, err := stream.registry.Unmarshal(record.Type, record.Data)
+		msg, err := ToMessage(stream.registry, record)
 		if err != nil {
 			return err
 		}
-		err = handler.Handle(stream.ctx, Message{
-			Id:     record.Id,
-			Stream: record.Stream,
-			Data:   data,
-			Type:   record.Type,
-		})
+		err = handler.Handle(stream.ctx, msg)
 		if err != nil {
 			return err
 		}

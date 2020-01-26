@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/kyuff/po"
 	"github.com/kyuff/po/examples/teller/events"
+	"log"
 )
 
 func NewCommandSubscriber(po *po.Po) *Subscriber {
@@ -17,6 +18,7 @@ type Subscriber struct {
 }
 
 func (sub *Subscriber) Handle(ctx context.Context, msg po.Message) error {
+	log.Printf("Message %s.%s.%d", msg.Stream, msg.Type, msg.Id)
 	switch cmd := msg.Data.(type) {
 	case DeclareCommand:
 		streamId := "vars-" + cmd.Name

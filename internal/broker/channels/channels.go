@@ -76,15 +76,10 @@ func (ch *Channels) listen() {
 		if !found {
 			continue
 		}
-		data, err := registry.Unmarshal(record.Type, record.Data)
+		msg, err := po.ToMessage(registry.DefaultRegistry, record)
 		if err != nil {
 			log.Printf("notify failed data: %s", err)
 			continue
-		}
-		msg := po.Message{
-			Stream: record.Stream,
-			Data:   data,
-			Type:   record.Type,
 		}
 		for _, sub := range subs {
 			err := sub.Handle(context.Background(), msg)

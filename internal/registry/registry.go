@@ -6,6 +6,8 @@ import (
 	"log"
 )
 
+var DefaultRegistry = New()
+
 type Named interface {
 	Name() string
 }
@@ -69,5 +71,3 @@ func (reg *Registry) Unmarshal(typeName string, b []byte) (interface{}, error) {
 	}
 	return unmarshal(b)
 }
-
-var DefaultRegistry = New()
