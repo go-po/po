@@ -2,14 +2,14 @@ package mockbroker
 
 import (
 	"context"
-	"github.com/kyuff/po/internal/store"
+	"github.com/kyuff/po/internal/record"
 )
 
 type MockBroker struct {
-	Records []store.Record
+	Records []record.Record
 }
 
-func (mock *MockBroker) Notify(ctx context.Context, records ...store.Record) error {
+func (mock *MockBroker) Notify(ctx context.Context, records ...record.Record) error {
 	mock.Records = append(mock.Records, records...)
 	return nil
 }

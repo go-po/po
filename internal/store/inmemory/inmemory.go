@@ -3,6 +3,7 @@ package inmemory
 import (
 	"context"
 	"fmt"
+	"github.com/kyuff/po/internal/record"
 	"github.com/kyuff/po/internal/store"
 	"sync"
 )
@@ -10,23 +11,23 @@ import (
 func New() *InMemory {
 	return &InMemory{
 		mu:   sync.RWMutex{},
-		data: make(map[string][]store.Record),
+		data: make(map[string][]record.Record),
 	}
 }
 
 type InMemory struct {
-	mu   sync.RWMutex              // guards the data
-	data map[string][]store.Record // records by stream id
+	mu   sync.RWMutex               // guards the data
+	data map[string][]record.Record // records by stream id
 }
 
 func (mem *InMemory) Begin(ctx context.Context) (store.Tx, error) {
 	return &inMemoryTx{
-		records: make([]store.Record, 0),
+		records: make([]record.Record, 0),
 		store:   mem,
 	}, nil
 }
 
-func (mem *InMemory) Store(tx store.Tx, record store.Record) error {
+func (mem *InMemory) Store(tx store.Tx, record record.Record) error {
 	inTx, ok := tx.(*inMemoryTx)
 	if !ok {
 		return fmt.Errorf("unknown tx type: %T", tx)
@@ -36,7 +37,7 @@ func (mem *InMemory) Store(tx store.Tx, record store.Record) error {
 	return nil
 }
 
-func (mem *InMemory) ReadRecords(ctx context.Context, streamId string) ([]store.Record, error) {
+func (mem *InMemory) ReadRecords(ctx context.Context, streamId string) ([]record.Record, error) {
 	data, found := mem.data[streamId]
 	if !found {
 		return nil, nil
@@ -45,19 +46,19 @@ func (mem *InMemory) ReadRecords(ctx context.Context, streamId string) ([]store.
 }
 
 type inMemoryTx struct {
-	records []store.Record
+	records []record.Record
 	store   *InMemory
 }
 
 func (tx inMemoryTx) Commit() error {
 	tx.store.mu.Lock()
 	defer tx.store.mu.Unlock()
-	for _, record := range tx.records {
-		_, hasStream := tx.store.data[record.Stream]
+	for _, r := range tx.records {
+		_, hasStream := tx.store.data[r.Stream]
 		if !hasStream {
-			tx.store.data[record.Stream] = make([]store.Record, 0)
+			tx.store.data[r.Stream] = make([]record.Record, 0)
 		}
-		tx.store.data[record.Stream] = append(tx.store.data[record.Stream], record)
+		tx.store.data[r.Stream] = append(tx.store.data[r.Stream], r)
 	}
 	return nil
 }

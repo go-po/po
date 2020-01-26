@@ -2,18 +2,19 @@ package po
 
 import (
 	"context"
+	"github.com/kyuff/po/internal/record"
 	"github.com/kyuff/po/internal/registry"
 	"github.com/kyuff/po/internal/store"
 )
 
 type Store interface {
-	ReadRecords(ctx context.Context, streamId string) ([]store.Record, error)
+	ReadRecords(ctx context.Context, streamId string) ([]record.Record, error)
 	Begin(ctx context.Context) (store.Tx, error)
-	Store(tx store.Tx, record store.Record) error
+	Store(tx store.Tx, record record.Record) error
 }
 
 type Broker interface {
-	Notify(ctx context.Context, records ...store.Record) error
+	Notify(ctx context.Context, records ...record.Record) error
 	Subscribe(ctx context.Context, subscriptionId, streamId string, subscriber interface{}) error
 }
 

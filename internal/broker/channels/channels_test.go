@@ -2,13 +2,13 @@ package channels
 
 import (
 	"context"
-	"github.com/kyuff/po/internal/store"
+	"github.com/kyuff/po/internal/record"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestChannels_Notify(t *testing.T) {
-	R := func(records ...store.Record) []store.Record { return records }
+	R := func(records ...record.Record) []record.Record { return records }
 	type verify func(t *testing.T, err error)
 	all := func(v ...verify) []verify { return v }
 
@@ -19,7 +19,7 @@ func TestChannels_Notify(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		records []store.Record
+		records []record.Record
 		verify  []verify
 	}{
 		{

@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/kyuff/po/internal/broker/mockbroker"
+	"github.com/kyuff/po/internal/record"
 	"github.com/kyuff/po/internal/registry"
-	"github.com/kyuff/po/internal/store"
 	"github.com/kyuff/po/internal/store/mockstore"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -58,7 +58,7 @@ func TestStream_Append(t *testing.T) {
 			assert.Equal(t, expected, len(store.Records))
 		}
 	}
-	stored := func(i int, expected store.Record) verify {
+	stored := func(i int, expected record.Record) verify {
 		return func(t *testing.T, err error, store *mockstore.MockStore, broker *mockbroker.MockBroker) {
 			got := store.Records[i]
 			assert.Equal(t, expected.Id, got.Id, "store.Id")
@@ -72,7 +72,7 @@ func TestStream_Append(t *testing.T) {
 			assert.Equal(t, expected, len(broker.Records))
 		}
 	}
-	notified := func(i int, expected store.Record) verify {
+	notified := func(i int, expected record.Record) verify {
 		return func(t *testing.T, err error, store *mockstore.MockStore, broker *mockbroker.MockBroker) {
 			got := broker.Records[i]
 			assert.Equal(t, expected.Data, got.Data, "broker.Data")
@@ -82,10 +82,10 @@ func TestStream_Append(t *testing.T) {
 	}
 	streamId := "test"
 
-	records := func(count int) []store.Record {
-		var result []store.Record
+	records := func(count int) []record.Record {
+		var result []record.Record
 		for i := 1; i < count+1; i++ {
-			result = append(result, store.Record{
+			result = append(result, record.Record{
 				Id:     int64(i),
 				Stream: streamId,
 				Data:   []byte(`{"A":1}`),
@@ -97,8 +97,8 @@ func TestStream_Append(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		fixture  []store.Record // data in the stream before appending
-		messages []interface{}  // data appended
+		fixture  []record.Record // data in the stream before appending
+		messages []interface{}   // data appended
 		verify   []verify
 	}{
 		{
@@ -120,14 +120,14 @@ func TestStream_Append(t *testing.T) {
 				noErr(),
 				txStarted(),
 				recordsInStore(1),
-				stored(0, store.Record{
+				stored(0, record.Record{
 					Id:     1,
 					Stream: streamId,
 					Data:   []byte(`{"A":1}`),
 					Type:   "po.A",
 				}),
 				recordsNotified(1),
-				notified(0, store.Record{
+				notified(0, record.Record{
 					Stream: streamId,
 					Data:   []byte(`{"A":1}`),
 					Type:   "po.A",
@@ -146,19 +146,19 @@ func TestStream_Append(t *testing.T) {
 				noErr(),
 				txStarted(),
 				recordsInStore(3),
-				stored(0, store.Record{
+				stored(0, record.Record{
 					Id:     1,
 					Stream: streamId,
 					Data:   []byte(`{"A":1}`),
 					Type:   "po.A",
 				}),
-				stored(1, store.Record{
+				stored(1, record.Record{
 					Id:     2,
 					Stream: streamId,
 					Data:   []byte(`{"B":"B"}`),
 					Type:   "po.B",
 				}),
-				stored(2, store.Record{
+				stored(2, record.Record{
 					Id:     3,
 					Stream: streamId,
 					Data:   []byte(`{"A":2}`),
@@ -177,7 +177,7 @@ func TestStream_Append(t *testing.T) {
 				noErr(),
 				txStarted(),
 				recordsInStore(3),
-				stored(2, store.Record{
+				stored(2, record.Record{
 					Id:     3,
 					Stream: streamId,
 					Data:   []byte(`{"B":"Data"}`),

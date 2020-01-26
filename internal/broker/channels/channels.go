@@ -4,15 +4,15 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyuff/po"
+	"github.com/kyuff/po/internal/record"
 	"github.com/kyuff/po/internal/registry"
-	"github.com/kyuff/po/internal/store"
 	"log"
 	"sync"
 )
 
 func New() *Channels {
 	n := &Channels{
-		comm: make(chan store.Record),
+		comm: make(chan record.Record),
 		subs: make(map[string][]po.Handler),
 	}
 	n.Start()
@@ -20,7 +20,7 @@ func New() *Channels {
 }
 
 type Channels struct {
-	comm chan store.Record
+	comm chan record.Record
 
 	mu   sync.Mutex // protects below
 	subs map[string][]po.Handler
@@ -28,7 +28,7 @@ type Channels struct {
 
 var _ po.Broker = &Channels{}
 
-func (ch *Channels) Notify(ctx context.Context, records ...store.Record) error {
+func (ch *Channels) Notify(ctx context.Context, records ...record.Record) error {
 	go func() {
 		for _, record := range records {
 			ch.comm <- record

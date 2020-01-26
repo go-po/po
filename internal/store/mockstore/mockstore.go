@@ -2,15 +2,16 @@ package mockstore
 
 import (
 	"context"
+	"github.com/kyuff/po/internal/record"
 	"github.com/kyuff/po/internal/store"
 )
 
 type MockStore struct {
 	Tx      *MockTx
-	Records []store.Record
+	Records []record.Record
 }
 
-func (mock *MockStore) ReadRecords(ctx context.Context, streamId string) ([]store.Record, error) {
+func (mock *MockStore) ReadRecords(ctx context.Context, streamId string) ([]record.Record, error) {
 	return mock.Records, nil
 }
 
@@ -19,7 +20,7 @@ func (mock *MockStore) Begin(ctx context.Context) (store.Tx, error) {
 	return mock.Tx, nil
 }
 
-func (mock *MockStore) Store(tx store.Tx, record store.Record) error {
+func (mock *MockStore) Store(tx store.Tx, record record.Record) error {
 	mock.Records = append(mock.Records, record)
 	return nil
 }

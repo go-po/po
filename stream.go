@@ -2,7 +2,7 @@ package po
 
 import (
 	"context"
-	"github.com/kyuff/po/internal/store"
+	"github.com/kyuff/po/internal/record"
 	"sync"
 )
 
@@ -21,10 +21,10 @@ type Stream struct {
 	broker   Broker
 	registry Registry
 
-	mu      sync.Mutex     // guards below fields
-	records []store.Record // All data
-	size    int64          // number of records when the stream was first read
-	read    bool           // have records been read from the store
+	mu      sync.Mutex      // guards below fields
+	records []record.Record // All data
+	size    int64           // number of records when the stream was first read
+	read    bool            // have records been read from the store
 }
 
 func (stream *Stream) Append(messages ...interface{}) error {
@@ -44,13 +44,13 @@ func (stream *Stream) Append(messages ...interface{}) error {
 	defer func() {
 		_ = tx.Rollback()
 	}()
-	var records []store.Record
+	var records []record.Record
 	for _, msg := range messages {
 		b, err := stream.registry.Marshal(msg)
 		if err != nil {
 			return err
 		}
-		record := store.Record{
+		record := record.Record{
 			Id:     stream.size + 1,
 			Stream: stream.ID,
 			Data:   b,
