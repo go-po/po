@@ -25,11 +25,13 @@ func TestStream_Append(t *testing.T) {
 	testRegistry.Register(
 		func(b []byte) (interface{}, error) {
 			msg := A{}
-			return msg, json.Unmarshal(b, &msg)
+			err := json.Unmarshal(b, &msg)
+			return msg, err
 		},
 		func(b []byte) (interface{}, error) {
 			msg := B{}
-			return msg, json.Unmarshal(b, &msg)
+			err := json.Unmarshal(b, &msg)
+			return msg, err
 		},
 	)
 

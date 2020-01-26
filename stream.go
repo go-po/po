@@ -3,7 +3,6 @@ package po
 import (
 	"context"
 	"github.com/kyuff/po/internal/store"
-	"log"
 	"sync"
 )
 
@@ -61,7 +60,6 @@ func (stream *Stream) Append(messages ...interface{}) error {
 			return err
 		}
 		records = append(records, record)
-		log.Printf("Notify: %s", stream.ID)
 	}
 	err = tx.Commit()
 	if err != nil {

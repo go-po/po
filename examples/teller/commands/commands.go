@@ -24,16 +24,19 @@ type DeclareCommand struct {
 func init() {
 	po.RegisterMessages(
 		func(b []byte) (interface{}, error) {
+			msg := DeclareCommand{}
+			err := json.Unmarshal(b, &msg)
+			return msg, err
+		},
+		func(b []byte) (interface{}, error) {
 			msg := AddCommand{}
-			return msg, json.Unmarshal(b, &msg)
+			err := json.Unmarshal(b, &msg)
+			return msg, err
 		},
 		func(b []byte) (interface{}, error) {
 			msg := SubCommand{}
-			return msg, json.Unmarshal(b, &msg)
-		},
-		func(b []byte) (interface{}, error) {
-			msg := DeclareCommand{}
-			return msg, json.Unmarshal(b, &msg)
+			err := json.Unmarshal(b, &msg)
+			return msg, err
 		},
 	)
 }

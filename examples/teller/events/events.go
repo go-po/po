@@ -21,15 +21,18 @@ func init() {
 	po.RegisterMessages(
 		func(b []byte) (interface{}, error) {
 			msg := AddedEvent{}
-			return msg, json.Unmarshal(b, &msg)
+			err := json.Unmarshal(b, &msg)
+			return msg, err
 		},
 		func(b []byte) (interface{}, error) {
 			msg := SubtractedEvent{}
-			return msg, json.Unmarshal(b, &msg)
+			err := json.Unmarshal(b, &msg)
+			return msg, err
 		},
 		func(b []byte) (interface{}, error) {
 			msg := DeclaredEvent{}
-			return msg, json.Unmarshal(b, &msg)
+			err := json.Unmarshal(b, &msg)
+			return msg, err
 		},
 	)
 }

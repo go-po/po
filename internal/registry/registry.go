@@ -67,7 +67,6 @@ func (reg *Registry) Unmarshal(typeName string, b []byte) (interface{}, error) {
 		}
 		return nil, fmt.Errorf("unknown message type: %s", typeName) // TODO error type
 	}
-
 	return unmarshal(b)
 }
 

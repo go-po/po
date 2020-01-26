@@ -18,7 +18,7 @@ type Subscriber struct {
 }
 
 func (sub *Subscriber) Handle(ctx context.Context, msg po.Message) error {
-	log.Printf("Message received: %T", msg.Data)
+	log.Printf("Message: %T %+v", msg.Data, msg)
 	switch cmd := msg.Data.(type) {
 	case DeclareCommand:
 		streamId := "vars-" + cmd.Name
@@ -30,14 +30,11 @@ func (sub *Subscriber) Handle(ctx context.Context, msg po.Message) error {
 		if size != 0 {
 			return nil // idempotence, already declared
 		}
-		log.Printf("DEC [%s]: %+v", streamId, cmd)
 		return stream.Append(events.DeclaredEvent{Name: cmd.Name})
 	case AddCommand:
-		log.Printf("ADD: %+v", cmd)
 		return sub.po.Stream(ctx, "vars-"+cmd.Name).
 			Append(events.AddedEvent{Value: cmd.Number})
 	case SubCommand:
-		log.Printf("SUB: %+v", cmd)
 		return sub.po.Stream(ctx, "vars-"+cmd.Name).
 			Append(events.SubtractedEvent{Value: cmd.Number})
 	default:

@@ -16,7 +16,8 @@ func TestRegistry_RoundtripMarshal(t *testing.T) {
 	reg.Register(
 		func(b []byte) (interface{}, error) {
 			msg := A{}
-			return msg, json.Unmarshal(b, &msg)
+			err := json.Unmarshal(b, &msg)
+			return msg, err
 		},
 	)
 	a := A{
