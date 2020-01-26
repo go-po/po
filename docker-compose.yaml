@@ -1,0 +1,20 @@
+version: '3'
+services:
+  postgres:
+    image: postgres:11.5
+    container_name: po_pg
+    ports:
+      - "5431:5432"
+    environment:
+      POSTGRES_USER: po
+      POSTGRES_PASSWORD: po
+  rabbitmq:
+    image: rabbitmq
+    container_name: po_mq
+    ports:
+      - "5671:5672"
+    environment:
+      RABBITMQ_ERLANG_COOKIE: po
+      RABBITMQ_DEFAULT_USER: po
+      RABBITMQ_DEFAULT_PASS: po
+      RABBITMQ_DEFAULT_VHOST: /
