@@ -1,3 +1,3 @@
 # Documentation
 
-* [Components]()
+* [Components](components.md)
