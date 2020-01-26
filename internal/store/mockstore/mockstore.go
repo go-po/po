@@ -11,7 +11,7 @@ type MockStore struct {
 }
 
 func (mock *MockStore) ReadRecords(ctx context.Context, streamId string) ([]store.Record, error) {
-	return nil, nil
+	return mock.Records, nil
 }
 
 func (mock *MockStore) Begin(ctx context.Context) (store.Tx, error) {

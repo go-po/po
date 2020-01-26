@@ -23,7 +23,7 @@ type Stream struct {
 
 	mu      sync.Mutex     // guards below fields
 	records []store.Record // All data
-	size    int            // number of records when the stream was first read
+	size    int64          // number of records when the stream was first read
 	read    bool           // have records been read from the store
 }
 
@@ -51,6 +51,7 @@ func (stream *Stream) Append(messages ...interface{}) error {
 			return err
 		}
 		record := store.Record{
+			Id:     stream.size + 1,
 			Stream: stream.ID,
 			Data:   b,
 			Type:   stream.registry.LookupType(msg),
@@ -59,6 +60,7 @@ func (stream *Stream) Append(messages ...interface{}) error {
 		if err != nil {
 			return err
 		}
+		stream.size = stream.size + 1
 		records = append(records, record)
 	}
 	err = tx.Commit()
@@ -98,7 +100,7 @@ func (stream *Stream) Load() error {
 
 	stream.records = records
 	stream.read = true
-	stream.size = len(stream.records)
+	stream.size = int64(len(stream.records))
 	return nil
 }
 
@@ -114,6 +116,7 @@ func (stream *Stream) projectHandler(handler Handler) error {
 			return err
 		}
 		err = handler.Handle(stream.ctx, Message{
+			Id:     record.Id,
 			Stream: record.Stream,
 			Data:   data,
 			Type:   record.Type,

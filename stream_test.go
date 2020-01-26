@@ -53,7 +53,7 @@ func TestStream_Append(t *testing.T) {
 			assert.NotNil(t, store.Tx)
 		}
 	}
-	recordsStored := func(expected int) verify {
+	recordsInStore := func(expected int) verify {
 		return func(t *testing.T, err error, store *mockstore.MockStore, broker *mockbroker.MockBroker) {
 			assert.Equal(t, expected, len(store.Records))
 		}
@@ -61,6 +61,7 @@ func TestStream_Append(t *testing.T) {
 	stored := func(i int, expected store.Record) verify {
 		return func(t *testing.T, err error, store *mockstore.MockStore, broker *mockbroker.MockBroker) {
 			got := store.Records[i]
+			assert.Equal(t, expected.Id, got.Id, "store.Id")
 			assert.Equal(t, expected.Data, got.Data, "store.Data")
 			assert.Equal(t, expected.Type, got.Type, "store.Type")
 			assert.Equal(t, expected.Stream, got.Stream, "store.Stream")
@@ -79,44 +80,63 @@ func TestStream_Append(t *testing.T) {
 			assert.Equal(t, expected.Stream, got.Stream, "broker.Stream")
 		}
 	}
+	streamId := "test"
+
+	records := func(count int) []store.Record {
+		var result []store.Record
+		for i := 1; i < count+1; i++ {
+			result = append(result, store.Record{
+				Id:     int64(i),
+				Stream: streamId,
+				Data:   []byte(`{"A":1}`),
+				Type:   "po.A",
+			})
+		}
+		return result
+	}
 
 	tests := []struct {
 		name     string
-		messages []interface{}
+		fixture  []store.Record // data in the stream before appending
+		messages []interface{}  // data appended
 		verify   []verify
 	}{
 		{
 			name:     "empty append",
+			fixture:  records(0),
 			messages: msgs(),
 			verify: all(
 				noErr(),
 				txNotStarted(),
-				recordsStored(0),
+				recordsInStore(0),
 				recordsNotified(0),
 			),
 		},
 		{
 			name:     "one item",
 			messages: msgs(A{A: 1}),
+			fixture:  records(0),
 			verify: all(
 				noErr(),
 				txStarted(),
-				recordsStored(1),
+				recordsInStore(1),
 				stored(0, store.Record{
-					Stream: "test",
+					Id:     1,
+					Stream: streamId,
 					Data:   []byte(`{"A":1}`),
 					Type:   "po.A",
 				}),
 				recordsNotified(1),
 				notified(0, store.Record{
-					Stream: "test",
+					Stream: streamId,
 					Data:   []byte(`{"A":1}`),
 					Type:   "po.A",
 				}),
 			),
 		},
 		{
-			name: "multiple",
+			name:    "multiple",
+			fixture: records(0),
 			messages: msgs(
 				A{A: 1},
 				B{B: "B"},
@@ -125,18 +145,54 @@ func TestStream_Append(t *testing.T) {
 			verify: all(
 				noErr(),
 				txStarted(),
-				recordsStored(3),
+				recordsInStore(3),
+				stored(0, store.Record{
+					Id:     1,
+					Stream: streamId,
+					Data:   []byte(`{"A":1}`),
+					Type:   "po.A",
+				}),
+				stored(1, store.Record{
+					Id:     2,
+					Stream: streamId,
+					Data:   []byte(`{"B":"B"}`),
+					Type:   "po.B",
+				}),
+				stored(2, store.Record{
+					Id:     3,
+					Stream: streamId,
+					Data:   []byte(`{"A":2}`),
+					Type:   "po.A",
+				}),
 				recordsNotified(3),
+			),
+		},
+		{
+			name:    "raising the id",
+			fixture: records(2),
+			messages: msgs(
+				B{B: "Data"},
+			),
+			verify: all(
+				noErr(),
+				txStarted(),
+				recordsInStore(3),
+				stored(2, store.Record{
+					Id:     3,
+					Stream: streamId,
+					Data:   []byte(`{"B":"Data"}`),
+					Type:   "po.B",
+				}),
 			),
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// setup
-			store := &mockstore.MockStore{}
+			store := &mockstore.MockStore{Records: test.fixture}
 			broker := &mockbroker.MockBroker{}
 			stream := &Stream{
-				ID:       "test",
+				ID:       streamId,
 				ctx:      context.Background(),
 				store:    store,
 				broker:   broker,
