@@ -1,0 +1,10 @@
+.settings
+.git
+.idea
+*.iml
+.vscode
+reports/*
+vendor
+/.dockerignore
+/main
+.DS_Store
