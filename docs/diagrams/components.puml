@@ -1,0 +1,79 @@
+@startuml
+
+hide empty members
+
+' Implicit Interfaces
+interface broker.Broker {
+    Notify(store.Record)
+    Subscribe(subId, streamId, Handler)
+}
+
+interface store.Store {
+    ReadRecords()
+    Begin() store.Tx
+    Store()
+}
+
+interface store.Tx {
+    Commit()
+    Rollback()
+}
+
+interface Handler {
+    Handle(Message)
+}
+
+class Po {
+    Stream(streamId) *Stream
+    Project(streamId, projection)
+    Subscribe(subId, streamId, Handler)
+}
+note left
+    Main Entry point
+    for the Application
+end note
+
+class Stream {
+    Project(projection)
+    Append(msg)
+}
+
+class Message {
+    ID
+    Stream
+    Type
+    Data
+}
+
+
+' Implementations
+class store.InMemory {
+}
+class store.Postgres {
+}
+
+class broker.Channels {
+}
+
+class broker.RabbitMQ {
+}
+
+' Connections
+store.Store     -r-> store.Tx   : Creates
+store.InMemory  -u-|> store.Store
+store.Postgres  -u-|> store.Store
+
+broker.Channels -u-|> broker.Broker
+broker.RabbitMQ -u-|> broker.Broker
+
+Po      -d->    Stream          : Opens a stream
+Po      -d->      broker.Broker   : Subscribes
+Stream  -r->    broker.Broker   : Notifies on new Messages
+Stream  -d->    store.Store     : Reads records
+Stream  -l->    Handler         : Gives Messages
+Message -u->    Stream          : Provides Data
+broker.Broker -> Handler        : Gives Messages
+
+Handler -> Message              : Handles messages
+
+@enduml
