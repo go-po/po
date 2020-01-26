@@ -24,7 +24,7 @@ type Channels struct {
 	subs map[string][]po.Handler
 }
 
-var _ po.Notifier = &Channels{}
+var _ po.Broker = &Channels{}
 
 func (ch *Channels) Notify(ctx context.Context, records ...store.Record) error {
 	go func() {

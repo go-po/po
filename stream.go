@@ -19,7 +19,7 @@ type Stream struct {
 	ID     string          // Unique ID of the stream
 	ctx    context.Context // to use for the operation
 	store  Store           // used to store records
-	notify Notifier
+	broker Broker
 
 	mu      sync.Mutex     // guards below fields
 	records []store.Record // All data
@@ -66,7 +66,7 @@ func (stream *Stream) Append(messages ...interface{}) error {
 		return err
 	}
 	stream.records = append(stream.records, records...)
-	err = stream.notify.Notify(stream.ctx, records...)
+	err = stream.broker.Notify(stream.ctx, records...)
 	if err != nil {
 		return err
 	}

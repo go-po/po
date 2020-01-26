@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/kyuff/po"
 	"github.com/kyuff/po/examples/teller/commands"
-	"github.com/kyuff/po/internal/notify/channels"
+	"github.com/kyuff/po/internal/broker/channels"
 	"github.com/kyuff/po/internal/store/inmemory"
 	"log"
 )

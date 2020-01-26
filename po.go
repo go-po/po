@@ -11,21 +11,21 @@ type Store interface {
 	Store(tx store.Tx, record store.Record) error
 }
 
-type Notifier interface {
+type Broker interface {
 	Notify(ctx context.Context, records ...store.Record) error
 	Subscribe(ctx context.Context, subscriptionId, streamId string, subscriber interface{}) error
 }
 
-func New(store Store, notifier Notifier) *Po {
+func New(store Store, broker Broker) *Po {
 	return &Po{
 		store:  store,
-		notify: notifier,
+		broker: broker,
 	}
 }
 
 type Po struct {
 	store  Store
-	notify Notifier
+	broker Broker
 }
 
 func (po *Po) Stream(ctx context.Context, streamId string) *Stream {
@@ -33,7 +33,7 @@ func (po *Po) Stream(ctx context.Context, streamId string) *Stream {
 		ID:     streamId,
 		ctx:    ctx,
 		store:  po.store,
-		notify: po.notify,
+		broker: po.broker,
 	}
 }
 
@@ -43,5 +43,5 @@ func (po *Po) Project(ctx context.Context, streamId string, projection interface
 }
 
 func (po *Po) Subscribe(ctx context.Context, subscriptionId, streamId string, subscriber interface{}) error {
-	return po.notify.Subscribe(ctx, subscriptionId, streamId, subscriber)
+	return po.broker.Subscribe(ctx, subscriptionId, streamId, subscriber)
 }
