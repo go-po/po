@@ -1,0 +1,22 @@
+@startuml
+
+hide empty members
+
+' Implicit Interfaces
+interface Store {
+    ReadRecords()
+    Begin() store.Tx
+    Store()
+}
+
+class InMemory {
+}
+class Postgres {
+}
+
+
+Store     -r-> Tx   : Creates
+InMemory  -u-|> Store
+Postgres  -u-|> Store
+
+@enduml

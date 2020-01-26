@@ -1,0 +1,20 @@
+@startuml
+
+hide empty members
+
+' Implicit Interfaces
+interface Broker {
+    Notify(store.Record)
+    Subscribe(subId, streamId, Handler)
+}
+
+class Channels {
+}
+
+class RabbitMQ {
+}
+
+Channels -u-|> Broker
+RabbitMQ -u-|> Broker
+
+@enduml
