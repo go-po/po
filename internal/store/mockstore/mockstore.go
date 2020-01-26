@@ -6,6 +6,8 @@ import (
 )
 
 type MockStore struct {
+	Tx      *MockTx
+	Records []store.Record
 }
 
 func (mock *MockStore) ReadRecords(ctx context.Context, streamId string) ([]store.Record, error) {
@@ -13,11 +15,13 @@ func (mock *MockStore) ReadRecords(ctx context.Context, streamId string) ([]stor
 }
 
 func (mock *MockStore) Begin(ctx context.Context) (store.Tx, error) {
-	return &MockTx{}, nil
+	mock.Tx = &MockTx{}
+	return mock.Tx, nil
 }
 
 func (mock *MockStore) Store(tx store.Tx, record store.Record) error {
-	panic("implement me")
+	mock.Records = append(mock.Records, record)
+	return nil
 }
 
 var _ store.Tx = &MockTx{}

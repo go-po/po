@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 )
@@ -47,10 +48,17 @@ func (reg *Registry) LookupType(msg interface{}) string {
 	}
 }
 
-func LookupData(typeName string, b []byte) (interface{}, error) {
-	return DefaultRegistry.LookupData(typeName, b)
+func Marshal(msg interface{}) ([]byte, error) {
+	return DefaultRegistry.Marshal(msg)
 }
-func (reg *Registry) LookupData(typeName string, b []byte) (interface{}, error) {
+func (reg *Registry) Marshal(msg interface{}) ([]byte, error) {
+	return json.Marshal(msg)
+}
+
+func Unmarshal(typeName string, b []byte) (interface{}, error) {
+	return DefaultRegistry.Unmarshal(typeName, b)
+}
+func (reg *Registry) Unmarshal(typeName string, b []byte) (interface{}, error) {
 	unmarshal, found := reg.types[typeName]
 	if !found {
 		log.Printf("Known types")

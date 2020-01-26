@@ -2,7 +2,6 @@ package po
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/kyuff/po/internal/store"
 	"log"
 	"sync"
@@ -48,7 +47,7 @@ func (stream *Stream) Append(messages ...interface{}) error {
 	}()
 	var records []store.Record
 	for _, msg := range messages {
-		b, err := json.Marshal(msg)
+		b, err := stream.registry.Marshal(msg)
 		if err != nil {
 			return err
 		}
@@ -112,7 +111,7 @@ func (stream *Stream) projectHandler(handler Handler) error {
 	}
 	for _, record := range stream.records {
 
-		data, err := stream.registry.LookupData(record.Type, record.Data)
+		data, err := stream.registry.Unmarshal(record.Type, record.Data)
 		if err != nil {
 			return err
 		}

@@ -6,9 +6,11 @@ import (
 )
 
 type MockBroker struct {
+	Records []store.Record
 }
 
 func (mock *MockBroker) Notify(ctx context.Context, records ...store.Record) error {
+	mock.Records = append(mock.Records, records...)
 	return nil
 }
 

@@ -19,7 +19,8 @@ type Broker interface {
 
 type Registry interface {
 	LookupType(msg interface{}) string
-	LookupData(typeName string, b []byte) (interface{}, error)
+	Unmarshal(typeName string, b []byte) (interface{}, error)
+	Marshal(msg interface{}) ([]byte, error)
 }
 
 func New(store Store, broker Broker) *Po {

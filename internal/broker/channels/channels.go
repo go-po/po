@@ -76,7 +76,7 @@ func (ch *Channels) listen() {
 		if !found {
 			return
 		}
-		data, err := registry.LookupData(record.Type, record.Data)
+		data, err := registry.Unmarshal(record.Type, record.Data)
 		if err != nil {
 			log.Printf("notify failed data: %s", err)
 			continue
