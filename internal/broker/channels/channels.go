@@ -2,6 +2,7 @@ package channels
 
 import (
 	"context"
+	"fmt"
 	"github.com/kyuff/po"
 	"github.com/kyuff/po/internal/store"
 	"log"
@@ -36,6 +37,10 @@ func (ch *Channels) Notify(ctx context.Context, records ...store.Record) error {
 }
 
 func (ch *Channels) Subscribe(ctx context.Context, subscriptionId, streamId string, subscriber interface{}) error {
+	handler, err := wrapSubscriber(subscriber)
+	if err != nil {
+		return err
+	}
 	ch.mu.Lock()
 	defer ch.mu.Unlock()
 
@@ -43,16 +48,16 @@ func (ch *Channels) Subscribe(ctx context.Context, subscriptionId, streamId stri
 	if !ok {
 		ch.subs[streamId] = make([]po.Handler, 0)
 	}
-	ch.subs[streamId] = append(ch.subs[streamId], wrapSubscriber(subscriber))
+	ch.subs[streamId] = append(ch.subs[streamId], handler)
 	return nil
 }
 
-func wrapSubscriber(subscriber interface{}) po.Handler {
+func wrapSubscriber(subscriber interface{}) (po.Handler, error) {
 	switch h := subscriber.(type) {
 	case po.Handler:
-		return h
+		return h, nil
 	default:
-		panic("no way to handle")
+		return nil, fmt.Errorf("no way to handle")
 	}
 }
 
