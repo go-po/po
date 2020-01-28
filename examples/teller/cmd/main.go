@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/kyuff/po"
-	"github.com/kyuff/po/examples/teller/commands"
-	"github.com/kyuff/po/examples/teller/views"
-	"github.com/kyuff/po/internal/broker/channels"
-	"github.com/kyuff/po/internal/store/inmemory"
+	"github.com/go-po/po"
+	"github.com/go-po/po/examples/teller/commands"
+	"github.com/go-po/po/examples/teller/views"
+	"github.com/go-po/po/internal/broker/channels"
+	"github.com/go-po/po/internal/store/inmemory"
 	"log"
 	"time"
 )

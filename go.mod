@@ -1,4 +1,4 @@
-module github.com/kyuff/po
+module github.com/go-po/po
 
 go 1.13
 

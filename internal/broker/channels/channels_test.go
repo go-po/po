@@ -2,7 +2,7 @@ package channels
 
 import (
 	"context"
-	"github.com/kyuff/po/internal/record"
+	"github.com/go-po/po/internal/record"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

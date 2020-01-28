@@ -2,7 +2,7 @@ package commands
 
 import (
 	"encoding/json"
-	"github.com/kyuff/po"
+	"github.com/go-po/po"
 )
 
 // AddCommand the number to the counter

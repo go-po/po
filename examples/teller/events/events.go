@@ -2,7 +2,7 @@ package events
 
 import (
 	"encoding/json"
-	"github.com/kyuff/po"
+	"github.com/go-po/po"
 )
 
 type AddedEvent struct {

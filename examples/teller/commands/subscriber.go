@@ -2,8 +2,8 @@ package commands
 
 import (
 	"context"
-	"github.com/kyuff/po"
-	"github.com/kyuff/po/examples/teller/events"
+	"github.com/go-po/po"
+	"github.com/go-po/po/examples/teller/events"
 	"log"
 )
 

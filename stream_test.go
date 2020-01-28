@@ -3,10 +3,10 @@ package po
 import (
 	"context"
 	"encoding/json"
-	"github.com/kyuff/po/internal/broker/mockbroker"
-	"github.com/kyuff/po/internal/record"
-	"github.com/kyuff/po/internal/registry"
-	"github.com/kyuff/po/internal/store/mockstore"
+	"github.com/go-po/po/internal/broker/mockbroker"
+	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/internal/registry"
+	"github.com/go-po/po/internal/store/mockstore"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

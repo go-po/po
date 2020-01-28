@@ -3,8 +3,8 @@ package inmemory
 import (
 	"context"
 	"fmt"
-	"github.com/kyuff/po/internal/record"
-	"github.com/kyuff/po/internal/store"
+	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/internal/store"
 	"sync"
 )
 

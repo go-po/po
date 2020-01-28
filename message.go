@@ -1,6 +1,6 @@
 package po
 
-import "github.com/kyuff/po/internal/record"
+import "github.com/go-po/po/internal/record"
 
 type Message struct {
 	Id     int64       // place in the stream, starting at 1

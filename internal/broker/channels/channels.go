@@ -3,9 +3,9 @@ package channels
 import (
 	"context"
 	"fmt"
-	"github.com/kyuff/po"
-	"github.com/kyuff/po/internal/record"
-	"github.com/kyuff/po/internal/registry"
+	"github.com/go-po/po"
+	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/internal/registry"
 	"log"
 	"sync"
 )
