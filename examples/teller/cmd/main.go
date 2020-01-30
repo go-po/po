@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"github.com/go-po/po"
+	"github.com/go-po/po/examples/teller/api"
 	"github.com/go-po/po/examples/teller/commands"
 	"github.com/go-po/po/examples/teller/views"
 	"github.com/go-po/po/internal/broker/channels"
 	"github.com/go-po/po/internal/store/inmemory"
 	"log"
-	"time"
+	"net/http"
 )
 
 func main() {
@@ -60,13 +61,14 @@ func main() {
 		log.Fatalf("could not project: %s", err)
 	}
 
-	// since views are eventually consistent, give it time to become that.
-	time.Sleep(1000 * time.Millisecond)
-
 	totalsA := views.VariableTotal{Total: 0}
 	err = store.Project(ctx, "vars-a", &totalsA)
 	if err != nil {
 		log.Fatal("failed to project variable a")
 	}
 	log.Printf("Total of a: %d", totalsA.Total)
+
+	err = http.ListenAndServe(":8000", api.Root(nil))
+	log.Printf("server topped: %s", err)
+
 }
