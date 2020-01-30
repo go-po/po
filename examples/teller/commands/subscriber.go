@@ -4,25 +4,23 @@ import (
 	"context"
 	"github.com/go-po/po"
 	"github.com/go-po/po/examples/teller/events"
-	"log"
 )
 
-func NewCommandSubscriber(po *po.Po) *Subscriber {
-	return &Subscriber{
-		po: po,
+func NewCommandSubscriber(dao *po.Po) *CmdSub {
+	return &CmdSub{
+		dao: dao,
 	}
 }
 
-type Subscriber struct {
-	po *po.Po
+type CmdSub struct {
+	dao *po.Po
 }
 
-func (sub *Subscriber) Handle(ctx context.Context, msg po.Message) error {
-	log.Printf("Message %s.%s.%d", msg.Stream, msg.Type, msg.Id)
+func (sub *CmdSub) Handle(ctx context.Context, msg po.Message) error {
 	switch cmd := msg.Data.(type) {
 	case DeclareCommand:
 		streamId := "vars-" + cmd.Name
-		stream := sub.po.Stream(ctx, streamId)
+		stream := sub.dao.Stream(ctx, streamId)
 		size, err := stream.Size()
 		if err != nil {
 			return err
@@ -32,10 +30,10 @@ func (sub *Subscriber) Handle(ctx context.Context, msg po.Message) error {
 		}
 		return stream.Append(events.DeclaredEvent{Name: cmd.Name})
 	case AddCommand:
-		return sub.po.Stream(ctx, "vars-"+cmd.Name).
+		return sub.dao.Stream(ctx, "vars-"+cmd.Name).
 			Append(events.AddedEvent{Value: cmd.Number})
 	case SubCommand:
-		return sub.po.Stream(ctx, "vars-"+cmd.Name).
+		return sub.dao.Stream(ctx, "vars-"+cmd.Name).
 			Append(events.SubtractedEvent{Value: cmd.Number})
 	default:
 		// nothing to do

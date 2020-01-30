@@ -105,6 +105,15 @@ func TestApi(t *testing.T) {
 		},
 		{
 			url:    "/api/vars/a",
+			method: http.MethodGet,
+			body:   nil,
+			verify: all(
+				code(200),
+				body("a=0"),
+			),
+		},
+		{
+			url:    "/api/vars/a",
 			method: http.MethodPost,
 			body:   nil,
 			verify: all(

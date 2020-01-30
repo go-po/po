@@ -56,6 +56,7 @@ func Var(app App, varName string) http.HandlerFunc {
 				return
 			}
 			out(writer, "%s=%d", varName, v)
+			return
 		case http.MethodPost:
 			err = app.Declare(request.Context(), varName)
 			if err != nil {
