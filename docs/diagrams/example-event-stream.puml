@@ -1,0 +1,50 @@
+@startuml
+
+left to right direction
+
+object A {
+  stream = "users-peter"
+  id.type = 1
+  id.stream = 1
+}
+
+object B {
+  stream = "users-peter"
+  id.type = 2
+  id.stream = 2
+}
+
+
+object C {
+  stream = "users-anna"
+  id.type = 3
+  id.stream = 1
+}
+
+object D {
+  stream = "users-anna"
+  id.type = 5
+  id.stream = 2
+}
+
+note bottom: Notice the gap in id.type
+
+object E {
+  stream = "users-peter"
+  id.type = 6
+  id.stream = 3
+}
+
+object F {
+  stream = "users-anna"
+  id.type = 7
+  id.stream = 3
+}
+
+A --> B
+B --> C
+C --> D
+D --> E
+E --> F
+
+@enduml
