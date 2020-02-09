@@ -3,7 +3,7 @@ package po
 import "strings"
 
 type StreamId struct {
-	Type   string
+	Group  string
 	Entity string
 }
 
@@ -11,23 +11,23 @@ func ParseStreamId(streamId string) StreamId {
 	i := strings.Index(streamId, "-")
 	if i < 0 {
 		return StreamId{
-			Type:   strings.TrimSpace(streamId),
+			Group:  strings.TrimSpace(streamId),
 			Entity: "",
 		}
 	}
 	return StreamId{
-		Type:   strings.TrimSpace(streamId[0:i]),
+		Group:  strings.TrimSpace(streamId[0:i]),
 		Entity: strings.TrimSpace(streamId[i+1:]),
 	}
 }
 
 func (id StreamId) String() string {
-	if id.hasEntity() {
-		return id.Type + "-" + id.Entity
+	if id.HasEntity() {
+		return id.Group + "-" + id.Entity
 	}
-	return id.Type
+	return id.Group
 }
 
-func (id StreamId) hasEntity() bool {
+func (id StreamId) HasEntity() bool {
 	return strings.TrimSpace(id.Entity) != ""
 }

@@ -51,7 +51,7 @@ func (stream *Stream) Append(messages ...interface{}) error {
 			return err
 		}
 		record := record.Record{
-			Id:     stream.size + 1,
+			Number: stream.size + 1,
 			Stream: stream.ID,
 			Data:   b,
 			Type:   stream.registry.LookupType(msg),

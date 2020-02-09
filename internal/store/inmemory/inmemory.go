@@ -20,6 +20,10 @@ type InMemory struct {
 	data map[string][]record.Record // records by stream id
 }
 
+func (mem *InMemory) SequenceType(ctx context.Context, streamType string) (int64, error) {
+	return 5, nil // TODO
+}
+
 func (mem *InMemory) Begin(ctx context.Context) (store.Tx, error) {
 	return &inMemoryTx{
 		records: make([]record.Record, 0),

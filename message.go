@@ -6,7 +6,7 @@ type Message struct {
 	Id     int64       // place in the stream, starting at 1
 	Stream string      // name of the stream this message belongs to
 	Type   string      // name of the type of the message
-	Data   interface{} // instance of the given Type
+	Data   interface{} // instance of the given Group
 }
 
 func ToMessage(registry Registry, r record.Record) (Message, error) {
@@ -15,7 +15,7 @@ func ToMessage(registry Registry, r record.Record) (Message, error) {
 		return Message{}, err
 	}
 	return Message{
-		Id:     r.Id,
+		Id:     r.Number,
 		Stream: r.Stream,
 		Data:   data,
 		Type:   r.Type,
