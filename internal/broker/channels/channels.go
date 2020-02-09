@@ -12,15 +12,17 @@ import (
 
 func New() *Channels {
 	n := &Channels{
-		comm: make(chan record.Record),
-		subs: make(map[string][]po.Handler),
+		comm:  make(chan record.Record),
+		comms: make(map[string]chan record.Record),
+		subs:  make(map[string][]po.Handler),
 	}
 	n.Start()
 	return n
 }
 
 type Channels struct {
-	comm chan record.Record
+	comm  chan record.Record
+	comms map[string]chan record.Record
 
 	mu   sync.Mutex // protects below
 	subs map[string][]po.Handler
