@@ -7,18 +7,18 @@ import (
 	"github.com/go-po/po/internal/registry"
 )
 
-func newSubscriber(seq TypeSequencer) *subscriber {
+func newSubscriber(groupNumbers GroupNumberAssigner) *subscriber {
 	return &subscriber{
-		seq: seq,
+		groupNumbers: groupNumbers,
 	}
 }
 
-type TypeSequencer interface {
-	SequenceType(ctx context.Context, streamType string) (int64, error)
+type GroupNumberAssigner interface {
+	AssignGroupNumber(ctx context.Context, r record.Record) (int64, error)
 }
 
 type subscriber struct {
-	seq TypeSequencer
+	groupNumbers GroupNumberAssigner
 }
 
 func (sub *subscriber) addInbound(ctx context.Context, streamId po.StreamId, ch <-chan record.Record, h interface{}) error {
@@ -41,12 +41,12 @@ func (sub *subscriber) handle(subCtx context.Context, streamId po.StreamId, ch <
 		case rec := <-ch:
 			ctx := context.Background()
 			incStreamId := po.ParseStreamId(rec.Stream)
-			seq, err := sub.seq.SequenceType(ctx, incStreamId.Group)
+			groupNumber, err := sub.groupNumbers.AssignGroupNumber(ctx, rec)
 			if err != nil {
 				// TODO make an err channel for this
 				// for now, ignore the err
 			}
-			rec.GroupNumber = seq
+			rec.GroupNumber = groupNumber
 			err = sub.tryRecord(streamId, rec, incStreamId, handler)
 			if err != nil {
 				// TODO make an err channel for this

@@ -7,7 +7,7 @@ import (
 	"github.com/go-po/po/internal/record"
 )
 
-func New(seq TypeSequencer) *Channels {
+func New(seq GroupNumberAssigner) *Channels {
 	return &Channels{
 		pub: newPublisher(),
 		sub: newSubscriber(seq),

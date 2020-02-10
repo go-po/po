@@ -51,7 +51,7 @@ type mockSeq struct {
 	curr int64
 }
 
-func (mock mockSeq) SequenceType(ctx context.Context, streamType string) (int64, error) {
+func (mock mockSeq) AssignGroupNumber(ctx context.Context, r record.Record) (int64, error) {
 	mock.curr = mock.curr + 1
 	return mock.curr, nil
 }

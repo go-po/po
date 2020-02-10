@@ -30,6 +30,15 @@ func main() {
 		log.Fatalf("failed appending: %s", err)
 	}
 
+	err = store.Stream(context.Background(), "messages-german").
+		Append(
+			simple.HelloMessage{Greeting: "Guten Tag"},
+		)
+
+	if err != nil {
+		log.Fatalf("failed appending: %s", err)
+	}
+
 	// message delivery is eventually consistent. Give time to build that up.
 	time.Sleep(50 * time.Millisecond)
 }
