@@ -1,33 +1,33 @@
-package po
+package stream
 
 import "strings"
 
-type StreamId struct {
+type Id struct {
 	Group  string
 	Entity string
 }
 
-func ParseStreamId(streamId string) StreamId {
+func ParseId(streamId string) Id {
 	i := strings.Index(streamId, "-")
 	if i < 0 {
-		return StreamId{
+		return Id{
 			Group:  strings.TrimSpace(streamId),
 			Entity: "",
 		}
 	}
-	return StreamId{
+	return Id{
 		Group:  strings.TrimSpace(streamId[0:i]),
 		Entity: strings.TrimSpace(streamId[i+1:]),
 	}
 }
 
-func (id StreamId) String() string {
+func (id Id) String() string {
 	if id.HasEntity() {
 		return id.Group + "-" + id.Entity
 	}
 	return id.Group
 }
 
-func (id StreamId) HasEntity() bool {
+func (id Id) HasEntity() bool {
 	return strings.TrimSpace(id.Entity) != ""
 }

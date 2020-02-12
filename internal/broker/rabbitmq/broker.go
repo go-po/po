@@ -3,7 +3,9 @@ package rabbitmq
 import (
 	"context"
 	"github.com/go-po/po"
+	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/internal/stream"
 	"github.com/streadway/amqp"
 )
 
@@ -40,9 +42,14 @@ func New(uri, exchange string) (*Broker, error) {
 var _ po.Broker = &Broker{}
 
 type Broker struct {
-	ConnInfo ConnInfo
-	pub      *Publisher
-	sub      *Subscriber
+	ConnInfo    ConnInfo
+	pub         *Publisher
+	sub         *Subscriber
+	distributor broker.Distributor
+}
+
+func (broker *Broker) Distributor(distributor broker.Distributor) {
+	broker.distributor = distributor
 }
 
 func (broker *Broker) Notify(ctx context.Context, records ...record.Record) error {
@@ -55,8 +62,8 @@ func (broker *Broker) Notify(ctx context.Context, records ...record.Record) erro
 	return nil
 }
 
-func (broker *Broker) Subscribe(ctx context.Context, subscriptionId, streamId string, subscriber interface{}) error {
-	return broker.sub.subscribe(ctx, subscriptionId, po.ParseStreamId(streamId), subscriber)
+func (broker *Broker) Subscribe(ctx context.Context, streamId stream.Id) error {
+	return broker.sub.subscribe(ctx, streamId)
 }
 
 func (broker *Broker) connect() (*amqp.Channel, error) {

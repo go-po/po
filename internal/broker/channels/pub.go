@@ -2,8 +2,8 @@ package channels
 
 import (
 	"context"
-	"github.com/go-po/po"
 	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/internal/stream"
 	"sync"
 )
 
@@ -18,7 +18,7 @@ type publisher struct {
 	mu  sync.Mutex
 }
 
-func (pub *publisher) getChan(context context.Context, streamId po.StreamId) chan record.Record {
+func (pub *publisher) getChan(context context.Context, streamId stream.Id) chan record.Record {
 	pub.mu.Lock()
 	defer pub.mu.Unlock()
 	_, ok := pub.out[streamId.Group]
@@ -29,7 +29,7 @@ func (pub *publisher) getChan(context context.Context, streamId po.StreamId) cha
 }
 
 func (pub *publisher) notify(ctx context.Context, record record.Record) error {
-	streamId := po.ParseStreamId(record.Stream)
+	streamId := stream.ParseId(record.Stream)
 	ch := pub.getChan(ctx, streamId)
 	ch <- record
 	return nil

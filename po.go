@@ -2,9 +2,11 @@ package po
 
 import (
 	"context"
+	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/internal/store"
+	"github.com/go-po/po/internal/stream"
 )
 
 type Store interface {
@@ -15,7 +17,8 @@ type Store interface {
 
 type Broker interface {
 	Notify(ctx context.Context, records ...record.Record) error
-	Subscribe(ctx context.Context, subscriptionId, streamId string, subscriber interface{}) error
+	Subscribe(ctx context.Context, streamId stream.Id) error
+	Distributor(distributor broker.Distributor)
 }
 
 type Registry interface {
@@ -24,16 +27,25 @@ type Registry interface {
 	Marshal(msg interface{}) ([]byte, error)
 }
 
+type Distributor interface {
+	broker.Distributor
+	Register(ctx context.Context, subscriberId string, streamId stream.Id, subscriber interface{}) error
+}
+
 func New(store Store, broker Broker) *Po {
+	dist := newDistributor()
+	broker.Distributor(dist)
 	return &Po{
-		store:  store,
-		broker: broker,
+		store:       store,
+		broker:      broker,
+		distributor: dist,
 	}
 }
 
 type Po struct {
-	store  Store
-	broker Broker
+	store       Store
+	broker      Broker
+	distributor Distributor
 }
 
 func (po *Po) Stream(ctx context.Context, streamId string) *Stream {
@@ -52,7 +64,12 @@ func (po *Po) Project(ctx context.Context, streamId string, projection interface
 }
 
 func (po *Po) Subscribe(ctx context.Context, subscriptionId, streamId string, subscriber interface{}) error {
-	return po.broker.Subscribe(ctx, subscriptionId, streamId, subscriber)
+	id := stream.ParseId(streamId)
+	err := po.distributor.Register(ctx, subscriptionId, id, subscriber)
+	if err != nil {
+		return err
+	}
+	return po.broker.Subscribe(ctx, id)
 }
 
 func RegisterMessages(initializers ...registry.MessageUnmarshaller) {

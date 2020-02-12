@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-po/po"
+	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/internal/stream"
 )
 
 func New(seq GroupNumberAssigner) *Channels {
@@ -15,24 +17,26 @@ func New(seq GroupNumberAssigner) *Channels {
 }
 
 type Channels struct {
-	pub *publisher
-	sub *subscriber
+	pub         *publisher
+	sub         *subscriber
+	distributor broker.Distributor
 }
 
-var _ po.Broker = &Channels{}
-
-func (ch *Channels) Subscribe(ctx context.Context, subscriptionId, stream string, subscriber interface{}) error {
-	streamId := po.ParseStreamId(stream)
-
+func (ch *Channels) Subscribe(ctx context.Context, streamId stream.Id) error {
 	streamChannel := ch.pub.getChan(ctx, streamId)
-
-	err := ch.sub.addInbound(ctx, streamId, streamChannel, subscriber)
+	err := ch.sub.addInbound(ctx, streamId, streamChannel)
 	if err != nil {
 		return err
 	}
 
 	return nil
 }
+
+func (ch *Channels) Distributor(distributor broker.Distributor) {
+	ch.distributor = distributor
+}
+
+var _ po.Broker = &Channels{}
 
 func (ch *Channels) Notify(ctx context.Context, records ...record.Record) error {
 	for _, record := range records {

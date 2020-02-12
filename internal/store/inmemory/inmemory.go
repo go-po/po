@@ -3,9 +3,9 @@ package inmemory
 import (
 	"context"
 	"fmt"
-	"github.com/go-po/po"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
+	"github.com/go-po/po/internal/stream"
 	"sync"
 )
 
@@ -24,7 +24,7 @@ type InMemory struct {
 func (mem *InMemory) AssignGroupNumber(ctx context.Context, r record.Record) (int64, error) {
 	mem.mu.Lock()
 	defer mem.mu.Unlock()
-	id := po.ParseStreamId(r.Stream)
+	id := stream.ParseId(r.Stream)
 	groupData, found := mem.data[id.Group]
 	if !found {
 		return -1, fmt.Errorf("unknown stream group: %s", id.Group)
@@ -60,7 +60,7 @@ func (mem *InMemory) Store(tx store.Tx, record record.Record) error {
 }
 
 func (mem *InMemory) ReadRecords(ctx context.Context, streamId string) ([]record.Record, error) {
-	id := po.ParseStreamId(streamId)
+	id := stream.ParseId(streamId)
 	data, found := mem.data[id.Group]
 	if !found {
 		return nil, nil
@@ -83,7 +83,7 @@ func (tx inMemoryTx) Commit() error {
 	tx.store.mu.Lock()
 	defer tx.store.mu.Unlock()
 	for _, r := range tx.records {
-		streamId := po.ParseStreamId(r.Stream)
+		streamId := stream.ParseId(r.Stream)
 		_, hasStream := tx.store.data[streamId.Group]
 		if !hasStream {
 			tx.store.data[streamId.Group] = make([]record.Record, 0)

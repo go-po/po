@@ -3,10 +3,10 @@ package rabbitmq
 import (
 	"context"
 	"fmt"
-	"github.com/go-po/po"
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/internal/registry"
+	"github.com/go-po/po/internal/stream"
 	"github.com/streadway/amqp"
+	"sync"
 )
 
 func newSubscriber(broker *Broker) *Subscriber {
@@ -19,6 +19,7 @@ func newSubscriber(broker *Broker) *Subscriber {
 type Subscriber struct {
 	broker  *Broker
 	channel *amqp.Channel
+	mu      sync.Mutex // protects the queues map
 	queues  map[string]amqp.Queue
 }
 
@@ -28,65 +29,16 @@ func (sub *Subscriber) connect() error {
 	return err
 }
 
-func (sub *Subscriber) subscribe(ctx context.Context, subscriptionId string, id po.StreamId, subscriber interface{}) error {
-	queue, err := sub.getQueue(id)
-	if err != nil {
-		return err
-	}
+func (sub *Subscriber) subscribe(ctx context.Context, id stream.Id) error {
+	sub.mu.Lock()
+	defer sub.mu.Unlock()
 
-	deliveries, err := sub.channel.Consume(
-		queue.Name,     // name
-		subscriptionId, // consumerTag,
-		false,          // noAck
-		false,          // exclusive
-		false,          // noLocal
-		false,          // noWait
-		nil,            // arguments
-	)
-	handler, err := wrapSubscriber(subscriber)
-	if err != nil {
-		return err
-	}
-	go func() {
-		for msg := range deliveries {
-			stream, number, groupNumber, err := parseMessageId(msg.MessageId)
-			r := record.Record{
-				Number:      number,
-				Stream:      stream,
-				Data:        msg.Body,
-				Type:        msg.Type,
-				GroupNumber: groupNumber,
-				Time:        msg.Timestamp,
-			}
-
-			message, err := po.ToMessage(registry.DefaultRegistry, r)
-			if err != nil {
-				// TODO
-				fmt.Printf("Failed parsing: %s", err)
-			}
-
-			err = handler.Handle(context.Background(), message)
-			if err != nil {
-				// TODO
-				fmt.Printf("failed handling: %s", err)
-			}
-
-			err = msg.Ack(true)
-			if err != nil {
-				// TODO
-				fmt.Printf("failed acking: %s", err)
-			}
-		}
-	}()
-
-	return nil
-}
-
-func (sub *Subscriber) getQueue(id po.StreamId) (amqp.Queue, error) {
 	queue, hasQueue := sub.queues[id.Group]
 	if hasQueue {
-		return queue, nil
+		// already defined, bail out now
+		return nil
 	}
+
 	queue, err := sub.channel.QueueDeclare(
 		"po.stream."+id.Group, // name of the queue
 		true,                  // durable
@@ -97,9 +49,8 @@ func (sub *Subscriber) getQueue(id po.StreamId) (amqp.Queue, error) {
 
 	)
 	if err != nil {
-		return amqp.Queue{}, err
+		return err
 	}
-	sub.queues[id.Group] = queue
 
 	err = sub.channel.QueueBind(
 		queue.Name,                   // name of the queue
@@ -109,17 +60,50 @@ func (sub *Subscriber) getQueue(id po.StreamId) (amqp.Queue, error) {
 		nil,                          // arguments
 	)
 	if err != nil {
-		return amqp.Queue{}, err
+		return err
 	}
 
-	return queue, nil
+	deliveries, err := sub.channel.Consume(
+		queue.Name, // name
+		id.Group,   // consumerTag, unique id for the consumer on the given queue
+		false,      // noAck, false means deliveries should call Ack/NoAck explicitly
+		false,      // exclusive, false to allow others to consume the same queue
+		false,      // noLocal
+		false,      // noWait
+		nil,        // arguments
+	)
+
+	// closes when the deliverers are closed, which happens along with the amqp channel
+	go sub.deliver(deliveries)
+
+	sub.queues[id.Group] = queue
+
+	return nil
 }
 
-func wrapSubscriber(subscriber interface{}) (po.Handler, error) {
-	switch h := subscriber.(type) {
-	case po.Handler:
-		return h, nil
-	default:
-		return nil, fmt.Errorf("no way to handle")
+func (sub *Subscriber) deliver(deliveries <-chan amqp.Delivery) {
+	for msg := range deliveries {
+		stream, number, groupNumber, err := parseMessageId(msg.MessageId)
+		rec := record.Record{
+			Number:      number,
+			Stream:      stream,
+			Data:        msg.Body,
+			Type:        msg.Type,
+			GroupNumber: groupNumber,
+			Time:        msg.Timestamp,
+		}
+
+		err = sub.broker.distributor.Distribute(context.Background(), rec)
+		if err != nil {
+			// TODO
+			fmt.Printf("failed handling: %s", err)
+		}
+
+		// TODO figure out how to use Nack in this case
+		err = msg.Ack(true)
+		if err != nil {
+			// TODO
+			fmt.Printf("failed acking: %s", err)
+		}
 	}
 }
