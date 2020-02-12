@@ -89,5 +89,13 @@ func (broker *Broker) connect() (*amqp.Channel, error) {
 }
 
 func (broker *Broker) Shutdown() error {
+	err := broker.sub.channel.Close()
+	if err != nil {
+		return err
+	}
+	err = broker.pub.channel.Close()
+	if err != nil {
+		return err
+	}
 	return nil
 }

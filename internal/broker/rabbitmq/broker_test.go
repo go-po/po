@@ -39,7 +39,7 @@ func TestBroker_Roundtrip(t *testing.T) {
 	}
 
 	// verify receive
-	time.Sleep(time.Second) // Wait for rabbit to distribute
+	time.Sleep(200 * time.Millisecond) // Wait for rabbit to distribute
 	if assert.Equal(t, 5, len(stub.records), "number of records received") {
 		assert.Equal(t, int64(1), stub.records[0].Number)
 		assert.Equal(t, "my test stream", stub.records[0].Stream)
