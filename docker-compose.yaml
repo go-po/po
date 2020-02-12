@@ -9,10 +9,11 @@ services:
       POSTGRES_USER: po
       POSTGRES_PASSWORD: po
   rabbitmq:
-    image: rabbitmq
+    image: rabbitmq:3.7-management
     container_name: po_mq
     ports:
       - "5671:5672"
+      - "15672:15672"
     environment:
       RABBITMQ_ERLANG_COOKIE: po
       RABBITMQ_DEFAULT_USER: po

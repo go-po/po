@@ -1,6 +1,9 @@
 package po
 
-import "github.com/go-po/po/internal/record"
+import (
+	"github.com/go-po/po/internal/record"
+	"time"
+)
 
 type Message struct {
 	Number      int64       // place in the stream, starting at 1
@@ -8,6 +11,7 @@ type Message struct {
 	Type        string      // name of the type of the message
 	Data        interface{} // instance of the given Group
 	GroupNumber int64       // Ordering within the group
+	Time        time.Time   // time the message was first recorded
 }
 
 func ToMessage(registry Registry, r record.Record) (Message, error) {
@@ -21,5 +25,6 @@ func ToMessage(registry Registry, r record.Record) (Message, error) {
 		Data:        data,
 		Type:        r.Type,
 		GroupNumber: r.GroupNumber,
+		Time:        r.Time,
 	}, nil
 }
