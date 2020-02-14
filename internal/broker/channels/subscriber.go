@@ -36,11 +36,12 @@ func (sub *subscriber) handle(subCtx context.Context, streamId stream.Id, ch <-c
 		case <-subCtx.Done():
 			return nil
 		case rec := <-ch:
-			err := sub.dist.Distribute(context.Background(), rec)
+			_, err := sub.dist.Distribute(context.Background(), rec)
 			if err != nil {
 				// TODO make an err channel for this
 				// for now, ignore the err
 			}
+
 			//
 			//ctx := context.Background()
 			//incStreamId := po.ParseStreamId(rec.Stream)

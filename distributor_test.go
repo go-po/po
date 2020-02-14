@@ -11,7 +11,9 @@ import (
 )
 
 func TestDistributor_Distribute(t *testing.T) {
-	type deps struct{}
+	type deps struct {
+		groupNumbers *stubGroupNumberAssigner
+	}
 	type subscription struct {
 		stream string
 		sub    *stubDistributorSub
@@ -25,24 +27,26 @@ func TestDistributor_Distribute(t *testing.T) {
 		}
 		return sub
 	}
-	type testErrors struct {
-		dist     []error
-		register []error
+	type distResponse struct {
+		ack bool
+		err error
 	}
-	type verify func(t *testing.T, errs testErrors, subs subs, deps deps)
+	type verify func(t *testing.T, responses []distResponse, errs []error, subs subs, deps deps)
 	all := func(v ...verify) []verify { return v }
 	noRegisterErr := func() verify {
-		return func(t *testing.T, errs testErrors, subs subs, deps deps) {
-			assert.Empty(t, errs.register, "register errors")
+		return func(t *testing.T, responses []distResponse, errs []error, subs subs, deps deps) {
+			assert.Empty(t, errs, "register errors")
 		}
 	}
 	noDistErr := func() verify {
-		return func(t *testing.T, errs testErrors, subs subs, deps deps) {
-			assert.Empty(t, errs.dist, "dist errors")
+		return func(t *testing.T, responses []distResponse, errs []error, subs subs, deps deps) {
+			for i, resp := range responses {
+				assert.NoError(t, resp.err, "dist (%d) error", i)
+			}
 		}
 	}
 	subGotMessage := func(subId string, number int64, stream string) verify {
-		return func(t *testing.T, errs testErrors, subs subs, deps deps) {
+		return func(t *testing.T, responses []distResponse, errs []error, subs subs, deps deps) {
 			sub := getSub(t, subs, subId)
 			var found = false
 			for _, msg := range sub.sub.msgs {
@@ -54,7 +58,7 @@ func TestDistributor_Distribute(t *testing.T) {
 		}
 	}
 	subGotMessageData := func(subId string, number int64, stream string, data interface{}) verify {
-		return func(t *testing.T, errs testErrors, subs subs, deps deps) {
+		return func(t *testing.T, responses []distResponse, errs []error, subs subs, deps deps) {
 			sub := getSub(t, subs, subId)
 			var found = false
 			for _, msg := range sub.sub.msgs {
@@ -64,6 +68,11 @@ func TestDistributor_Distribute(t *testing.T) {
 				}
 			}
 			assert.True(t, found, "sub got message data")
+		}
+	}
+	distAccept := func(dist int, expected bool) verify {
+		return func(t *testing.T, responses []distResponse, errs []error, subs subs, deps deps) {
+			assert.Equal(t, expected, responses[dist].ack, "dist accept")
 		}
 	}
 	tests := []struct {
@@ -105,32 +114,36 @@ func TestDistributor_Distribute(t *testing.T) {
 				noDistErr(),
 				subGotMessage("sub", 1, "test stream"),
 				subGotMessageData("sub", 1, "test stream", TestMessage{Foo: "Bar"}),
+				distAccept(0, true),
 			),
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// setup
-			dist := newDistributor()
-			var errs testErrors
+			if test.deps.groupNumbers == nil {
+				test.deps.groupNumbers = &stubGroupNumberAssigner{}
+			}
+			dist := newDistributor(test.deps.groupNumbers)
+			var errs []error
 			for id, s := range test.subs {
 				err := dist.Register(context.Background(), id, stream.ParseId(s.stream), s.sub)
 				if err != nil {
-					errs.register = append(errs.register, err)
+					errs = append(errs, err)
 				}
 			}
 
 			// execute
+			var responses []distResponse
 			for _, record := range test.records {
-				err := dist.Distribute(context.Background(), record)
-				if err != nil {
-					errs.dist = append(errs.dist, err)
-				}
+				r := distResponse{}
+				r.ack, r.err = dist.Distribute(context.Background(), record)
+				responses = append(responses, r)
 			}
 
 			// verify
 			for _, v := range test.verify {
-				v(t, errs, test.subs, test.deps)
+				v(t, responses, errs, test.subs, test.deps)
 			}
 
 		})
@@ -159,4 +172,19 @@ func init() {
 func (stub *stubDistributorSub) Handle(ctx context.Context, msg Message) error {
 	stub.msgs = append(stub.msgs, msg)
 	return stub.err
+}
+
+type stubGroupNumberAssigner struct {
+	assigned []record.Record
+	fn       func(r record.Record) (int64, error)
+	err      error
+	number   int64
+}
+
+func (stub *stubGroupNumberAssigner) AssignGroupNumber(ctx context.Context, r record.Record) (int64, error) {
+	stub.assigned = append(stub.assigned, r)
+	if stub.fn == nil {
+		return stub.number, stub.err
+	}
+	return stub.fn(r)
 }

@@ -50,10 +50,11 @@ func TestBroker_Roundtrip(t *testing.T) {
 
 type stubDistributor struct {
 	records []record.Record
+	ack     bool
 	err     error
 }
 
-func (stub *stubDistributor) Distribute(ctx context.Context, record record.Record) error {
+func (stub *stubDistributor) Distribute(ctx context.Context, record record.Record) (bool, error) {
 	stub.records = append(stub.records, record)
-	return stub.err
+	return stub.ack, stub.err
 }

@@ -6,5 +6,5 @@ import (
 )
 
 type Distributor interface {
-	Distribute(ctx context.Context, record record.Record) error
+	Distribute(ctx context.Context, record record.Record) (bool, error)
 }

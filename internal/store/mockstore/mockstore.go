@@ -11,6 +11,10 @@ type MockStore struct {
 	Records []record.Record
 }
 
+func (mock *MockStore) AssignGroupNumber(ctx context.Context, r record.Record) (int64, error) {
+	return 0, nil
+}
+
 func (mock *MockStore) ReadRecords(ctx context.Context, streamId string) ([]record.Record, error) {
 	return mock.Records, nil
 }

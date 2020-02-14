@@ -93,7 +93,7 @@ func (sub *Subscriber) deliver(deliveries <-chan amqp.Delivery) {
 			Time:        msg.Timestamp,
 		}
 
-		err = sub.broker.distributor.Distribute(context.Background(), rec)
+		_, err = sub.broker.distributor.Distribute(context.Background(), rec)
 		if err != nil {
 			// TODO
 			fmt.Printf("failed handling: %s", err)

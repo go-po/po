@@ -13,6 +13,7 @@ type Store interface {
 	ReadRecords(ctx context.Context, streamId string) ([]record.Record, error)
 	Begin(ctx context.Context) (store.Tx, error)
 	Store(tx store.Tx, record record.Record) error
+	AssignGroupNumber(ctx context.Context, r record.Record) (int64, error)
 }
 
 type Broker interface {
@@ -33,7 +34,7 @@ type Distributor interface {
 }
 
 func New(store Store, broker Broker) *Po {
-	dist := newDistributor()
+	dist := newDistributor(store)
 	broker.Distributor(dist)
 	return &Po{
 		store:       store,
