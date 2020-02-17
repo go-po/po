@@ -62,7 +62,7 @@ func TestDistributor_Distribute(t *testing.T) {
 			sub := getSub(t, subs, subId)
 			var found = false
 			for _, msg := range sub.sub.msgs {
-				if msg.Stream == stream && msg.Number == number {
+				if msg.Stream.String() == stream && msg.Number == number {
 					found = true
 				}
 			}
@@ -74,7 +74,7 @@ func TestDistributor_Distribute(t *testing.T) {
 			sub := getSub(t, subs, subId)
 			var found = false
 			for _, msg := range sub.sub.msgs {
-				if msg.Stream == stream && msg.Number == number {
+				if msg.Stream.String() == stream && msg.Number == number {
 					found = true
 					assert.Equal(t, data, msg.Data, "sub got message data content")
 				}
@@ -114,7 +114,7 @@ func TestDistributor_Distribute(t *testing.T) {
 			records: []record.Record{
 				{
 					Number:      1,
-					Stream:      "test stream",
+					Stream:      stream.ParseId("test stream"),
 					Data:        []byte(`{ "Foo" : "Bar"}`),
 					Type:        "distributor.TestMessage",
 					GroupNumber: 0,

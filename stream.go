@@ -12,7 +12,7 @@ type Appender interface {
 }
 
 type Stream struct {
-	ID       string          // Unique ID of the stream
+	ID       stream.Id       // Unique ID of the stream
 	ctx      context.Context // to use for the operation
 	store    Store           // used to store records
 	broker   Broker

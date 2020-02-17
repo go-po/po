@@ -7,6 +7,7 @@ import (
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/internal/store/mockstore"
+	"github.com/go-po/po/stream"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -80,7 +81,7 @@ func TestStream_Append(t *testing.T) {
 			assert.Equal(t, expected.Stream, got.Stream, "broker.Stream")
 		}
 	}
-	streamId := "test"
+	streamId := stream.ParseId("test")
 
 	records := func(count int) []record.Record {
 		var result []record.Record

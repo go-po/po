@@ -83,10 +83,10 @@ func (sub *Subscriber) subscribe(ctx context.Context, id stream.Id) error {
 
 func (sub *Subscriber) deliver(deliveries <-chan amqp.Delivery) {
 	for msg := range deliveries {
-		stream, number, groupNumber, err := parseMessageId(msg.MessageId)
+		streamId, number, groupNumber, err := parseMessageId(msg.MessageId)
 		rec := record.Record{
 			Number:      number,
-			Stream:      stream,
+			Stream:      stream.ParseId(streamId),
 			Data:        msg.Body,
 			Type:        msg.Type,
 			GroupNumber: groupNumber,

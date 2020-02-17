@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
+	"github.com/go-po/po/stream"
 )
 
 type MockStore struct {
@@ -15,7 +16,7 @@ func (mock *MockStore) AssignGroupNumber(ctx context.Context, r record.Record) (
 	return 0, nil
 }
 
-func (mock *MockStore) ReadRecords(ctx context.Context, streamId string) ([]record.Record, error) {
+func (mock *MockStore) ReadRecords(ctx context.Context, id stream.Id) ([]record.Record, error) {
 	return mock.Records, nil
 }
 

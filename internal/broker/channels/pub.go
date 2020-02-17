@@ -29,8 +29,7 @@ func (pub *publisher) getChan(context context.Context, streamId stream.Id) chan 
 }
 
 func (pub *publisher) notify(ctx context.Context, record record.Record) error {
-	streamId := stream.ParseId(record.Stream)
-	ch := pub.getChan(ctx, streamId)
+	ch := pub.getChan(ctx, record.Stream)
 	ch <- record
 	return nil
 

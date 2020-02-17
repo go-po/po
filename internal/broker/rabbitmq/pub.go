@@ -3,7 +3,6 @@ package rabbitmq
 import (
 	"context"
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/stream"
 	"github.com/streadway/amqp"
 )
 
@@ -13,11 +12,10 @@ type Publisher struct {
 }
 
 func (pub *Publisher) notify(ctx context.Context, record record.Record) error {
-	id := stream.ParseId(record.Stream)
 	return pub.channel.Publish(pub.broker.ConnInfo.Exchange,
-		id.Group, // routing key,
-		false,    // mandatory
-		false,    // immediate
+		record.Stream.Group, // routing key,
+		false,               // mandatory
+		false,               // immediate
 		amqp.Publishing{
 			Headers:         amqp.Table{},
 			ContentType:     "application/json",

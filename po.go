@@ -11,7 +11,7 @@ import (
 )
 
 type Store interface {
-	ReadRecords(ctx context.Context, streamId string) ([]record.Record, error)
+	ReadRecords(ctx context.Context, id stream.Id) ([]record.Record, error)
 	Begin(ctx context.Context) (store.Tx, error)
 	Store(tx store.Tx, record record.Record) error
 	AssignGroupNumber(ctx context.Context, r record.Record) (int64, error)
@@ -53,7 +53,7 @@ type Po struct {
 
 func (po *Po) Stream(ctx context.Context, streamId string) *Stream {
 	return &Stream{
-		ID:       streamId,
+		ID:       stream.ParseId(streamId),
 		ctx:      ctx,
 		store:    po.store,
 		broker:   po.broker,

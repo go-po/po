@@ -28,7 +28,7 @@ func TestBroker_Roundtrip(t *testing.T) {
 	for i := 1; i <= 5; i++ {
 		err = broker.Notify(context.Background(), record.Record{
 			Number:      int64(i),
-			Stream:      "my test stream",
+			Stream:      stream.ParseId("my test stream"),
 			Data:        []byte(`{ "Foo" : "Bar" }`),
 			Type:        "rabbitmq.TestMessage",
 			Time:        time.Now(),
@@ -42,7 +42,7 @@ func TestBroker_Roundtrip(t *testing.T) {
 	time.Sleep(200 * time.Millisecond) // Wait for rabbit to distribute
 	if assert.Equal(t, 5, len(stub.records), "number of records received") {
 		assert.Equal(t, int64(1), stub.records[0].Number)
-		assert.Equal(t, "my test stream", stub.records[0].Stream)
+		assert.Equal(t, "my test stream", stub.records[0].Stream.String())
 		assert.Equal(t, []byte(`{ "Foo" : "Bar" }`), stub.records[0].Data)
 	}
 

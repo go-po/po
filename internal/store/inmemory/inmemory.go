@@ -24,10 +24,9 @@ type InMemory struct {
 func (mem *InMemory) AssignGroupNumber(ctx context.Context, r record.Record) (int64, error) {
 	mem.mu.Lock()
 	defer mem.mu.Unlock()
-	id := stream.ParseId(r.Stream)
-	groupData, found := mem.data[id.Group]
+	groupData, found := mem.data[r.Stream.Group]
 	if !found {
-		return -1, fmt.Errorf("unknown stream group: %s", id.Group)
+		return -1, fmt.Errorf("unknown stream group: %s", r.Stream.Group)
 	}
 	for i, item := range groupData {
 		if item.Stream == r.Stream && item.Number == r.Number {
@@ -38,7 +37,7 @@ func (mem *InMemory) AssignGroupNumber(ctx context.Context, r record.Record) (in
 			return groupNumber, nil
 		}
 	}
-	return -1, fmt.Errorf("number %d not found in stream %s", r.Number, id.Group)
+	return -1, fmt.Errorf("number %d not found in stream %s", r.Number, r.Stream.Group)
 
 }
 
@@ -59,15 +58,14 @@ func (mem *InMemory) Store(tx store.Tx, record record.Record) error {
 	return nil
 }
 
-func (mem *InMemory) ReadRecords(ctx context.Context, streamId string) ([]record.Record, error) {
-	id := stream.ParseId(streamId)
+func (mem *InMemory) ReadRecords(ctx context.Context, id stream.Id) ([]record.Record, error) {
 	data, found := mem.data[id.Group]
 	if !found {
 		return nil, nil
 	}
 	var result []record.Record
 	for _, r := range data {
-		if r.Stream == streamId {
+		if r.Stream.String() == id.String() {
 			result = append(result, r)
 		}
 	}
@@ -83,12 +81,12 @@ func (tx inMemoryTx) Commit() error {
 	tx.store.mu.Lock()
 	defer tx.store.mu.Unlock()
 	for _, r := range tx.records {
-		streamId := stream.ParseId(r.Stream)
-		_, hasStream := tx.store.data[streamId.Group]
+
+		_, hasStream := tx.store.data[r.Stream.Group]
 		if !hasStream {
-			tx.store.data[streamId.Group] = make([]record.Record, 0)
+			tx.store.data[r.Stream.Group] = make([]record.Record, 0)
 		}
-		tx.store.data[streamId.Group] = append(tx.store.data[streamId.Group], r)
+		tx.store.data[r.Stream.Group] = append(tx.store.data[r.Stream.Group], r)
 	}
 	return nil
 }

@@ -1,10 +1,17 @@
 package stream
 
-import "strings"
+import (
+	"database/sql/driver"
+	"strings"
+)
 
 type Id struct {
 	Group  string
 	Entity string
+}
+
+func (id Id) Value() (driver.Value, error) {
+	return id.String(), nil
 }
 
 func ParseId(streamId string) Id {

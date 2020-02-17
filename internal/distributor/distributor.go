@@ -44,8 +44,7 @@ func (dist *distributor) Register(ctx context.Context, subscriberId string, stre
 }
 
 func (dist *distributor) Distribute(ctx context.Context, record record.Record) (bool, error) {
-	id := stream.ParseId(record.Stream)
-	subs, hasSubs := dist.subs[id.Group]
+	subs, hasSubs := dist.subs[record.Stream.Group]
 	if !hasSubs {
 		return false, nil
 	}
