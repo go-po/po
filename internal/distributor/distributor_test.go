@@ -3,6 +3,7 @@ package distributor
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/go-po/po/internal/record"
 	defaultRegistry "github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/stream"
@@ -10,6 +11,14 @@ import (
 	"testing"
 	"time"
 )
+
+type TestMessage struct {
+	Foo string
+}
+
+type UnregisteredTestMessage struct {
+	Foo string
+}
 
 func TestDistributor_Distribute(t *testing.T) {
 
@@ -43,95 +52,176 @@ func TestDistributor_Distribute(t *testing.T) {
 		ack bool
 		err error
 	}
-	type verify func(t *testing.T, responses []distResponse, errs []error, subs subs, deps deps)
+	type verify func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps)
 	all := func(v ...verify) []verify { return v }
-	noRegisterErr := func() verify {
-		return func(t *testing.T, responses []distResponse, errs []error, subs subs, deps deps) {
+	noErrRegister := func() verify {
+		return func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps) {
 			assert.Empty(t, errs, "register errors")
 		}
 	}
-	noDistErr := func() verify {
-		return func(t *testing.T, responses []distResponse, errs []error, subs subs, deps deps) {
-			for i, resp := range responses {
-				assert.NoError(t, resp.err, "dist (%d) error", i)
+	noErrDist := func() verify {
+		return func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps) {
+			assert.NoError(t, errDist, "no dist err")
+		}
+	}
+	anErrDist := func() verify {
+		return func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps) {
+			assert.Error(t, errDist, "an err dist")
+		}
+	}
+	type verifyMessage func(t *testing.T, msg stream.Message)
+	msgNumber := func(expected int64) verifyMessage {
+		return func(t *testing.T, msg stream.Message) {
+			assert.Equal(t, expected, msg.Number, "message number")
+		}
+	}
+	msgData := func(expected interface{}) verifyMessage {
+		return func(t *testing.T, msg stream.Message) {
+			assert.Equal(t, expected, msg.Data, "message data content")
+		}
+	}
+	msgGroupNumber := func(expected int64) verifyMessage {
+		return func(t *testing.T, msg stream.Message) {
+			assert.Equal(t, expected, msg.GroupNumber, "message group number")
+		}
+	}
+	subGotCount := func(subId string, expected int) verify {
+		return func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps) {
+			sub := getSub(t, subs, subId)
+			if !assert.Equal(t, expected, len(sub.sub.msgs), "sub count") {
+				t.FailNow()
 			}
 		}
 	}
-	subGotMessage := func(subId string, number int64, stream string) verify {
-		return func(t *testing.T, responses []distResponse, errs []error, subs subs, deps deps) {
+	subGot := func(subId string, num int, expect ...verifyMessage) verify {
+		return func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps) {
 			sub := getSub(t, subs, subId)
-			var found = false
-			for _, msg := range sub.sub.msgs {
-				if msg.Stream.String() == stream && msg.Number == number {
-					found = true
+			if assert.True(t, num < len(sub.sub.msgs), "sub got too few messages: %s", subId) {
+				for _, v := range expect {
+					v(t, sub.sub.msgs[num])
 				}
 			}
-			assert.True(t, found, "sub got message")
 		}
 	}
-	subGotMessageData := func(subId string, number int64, stream string, data interface{}) verify {
-		return func(t *testing.T, responses []distResponse, errs []error, subs subs, deps deps) {
-			sub := getSub(t, subs, subId)
-			var found = false
-			for _, msg := range sub.sub.msgs {
-				if msg.Stream.String() == stream && msg.Number == number {
-					found = true
-					assert.Equal(t, data, msg.Data, "sub got message data content")
-				}
-			}
-			assert.True(t, found, "sub got message data")
-		}
-	}
+
 	distAccept := func(dist int, expected bool) verify {
-		return func(t *testing.T, responses []distResponse, errs []error, subs subs, deps deps) {
-			assert.Equal(t, expected, responses[dist].ack, "dist accept")
+		return func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps) {
+			assert.Equal(t, expected, ack, "dist accept")
 		}
 	}
-	tests := []struct {
-		name    string
-		deps    deps
-		subs    map[string]subscription
-		records []record.Record
-		verify  []verify
+	DefaultTestRecord := record.Record{
+		Number:      1,
+		Stream:      stream.ParseId("test stream"),
+		Data:        []byte(`{ "Foo" : "Bar"}`),
+		Type:        "distributor.TestMessage",
+		GroupNumber: 0,
+		Time:        time.Now(),
+	}
+	tests := map[string]struct {
+		deps   deps
+		subs   map[string]subscription
+		record record.Record
+		verify []verify
 	}{
-		{
-			name:    "no records send",
-			subs:    map[string]subscription{},
-			records: nil,
-			verify: all(
-				noRegisterErr(),
-				noDistErr(),
-			),
-		},
-		{
-			name: "one subscriber - one matching record",
+		"one subscriber - one matching record": {
+
 			subs: map[string]subscription{
 				"sub": {
 					stream: "test stream",
 					sub:    &stubDistributorSub{},
 				},
 			},
-			records: []record.Record{
-				{
-					Number:      1,
-					Stream:      stream.ParseId("test stream"),
-					Data:        []byte(`{ "Foo" : "Bar"}`),
-					Type:        "distributor.TestMessage",
-					GroupNumber: 0,
-					Time:        time.Now(),
-				},
-			},
+			record: DefaultTestRecord,
 			verify: all(
-				noRegisterErr(),
-				noDistErr(),
-				subGotMessage("sub", 1, "test stream"),
-				subGotMessageData("sub", 1, "test stream", TestMessage{Foo: "Bar"}),
+				noErrRegister(),
+				noErrDist(),
+				subGotCount("sub", 1),
+				subGot("sub", 0,
+					msgNumber(1),
+					msgData(TestMessage{Foo: "Bar"}),
+				),
 				distAccept(0, true),
 			),
 		},
+		"two subscriber - one matching record": {
+
+			subs: map[string]subscription{
+				"sub 1": {
+					stream: "test stream",
+					sub:    &stubDistributorSub{},
+				},
+				"sub 2": {
+					stream: "test stream",
+					sub:    &stubDistributorSub{},
+				},
+			},
+			record: DefaultTestRecord,
+			verify: all(
+				noErrRegister(),
+				noErrDist(),
+				subGotCount("sub 1", 1),
+				subGot("sub 1", 0,
+					msgNumber(1),
+					msgData(TestMessage{Foo: "Bar"}),
+				),
+				subGotCount("sub 2", 1),
+				subGot("sub 2", 0,
+					msgNumber(1),
+					msgData(TestMessage{Foo: "Bar"}),
+				),
+				distAccept(0, true),
+			),
+		},
+		"assigned group number": {
+			deps: deps{
+				groupNumbers: &stubGroupNumberAssigner{
+					fn: func(r record.Record) (int64, error) {
+						return 5, nil
+					},
+				},
+			},
+			subs: map[string]subscription{
+				"sub": {
+					stream: "test stream",
+					sub:    &stubDistributorSub{},
+				},
+			},
+			record: DefaultTestRecord,
+			verify: all(
+				noErrRegister(),
+				noErrDist(),
+				subGotCount("sub", 1),
+				subGot("sub", 0,
+					msgNumber(1),
+					msgData(TestMessage{Foo: "Bar"}),
+					msgGroupNumber(5),
+				),
+				distAccept(0, true),
+			),
+		},
+		"failed assigning numbers": {
+			deps: deps{
+				groupNumbers: &stubGroupNumberAssigner{
+					err: fmt.Errorf("failed assigning"),
+				},
+			},
+			subs: map[string]subscription{
+				"sub": {
+					stream: "test stream",
+					sub:    &stubDistributorSub{},
+				},
+			},
+			record: DefaultTestRecord,
+			verify: all(
+				noErrRegister(),
+				anErrDist(),
+				subGotCount("sub", 0),
+				distAccept(0, false),
+			),
+		},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
 			// setup
 			if test.deps.groupNumbers == nil {
 				test.deps.groupNumbers = &stubGroupNumberAssigner{}
@@ -146,24 +236,15 @@ func TestDistributor_Distribute(t *testing.T) {
 			}
 
 			// execute
-			var responses []distResponse
-			for _, record := range test.records {
-				r := distResponse{}
-				r.ack, r.err = dist.Distribute(context.Background(), record)
-				responses = append(responses, r)
-			}
+			ack, distErr := dist.Distribute(context.Background(), test.record)
 
 			// verify
 			for _, v := range test.verify {
-				v(t, responses, errs, test.subs, test.deps)
+				v(t, ack, distErr, errs, test.subs, test.deps)
 			}
 
 		})
 	}
-}
-
-type TestMessage struct {
-	Foo string
 }
 
 type stubDistributorSub struct {

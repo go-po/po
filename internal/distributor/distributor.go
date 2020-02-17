@@ -44,11 +44,16 @@ func (dist *distributor) Register(ctx context.Context, subscriberId string, stre
 }
 
 func (dist *distributor) Distribute(ctx context.Context, record record.Record) (bool, error) {
+	groupNumber, err := dist.groupNumbers.AssignGroupNumber(ctx, record)
+	if err != nil {
+		return false, err
+	}
+	record.GroupNumber = groupNumber
 	subs, hasSubs := dist.subs[record.Stream.Group]
 	if !hasSubs {
 		return false, nil
 	}
-	var msg stream.Message
+
 	msg, err := dist.registry.ToMessage(record)
 	if err != nil {
 		// TODO faulty implementation, catch later
