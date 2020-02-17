@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/internal/stream"
+	"github.com/go-po/po/stream"
 )
 
 type MockBroker struct {

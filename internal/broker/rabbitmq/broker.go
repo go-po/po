@@ -5,7 +5,7 @@ import (
 	"github.com/go-po/po"
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/internal/stream"
+	"github.com/go-po/po/stream"
 	"github.com/streadway/amqp"
 )
 

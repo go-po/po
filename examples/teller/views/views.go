@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/go-po/po/examples/teller/commands"
 	"github.com/go-po/po/examples/teller/events"
-	"github.com/go-po/po/internal/stream"
+	"github.com/go-po/po/stream"
 )
 
 type CommandCount struct {

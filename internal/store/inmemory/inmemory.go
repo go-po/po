@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
-	"github.com/go-po/po/internal/stream"
+	"github.com/go-po/po/stream"
 	"sync"
 )
 

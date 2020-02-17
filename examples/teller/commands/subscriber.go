@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/go-po/po"
 	"github.com/go-po/po/examples/teller/events"
-	"github.com/go-po/po/internal/stream"
+	"github.com/go-po/po/stream"
 )
 
 func NewCommandSubscriber(dao *po.Po) *CmdSub {

@@ -3,7 +3,7 @@ package simple
 import (
 	"context"
 	"fmt"
-	"github.com/go-po/po/internal/stream"
+	"github.com/go-po/po/stream"
 )
 
 type Sub struct {

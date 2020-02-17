@@ -5,7 +5,7 @@ package rabbitmq
 import (
 	"context"
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/internal/stream"
+	"github.com/go-po/po/stream"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
