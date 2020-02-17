@@ -3,6 +3,8 @@ package registry
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/stream"
 	"log"
 )
 
@@ -36,6 +38,21 @@ func (reg *Registry) Register(initializers ...MessageUnmarshaller) {
 		name := reg.LookupType(example)
 		reg.types[name] = initializer
 	}
+}
+
+func (reg *Registry) ToMessage(r record.Record) (stream.Message, error) {
+	data, err := reg.Unmarshal(r.Type, r.Data)
+	if err != nil {
+		return stream.Message{}, err
+	}
+	return stream.Message{
+		Number:      r.Number,
+		Stream:      r.Stream,
+		Data:        data,
+		Type:        r.Type,
+		GroupNumber: r.GroupNumber,
+		Time:        r.Time,
+	}, nil
 }
 
 func LookupType(msg interface{}) string {

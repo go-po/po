@@ -107,7 +107,7 @@ func (s *Stream) projectHandler(handler stream.Handler) error {
 		return err
 	}
 	for _, record := range s.records {
-		msg, err := stream.ToMessage(s.registry, record)
+		msg, err := s.registry.ToMessage(record)
 		if err != nil {
 			return err
 		}

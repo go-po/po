@@ -8,7 +8,15 @@ import (
 	"sync"
 )
 
-func New(groupNumbers groupNumberAssigner, registry stream.Registry) *distributor {
+type registry interface {
+	ToMessage(r record.Record) (stream.Message, error)
+}
+
+type groupNumberAssigner interface {
+	AssignGroupNumber(ctx context.Context, r record.Record) (int64, error)
+}
+
+func New(groupNumbers groupNumberAssigner, registry registry) *distributor {
 	return &distributor{
 		subs:         make(map[string][]stream.Handler),
 		groupNumbers: groupNumbers,
@@ -16,13 +24,9 @@ func New(groupNumbers groupNumberAssigner, registry stream.Registry) *distributo
 	}
 }
 
-type groupNumberAssigner interface {
-	AssignGroupNumber(ctx context.Context, r record.Record) (int64, error)
-}
-
 type distributor struct {
 	groupNumbers groupNumberAssigner
-	registry     stream.Registry
+	registry     registry
 	mu           sync.Mutex                  // guards below maps
 	subs         map[string][]stream.Handler // stream group to handler
 }
@@ -46,7 +50,7 @@ func (dist *distributor) Distribute(ctx context.Context, record record.Record) (
 		return false, nil
 	}
 	var msg stream.Message
-	msg, err := stream.ToMessage(dist.registry, record)
+	msg, err := dist.registry.ToMessage(record)
 	if err != nil {
 		// TODO faulty implementation, catch later
 		return false, err

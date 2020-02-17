@@ -27,6 +27,7 @@ type Registry interface {
 	LookupType(msg interface{}) string
 	Unmarshal(typeName string, b []byte) (interface{}, error)
 	Marshal(msg interface{}) ([]byte, error)
+	ToMessage(r record.Record) (stream.Message, error)
 }
 
 type Distributor interface {

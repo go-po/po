@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/internal/registry"
+	defaultRegistry "github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/stream"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -13,7 +13,7 @@ import (
 
 func TestDistributor_Distribute(t *testing.T) {
 
-	messageRegistry := registry.New()
+	messageRegistry := defaultRegistry.New()
 
 	messageRegistry.Register(
 		func(b []byte) (interface{}, error) {
