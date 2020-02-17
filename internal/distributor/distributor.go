@@ -1,18 +1,18 @@
-package po
+package distributor
 
 import (
 	"context"
 	"fmt"
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/internal/stream"
 	"sync"
 )
 
-func newDistributor(groupNumbers groupNumberAssigner) *distributor {
+func New(groupNumbers groupNumberAssigner, registry stream.Registry) *distributor {
 	return &distributor{
-		subs:         make(map[string][]Handler),
+		subs:         make(map[string][]stream.Handler),
 		groupNumbers: groupNumbers,
+		registry:     registry,
 	}
 }
 
@@ -21,9 +21,10 @@ type groupNumberAssigner interface {
 }
 
 type distributor struct {
-	mu           sync.Mutex           // guards below maps
-	subs         map[string][]Handler // stream group to handler
 	groupNumbers groupNumberAssigner
+	registry     stream.Registry
+	mu           sync.Mutex                  // guards below maps
+	subs         map[string][]stream.Handler // stream group to handler
 }
 
 func (dist *distributor) Register(ctx context.Context, subscriberId string, stream stream.Id, subscriber interface{}) error {
@@ -45,7 +46,7 @@ func (dist *distributor) Distribute(ctx context.Context, record record.Record) (
 		return false, nil
 	}
 	var msg stream.Message
-	msg, err := stream.ToMessage(registry.DefaultRegistry, record)
+	msg, err := stream.ToMessage(dist.registry, record)
 	if err != nil {
 		// TODO faulty implementation, catch later
 		return false, err
@@ -60,9 +61,9 @@ func (dist *distributor) Distribute(ctx context.Context, record record.Record) (
 	return true, nil
 }
 
-func wrapSubscriber(subscriber interface{}) (Handler, error) {
+func wrapSubscriber(subscriber interface{}) (stream.Handler, error) {
 	switch h := subscriber.(type) {
-	case Handler:
+	case stream.Handler:
 		return h, nil
 	default:
 		return nil, fmt.Errorf("no way to handle")

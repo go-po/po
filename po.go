@@ -3,6 +3,7 @@ package po
 import (
 	"context"
 	"github.com/go-po/po/internal/broker"
+	"github.com/go-po/po/internal/distributor"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/internal/store"
@@ -34,7 +35,7 @@ type Distributor interface {
 }
 
 func New(store Store, broker Broker) *Po {
-	dist := newDistributor(store)
+	dist := distributor.New(store, registry.DefaultRegistry)
 	broker.Distributor(dist)
 	return &Po{
 		store:       store,

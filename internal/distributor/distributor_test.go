@@ -1,9 +1,10 @@
-package po
+package distributor
 
 import (
 	"context"
 	"encoding/json"
 	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/internal/stream"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -11,6 +12,17 @@ import (
 )
 
 func TestDistributor_Distribute(t *testing.T) {
+
+	messageRegistry := registry.New()
+
+	messageRegistry.Register(
+		func(b []byte) (interface{}, error) {
+			msg := TestMessage{}
+			err := json.Unmarshal(b, &msg)
+			return msg, err
+		},
+	)
+
 	type deps struct {
 		groupNumbers *stubGroupNumberAssigner
 	}
@@ -104,7 +116,7 @@ func TestDistributor_Distribute(t *testing.T) {
 					Number:      1,
 					Stream:      "test stream",
 					Data:        []byte(`{ "Foo" : "Bar"}`),
-					Type:        "po.TestMessage",
+					Type:        "distributor.TestMessage",
 					GroupNumber: 0,
 					Time:        time.Now(),
 				},
@@ -124,7 +136,7 @@ func TestDistributor_Distribute(t *testing.T) {
 			if test.deps.groupNumbers == nil {
 				test.deps.groupNumbers = &stubGroupNumberAssigner{}
 			}
-			dist := newDistributor(test.deps.groupNumbers)
+			dist := New(test.deps.groupNumbers, messageRegistry)
 			var errs []error
 			for id, s := range test.subs {
 				err := dist.Register(context.Background(), id, stream.ParseId(s.stream), s.sub)
@@ -157,16 +169,6 @@ type TestMessage struct {
 type stubDistributorSub struct {
 	msgs []stream.Message
 	err  error
-}
-
-func init() {
-	RegisterMessages(
-		func(b []byte) (interface{}, error) {
-			msg := TestMessage{}
-			err := json.Unmarshal(b, &msg)
-			return msg, err
-		},
-	)
 }
 
 func (stub *stubDistributorSub) Handle(ctx context.Context, msg stream.Message) error {

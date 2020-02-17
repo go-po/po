@@ -48,9 +48,9 @@ func (ch *Channels) Notify(ctx context.Context, records ...record.Record) error 
 	return nil
 }
 
-func wrapSubscriber(subscriber interface{}) (po.Handler, error) {
+func wrapSubscriber(subscriber interface{}) (stream.Handler, error) {
 	switch h := subscriber.(type) {
-	case po.Handler:
+	case stream.Handler:
 		return h, nil
 	default:
 		return nil, fmt.Errorf("no way to handle")

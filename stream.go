@@ -7,10 +7,6 @@ import (
 	"sync"
 )
 
-type Handler interface {
-	Handle(ctx context.Context, msg stream.Message) error
-}
-
 type Appender interface {
 	Append(message ...interface{}) error
 }
@@ -77,7 +73,7 @@ func (s *Stream) Append(messages ...interface{}) error {
 }
 
 func (s *Stream) Project(projection interface{}) error {
-	handler, isHandler := projection.(Handler)
+	handler, isHandler := projection.(stream.Handler)
 	if isHandler {
 		return s.projectHandler(handler)
 	}
@@ -105,7 +101,7 @@ func (s *Stream) Load() error {
 	return nil
 }
 
-func (s *Stream) projectHandler(handler Handler) error {
+func (s *Stream) projectHandler(handler stream.Handler) error {
 	err := s.Load()
 	if err != nil {
 		return err
