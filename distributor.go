@@ -39,13 +39,13 @@ func (dist *distributor) Register(ctx context.Context, subscriberId string, stre
 }
 
 func (dist *distributor) Distribute(ctx context.Context, record record.Record) (bool, error) {
-	stream := stream.ParseId(record.Stream)
-	subs, hasSubs := dist.subs[stream.Group]
+	id := stream.ParseId(record.Stream)
+	subs, hasSubs := dist.subs[id.Group]
 	if !hasSubs {
 		return false, nil
 	}
-	var msg Message
-	msg, err := ToMessage(registry.DefaultRegistry, record)
+	var msg stream.Message
+	msg, err := stream.ToMessage(registry.DefaultRegistry, record)
 	if err != nil {
 		// TODO faulty implementation, catch later
 		return false, err

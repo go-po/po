@@ -155,7 +155,7 @@ type TestMessage struct {
 }
 
 type stubDistributorSub struct {
-	msgs []Message
+	msgs []stream.Message
 	err  error
 }
 
@@ -169,7 +169,7 @@ func init() {
 	)
 }
 
-func (stub *stubDistributorSub) Handle(ctx context.Context, msg Message) error {
+func (stub *stubDistributorSub) Handle(ctx context.Context, msg stream.Message) error {
 	stub.msgs = append(stub.msgs, msg)
 	return stub.err
 }

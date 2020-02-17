@@ -3,11 +3,12 @@ package po
 import (
 	"context"
 	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/internal/stream"
 	"sync"
 )
 
 type Handler interface {
-	Handle(ctx context.Context, msg Message) error
+	Handle(ctx context.Context, msg stream.Message) error
 }
 
 type Appender interface {
@@ -27,17 +28,17 @@ type Stream struct {
 	read    bool            // have records been read from the store
 }
 
-func (stream *Stream) Append(messages ...interface{}) error {
+func (s *Stream) Append(messages ...interface{}) error {
 	if len(messages) == 0 {
 		return nil // nothing to do
 	}
 
-	err := stream.Load()
+	err := s.Load()
 	if err != nil {
 		return err
 	}
 
-	tx, err := stream.store.Begin(stream.ctx)
+	tx, err := s.store.Begin(s.ctx)
 	if err != nil {
 		return err
 	}
@@ -46,75 +47,75 @@ func (stream *Stream) Append(messages ...interface{}) error {
 	}()
 	var records []record.Record
 	for _, msg := range messages {
-		b, err := stream.registry.Marshal(msg)
+		b, err := s.registry.Marshal(msg)
 		if err != nil {
 			return err
 		}
 		record := record.Record{
-			Number: stream.size + 1,
-			Stream: stream.ID,
+			Number: s.size + 1,
+			Stream: s.ID,
 			Data:   b,
-			Type:   stream.registry.LookupType(msg),
+			Type:   s.registry.LookupType(msg),
 		}
-		err = stream.store.Store(tx, record)
+		err = s.store.Store(tx, record)
 		if err != nil {
 			return err
 		}
-		stream.size = stream.size + 1
+		s.size = s.size + 1
 		records = append(records, record)
 	}
 	err = tx.Commit()
 	if err != nil {
 		return err
 	}
-	stream.records = append(stream.records, records...)
-	err = stream.broker.Notify(stream.ctx, records...)
+	s.records = append(s.records, records...)
+	err = s.broker.Notify(s.ctx, records...)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (stream *Stream) Project(projection interface{}) error {
+func (s *Stream) Project(projection interface{}) error {
 	handler, isHandler := projection.(Handler)
 	if isHandler {
-		return stream.projectHandler(handler)
+		return s.projectHandler(handler)
 	}
 	return nil
 }
 
 // can be used to define when data is loaded.
 // usually happens during normal operations
-func (stream *Stream) Load() error {
-	stream.mu.Lock()
-	defer stream.mu.Unlock()
+func (s *Stream) Load() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	if stream.read {
+	if s.read {
 		return nil
 	}
 
-	records, err := stream.store.ReadRecords(stream.ctx, stream.ID)
+	records, err := s.store.ReadRecords(s.ctx, s.ID)
 	if err != nil {
 		return err
 	}
 
-	stream.records = records
-	stream.read = true
-	stream.size = int64(len(stream.records))
+	s.records = records
+	s.read = true
+	s.size = int64(len(s.records))
 	return nil
 }
 
-func (stream *Stream) projectHandler(handler Handler) error {
-	err := stream.Load()
+func (s *Stream) projectHandler(handler Handler) error {
+	err := s.Load()
 	if err != nil {
 		return err
 	}
-	for _, record := range stream.records {
-		msg, err := ToMessage(stream.registry, record)
+	for _, record := range s.records {
+		msg, err := stream.ToMessage(s.registry, record)
 		if err != nil {
 			return err
 		}
-		err = handler.Handle(stream.ctx, msg)
+		err = handler.Handle(s.ctx, msg)
 		if err != nil {
 			return err
 		}
@@ -123,10 +124,10 @@ func (stream *Stream) projectHandler(handler Handler) error {
 }
 
 // TODO this implementation needs to change as soon as snapshots is introduced
-func (stream *Stream) Size() (int, error) {
-	err := stream.Load()
+func (s *Stream) Size() (int, error) {
+	err := s.Load()
 	if err != nil {
 		return 0, err
 	}
-	return len(stream.records), nil
+	return len(s.records), nil
 }

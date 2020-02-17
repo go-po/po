@@ -1,9 +1,15 @@
-package po
+package stream
 
 import (
 	"github.com/go-po/po/internal/record"
 	"time"
 )
+
+type Registry interface {
+	LookupType(msg interface{}) string
+	Unmarshal(typeName string, b []byte) (interface{}, error)
+	Marshal(msg interface{}) ([]byte, error)
+}
 
 type Message struct {
 	Number      int64       // place in the stream, starting at 1

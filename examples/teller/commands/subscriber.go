@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/go-po/po"
 	"github.com/go-po/po/examples/teller/events"
+	"github.com/go-po/po/internal/stream"
 )
 
 func NewCommandSubscriber(dao *po.Po) *CmdSub {
@@ -16,7 +17,7 @@ type CmdSub struct {
 	dao *po.Po
 }
 
-func (sub *CmdSub) Handle(ctx context.Context, msg po.Message) error {
+func (sub *CmdSub) Handle(ctx context.Context, msg stream.Message) error {
 	switch cmd := msg.Data.(type) {
 	case DeclareCommand:
 		streamId := "vars-" + cmd.Name
