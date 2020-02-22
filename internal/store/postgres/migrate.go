@@ -6,38 +6,36 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/lib/pq" // required
 
-	"github.com/go-po/po/internal/store/postgres/migrations"
+	"github.com/go-po/po/internal/store/postgres/generated/db"
 	"github.com/golang-migrate/migrate/v4"
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 )
 
-//go:generate go run github.com/jteeuwen/go-bindata/go-bindata -prefix migrations -o ./migrations/migrations.go -ignore .go -pkg migrations migrations
+func migrateDatabase(conn *sql.DB) error {
 
-func migrateDatabase(db *sql.DB) error {
-
-	d, err := postgres.WithInstance(db, &postgres.Config{
+	d, err := postgres.WithInstance(conn, &postgres.Config{
 		MigrationsTable: "po_migrations",
 	})
 	if err != nil {
 		return fmt.Errorf("driver: %w", err)
 	}
 
-	resource := bindata.Resource(migrations.AssetNames(),
+	resource := bindata.Resource(db.AssetNames(),
 		func(name string) ([]byte, error) {
-			return migrations.Asset(name)
+			return db.Asset(name)
 		})
 	data, err := bindata.WithInstance(resource)
 	if err != nil {
 		return fmt.Errorf("bindata: %w", err)
 	}
 
-	migrator, err := migrate.NewWithInstance("migrations", data, "po", d)
+	migrates, err := migrate.NewWithInstance("migrations", data, "po", d)
 	if err != nil {
 		return fmt.Errorf("migrate: %w", err)
 	}
 
 	// run migrations and handle the errors above of course
-	err = migrator.Up()
+	err = migrates.Up()
 
 	switch err {
 	case migrate.ErrNoChange:

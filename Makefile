@@ -1,3 +1,5 @@
+clean:
+	rm -r internal/store/postgres/generated/db || TRUE
 
 db-reset: gen
 	echo "drop schema public cascade" 			| docker exec -i po_pg psql -U po po
@@ -9,7 +11,7 @@ test:
 test-all:
 	go test ./... -count 1 -tags integration
 
-gen:
+gen: clean
 	go generate ./...
 
 up:
