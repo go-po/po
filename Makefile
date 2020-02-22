@@ -1,4 +1,10 @@
 
+test:
+	go test ./... -count 1 -race
+
+test-all:
+	go test ./... -count 1 -tags integration
+
 gen:
 	go generate ./...
 
