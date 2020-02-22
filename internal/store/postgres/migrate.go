@@ -15,7 +15,9 @@ import (
 
 func migrateDatabase(db *sql.DB) error {
 
-	d, err := postgres.WithInstance(db, &postgres.Config{})
+	d, err := postgres.WithInstance(db, &postgres.Config{
+		MigrationsTable: "po_migrations",
+	})
 	if err != nil {
 		return fmt.Errorf("driver: %w", err)
 	}
