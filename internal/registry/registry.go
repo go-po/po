@@ -6,6 +6,7 @@ import (
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/stream"
 	"log"
+	"mime"
 )
 
 var DefaultRegistry = New()
@@ -35,7 +36,7 @@ func Register(initializers ...MessageUnmarshaller) {
 func (reg *Registry) Register(initializers ...MessageUnmarshaller) {
 	for _, initializer := range initializers {
 		example, _ := initializer(nil)
-		name := reg.LookupType(example)
+		name := getType(example)
 		reg.types[name] = initializer
 	}
 }
@@ -55,10 +56,7 @@ func (reg *Registry) ToMessage(r record.Record) (stream.Message, error) {
 	}, nil
 }
 
-func LookupType(msg interface{}) string {
-	return DefaultRegistry.LookupType(msg)
-}
-func (reg *Registry) LookupType(msg interface{}) string {
+func getType(msg interface{}) string {
 	switch ex := msg.(type) {
 	case Named:
 		return ex.Name()
@@ -67,11 +65,15 @@ func (reg *Registry) LookupType(msg interface{}) string {
 	}
 }
 
-func Marshal(msg interface{}) ([]byte, error) {
-	return DefaultRegistry.Marshal(msg)
+func (reg *Registry) lookupContentType(msg interface{}) string {
+	return mime.FormatMediaType("application/json", map[string]string{
+		"type": getType(msg),
+	})
 }
-func (reg *Registry) Marshal(msg interface{}) ([]byte, error) {
-	return json.Marshal(msg)
+
+func (reg *Registry) Marshal(msg interface{}) ([]byte, string, error) {
+	b, err := json.Marshal(msg)
+	return b, reg.lookupContentType(msg), err
 }
 
 func Unmarshal(typeName string, b []byte) (interface{}, error) {

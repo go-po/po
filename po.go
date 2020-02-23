@@ -14,7 +14,7 @@ type Store interface {
 	ReadRecords(ctx context.Context, id stream.Id) ([]record.Record, error)
 	Begin(ctx context.Context) (store.Tx, error)
 	AssignGroupNumber(ctx context.Context, r record.Record) (int64, error)
-	StoreRecord(tx store.Tx, id stream.Id, msgType string, data []byte) (record.Record, error)
+	StoreRecord(tx store.Tx, id stream.Id, contentType string, data []byte) (record.Record, error)
 }
 
 type Broker interface {
@@ -24,9 +24,8 @@ type Broker interface {
 }
 
 type Registry interface {
-	LookupType(msg interface{}) string
 	Unmarshal(typeName string, b []byte) (interface{}, error)
-	Marshal(msg interface{}) ([]byte, error)
+	Marshal(msg interface{}) ([]byte, string, error)
 	ToMessage(r record.Record) (stream.Message, error)
 }
 

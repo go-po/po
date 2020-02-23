@@ -26,12 +26,12 @@ func (mock *MockStore) Begin(ctx context.Context) (store.Tx, error) {
 	return mock.Tx, nil
 }
 
-func (mock *MockStore) StoreRecord(tx store.Tx, id stream.Id, msgType string, data []byte) (record.Record, error) {
+func (mock *MockStore) StoreRecord(tx store.Tx, id stream.Id, contentType string, data []byte) (record.Record, error) {
 	r := record.Record{
 		Number:      0,
 		Stream:      id,
 		Data:        data,
-		Group:       msgType,
+		ContentType: contentType,
 		GroupNumber: 0,
 		Time:        time.Time{},
 	}

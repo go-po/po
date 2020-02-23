@@ -43,12 +43,11 @@ func (s *Stream) Append(messages ...interface{}) error {
 	}()
 	var records []record.Record
 	for _, msg := range messages {
-		b, err := s.registry.Marshal(msg)
+		b, contentType, err := s.registry.Marshal(msg)
 		if err != nil {
 			return err
 		}
-		msgType := s.registry.LookupType(msg)
-		record, err := s.store.StoreRecord(tx, s.ID, msgType, b)
+		record, err := s.store.StoreRecord(tx, s.ID, contentType, b)
 		if err != nil {
 			return err
 		}

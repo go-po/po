@@ -12,6 +12,7 @@ type Record struct {
 	Stream      stream.Id // identifier of a stream, see id.go
 	Data        []byte    // raw data for the message
 	Group       string    // message type, used to marshal tye Data correct
+	ContentType string    // type of the data
 	GroupNumber int64     // strictly sequential number for all messages in a group
 	Time        time.Time // when this message was first recorded
 }

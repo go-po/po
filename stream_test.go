@@ -63,7 +63,7 @@ func TestStream_Append(t *testing.T) {
 		return func(t *testing.T, err error, store *mockstore.MockStore, broker *mockbroker.MockBroker) {
 			got := store.Records[i]
 			assert.Equal(t, expected.Data, got.Data, "store.Data")
-			assert.Equal(t, expected.Group, got.Group, "store.Group")
+			assert.Equal(t, expected.ContentType, got.ContentType, "store.ContentType")
 			assert.Equal(t, expected.Stream, got.Stream, "store.Stream")
 		}
 	}
@@ -121,15 +121,15 @@ func TestStream_Append(t *testing.T) {
 				txStarted(),
 				recordsInStore(1),
 				stored(0, record.Record{
-					Stream: streamId,
-					Data:   []byte(`{"A":1}`),
-					Group:  "po.A",
+					Stream:      streamId,
+					Data:        []byte(`{"A":1}`),
+					ContentType: "application/json; type=po.A",
 				}),
 				recordsNotified(1),
 				notified(0, record.Record{
-					Stream: streamId,
-					Data:   []byte(`{"A":1}`),
-					Group:  "po.A",
+					Stream:      streamId,
+					Data:        []byte(`{"A":1}`),
+					ContentType: "application/json; type=po.A",
 				}),
 			),
 		},
@@ -146,19 +146,19 @@ func TestStream_Append(t *testing.T) {
 				txStarted(),
 				recordsInStore(3),
 				stored(0, record.Record{
-					Stream: streamId,
-					Data:   []byte(`{"A":1}`),
-					Group:  "po.A",
+					Stream:      streamId,
+					Data:        []byte(`{"A":1}`),
+					ContentType: "application/json; type=po.A",
 				}),
 				stored(1, record.Record{
-					Stream: streamId,
-					Data:   []byte(`{"B":"B"}`),
-					Group:  "po.B",
+					Stream:      streamId,
+					Data:        []byte(`{"B":"B"}`),
+					ContentType: "application/json; type=po.B",
 				}),
 				stored(2, record.Record{
-					Stream: streamId,
-					Data:   []byte(`{"A":2}`),
-					Group:  "po.A",
+					Stream:      streamId,
+					Data:        []byte(`{"A":2}`),
+					ContentType: "application/json; type=po.A",
 				}),
 				recordsNotified(3),
 			),
@@ -174,9 +174,9 @@ func TestStream_Append(t *testing.T) {
 				txStarted(),
 				recordsInStore(3),
 				stored(2, record.Record{
-					Stream: streamId,
-					Data:   []byte(`{"B":"Data"}`),
-					Group:  "po.B",
+					Stream:      streamId,
+					Data:        []byte(`{"B":"Data"}`),
+					ContentType: "application/json; type=po.B",
 				}),
 			),
 		},

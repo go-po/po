@@ -23,13 +23,14 @@ func TestRegistry_RoundtripMarshal(t *testing.T) {
 	a := A{
 		A: 42,
 	}
-	typeName := reg.LookupType(a)
+	typeName := getType(a)
 
 	// execute round trip
-	b, err := reg.Marshal(a)
+	b, contentType, err := reg.Marshal(a)
 
 	assert.NoError(t, err)
 	assert.Equal(t, []byte(`{"A":42}`), b)
+	assert.Equal(t, "application/json; type=registry.A", contentType)
 
 	got, err := reg.Unmarshal(typeName, b)
 	assert.NoError(t, err)
