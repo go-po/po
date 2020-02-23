@@ -3,7 +3,6 @@ package distributor
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/go-po/po/internal/record"
 	defaultRegistry "github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/stream"
@@ -32,9 +31,7 @@ func TestDistributor_Distribute(t *testing.T) {
 		},
 	)
 
-	type deps struct {
-		groupNumbers *stubGroupNumberAssigner
-	}
+	type deps struct{}
 	type subscription struct {
 		stream string
 		sub    *stubDistributorSub
@@ -48,10 +45,6 @@ func TestDistributor_Distribute(t *testing.T) {
 		}
 		return sub
 	}
-	type distResponse struct {
-		ack bool
-		err error
-	}
 	type verify func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps)
 	all := func(v ...verify) []verify { return v }
 	noErrRegister := func() verify {
@@ -64,11 +57,7 @@ func TestDistributor_Distribute(t *testing.T) {
 			assert.NoError(t, errDist, "no dist err")
 		}
 	}
-	anErrDist := func() verify {
-		return func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps) {
-			assert.Error(t, errDist, "an err dist")
-		}
-	}
+
 	type verifyMessage func(t *testing.T, msg stream.Message)
 	msgNumber := func(expected int64) verifyMessage {
 		return func(t *testing.T, msg stream.Message) {
@@ -78,11 +67,6 @@ func TestDistributor_Distribute(t *testing.T) {
 	msgData := func(expected interface{}) verifyMessage {
 		return func(t *testing.T, msg stream.Message) {
 			assert.Equal(t, expected, msg.Data, "message data content")
-		}
-	}
-	msgGroupNumber := func(expected int64) verifyMessage {
-		return func(t *testing.T, msg stream.Message) {
-			assert.Equal(t, expected, msg.GroupNumber, "message group number")
 		}
 	}
 	subGotCount := func(subId string, expected int) verify {
@@ -172,61 +156,12 @@ func TestDistributor_Distribute(t *testing.T) {
 				distAccept(0, true),
 			),
 		},
-		"assigned group number": {
-			deps: deps{
-				groupNumbers: &stubGroupNumberAssigner{
-					fn: func(r record.Record) (int64, error) {
-						return 5, nil
-					},
-				},
-			},
-			subs: map[string]subscription{
-				"sub": {
-					stream: "test stream",
-					sub:    &stubDistributorSub{},
-				},
-			},
-			record: DefaultTestRecord,
-			verify: all(
-				noErrRegister(),
-				noErrDist(),
-				subGotCount("sub", 1),
-				subGot("sub", 0,
-					msgNumber(1),
-					msgData(TestMessage{Foo: "Bar"}),
-					msgGroupNumber(5),
-				),
-				distAccept(0, true),
-			),
-		},
-		"failed assigning numbers": {
-			deps: deps{
-				groupNumbers: &stubGroupNumberAssigner{
-					err: fmt.Errorf("failed assigning"),
-				},
-			},
-			subs: map[string]subscription{
-				"sub": {
-					stream: "test stream",
-					sub:    &stubDistributorSub{},
-				},
-			},
-			record: DefaultTestRecord,
-			verify: all(
-				noErrRegister(),
-				anErrDist(),
-				subGotCount("sub", 0),
-				distAccept(0, false),
-			),
-		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			// setup
-			if test.deps.groupNumbers == nil {
-				test.deps.groupNumbers = &stubGroupNumberAssigner{}
-			}
-			dist := New(test.deps.groupNumbers, messageRegistry)
+
+			dist := New(messageRegistry)
 			var errs []error
 			for id, s := range test.subs {
 				err := dist.Register(context.Background(), id, stream.ParseId(s.stream), s.sub)

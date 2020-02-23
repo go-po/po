@@ -5,6 +5,11 @@ db-reset: gen
 	echo "drop schema public cascade" 			| docker exec -i po_pg psql -U po po
 	echo "create schema if not exists public" 	| docker exec -i po_pg psql -U po po
 
+mq-reset:
+	./scripts/reset-rabbit.sh
+
+reset: db-reset mq-reset
+
 test:
 	go test ./... -count 1 -race
 

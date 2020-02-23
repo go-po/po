@@ -12,23 +12,17 @@ type registry interface {
 	ToMessage(r record.Record) (stream.Message, error)
 }
 
-type groupNumberAssigner interface {
-	AssignGroupNumber(ctx context.Context, r record.Record) (int64, error)
-}
-
-func New(groupNumbers groupNumberAssigner, registry registry) *distributor {
+func New(registry registry) *distributor {
 	return &distributor{
-		subs:         make(map[string][]stream.Handler),
-		groupNumbers: groupNumbers,
-		registry:     registry,
+		subs:     make(map[string][]stream.Handler),
+		registry: registry,
 	}
 }
 
 type distributor struct {
-	groupNumbers groupNumberAssigner
-	registry     registry
-	mu           sync.Mutex                  // guards below maps
-	subs         map[string][]stream.Handler // stream group to handler
+	registry registry
+	mu       sync.Mutex                  // guards below maps
+	subs     map[string][]stream.Handler // stream group to handler
 }
 
 func (dist *distributor) Register(ctx context.Context, subscriberId string, stream stream.Id, subscriber interface{}) error {
@@ -44,11 +38,6 @@ func (dist *distributor) Register(ctx context.Context, subscriberId string, stre
 }
 
 func (dist *distributor) Distribute(ctx context.Context, record record.Record) (bool, error) {
-	groupNumber, err := dist.groupNumbers.AssignGroupNumber(ctx, record)
-	if err != nil {
-		return false, err
-	}
-	record.GroupNumber = groupNumber
 	subs, hasSubs := dist.subs[record.Stream.Group]
 	if !hasSubs {
 		return false, nil
@@ -57,7 +46,7 @@ func (dist *distributor) Distribute(ctx context.Context, record record.Record) (
 	msg, err := dist.registry.ToMessage(record)
 	if err != nil {
 		// TODO faulty implementation, catch later
-		return false, err
+		return false, fmt.Errorf("dist: %w", err)
 	}
 	for _, sub := range subs {
 		err := sub.Handle(ctx, msg)

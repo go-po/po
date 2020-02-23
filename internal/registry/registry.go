@@ -11,6 +11,8 @@ import (
 
 var DefaultRegistry = New()
 
+const paramNameType = "type"
+
 type Named interface {
 	Name() string
 }
@@ -42,7 +44,16 @@ func (reg *Registry) Register(initializers ...MessageUnmarshaller) {
 }
 
 func (reg *Registry) ToMessage(r record.Record) (stream.Message, error) {
-	data, err := reg.Unmarshal(r.Group, r.Data)
+	_, params, err := mime.ParseMediaType(r.ContentType)
+	if err != nil {
+		return stream.Message{}, err
+	}
+
+	typeName, ok := params[paramNameType]
+	if !ok {
+		return stream.Message{}, fmt.Errorf("registry: field '%s' not in '%s'", paramNameType, r.ContentType)
+	}
+	data, err := reg.Unmarshal(typeName, r.Data)
 	if err != nil {
 		return stream.Message{}, err
 	}
@@ -50,7 +61,7 @@ func (reg *Registry) ToMessage(r record.Record) (stream.Message, error) {
 		Number:      r.Number,
 		Stream:      r.Stream,
 		Data:        data,
-		Type:        r.Group,
+		Type:        typeName,
 		GroupNumber: r.GroupNumber,
 		Time:        r.Time,
 	}, nil
@@ -67,7 +78,7 @@ func getType(msg interface{}) string {
 
 func (reg *Registry) lookupContentType(msg interface{}) string {
 	return mime.FormatMediaType("application/json", map[string]string{
-		"type": getType(msg),
+		paramNameType: getType(msg),
 	})
 }
 
@@ -84,7 +95,7 @@ func (reg *Registry) Unmarshal(typeName string, b []byte) (interface{}, error) {
 	if !found {
 		log.Printf("Known types")
 		for t, _ := range reg.types {
-			log.Printf("- %s", t)
+			log.Printf("%s - %s", typeName, t)
 		}
 		return nil, fmt.Errorf("unknown message type: %s", typeName) // TODO error type
 	}

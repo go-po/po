@@ -127,10 +127,6 @@ func (store *PGStore) StoreRecord(tx store.Tx, id stream.Id, number int64, conte
 	return toRecord(msg), nil
 }
 
-func (store *PGStore) AssignGroupNumber(ctx context.Context, r record.Record) (int64, error) {
-	return 0, nil
-}
-
 func (store *PGStore) AssignGroup(ctx context.Context, id stream.Id, number int64) (record.Record, error) {
 	tx, err := store.begin(ctx)
 	if err != nil {
@@ -138,9 +134,13 @@ func (store *PGStore) AssignGroup(ctx context.Context, id stream.Id, number int6
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	next, err := tx.db.GetNextIndex(tx.ctx, id.Group)
-	if err != nil {
-		return record.Record{}, err
+	next, getIndexErr := tx.db.GetNextIndex(tx.ctx, id.Group)
+	if getIndexErr != nil {
+		if getIndexErr == sql.ErrNoRows {
+			next = 1
+		} else {
+			return record.Record{}, fmt.Errorf("get next index: %s", getIndexErr)
+		}
 	}
 
 	err = tx.db.SetNextIndex(ctx, db.SetNextIndexParams{
@@ -156,11 +156,11 @@ func (store *PGStore) AssignGroup(ctx context.Context, id stream.Id, number int6
 			Int64: next,
 			Valid: true,
 		},
-		Stream: id.Group,
+		Stream: id.String(),
 		No:     number,
 	})
 	if err != nil {
-		return record.Record{}, err
+		return record.Record{}, fmt.Errorf("write group [%s:%d]: %w", id, number, err)
 	}
 	err = tx.Commit()
 	if err != nil {

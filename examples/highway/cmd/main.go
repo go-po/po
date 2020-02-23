@@ -6,12 +6,14 @@ import (
 	"log"
 	"strconv"
 	"sync"
+	"time"
 )
 
 const (
 	databaseUrl = "postgres://po:po@localhost:5431/po?sslmode=disable"
 	uri         = "amqp://po:po@localhost:5671/"
-	cardsPerApp = 100
+	cardsPerApp = 10
+	apps        = 2
 )
 
 // runs multiple workers, that each send messages and reads them again
@@ -20,11 +22,13 @@ func main() {
 	rootCtx := context.Background()
 
 	var wg = &sync.WaitGroup{}
-	for i := 0; i < 10; i++ {
+	for i := 0; i < apps; i++ {
 		wg.Add(1)
 		go startWorker(rootCtx, wg, i)
 	}
 	wg.Wait()
+
+	time.Sleep(5 * time.Second)
 }
 
 func startWorker(ctx context.Context, wg *sync.WaitGroup, n int) {

@@ -154,37 +154,39 @@ func (sub *Subscriber) deliverAssign(deliveries <-chan amqp.Delivery) {
 		streamId, number, _, err := parseMessageId(msg.MessageId)
 		if err != nil {
 			// TODO
-			fmt.Printf("failed handling: %s\n", err)
+			fmt.Printf("assign parse id: %s\n", err)
 		}
 		count = count + 1
 		r, err := sub.broker.assigner.AssignGroup(context.Background(), stream.ParseId(streamId), number)
 		if err != nil {
 			// TODO
-			fmt.Printf("failed handling: %s\n", err)
+			fmt.Printf("assign group [%s:%d]: %s\n", streamId, number, err)
 		}
 
 		err = sub.broker.pub.notify(context.Background(), r)
 		if err != nil {
 			// TODO
-			fmt.Printf("failed handling: %s\n", err)
+			fmt.Printf("assign notify: %s\n", err)
 		}
 
 		// TODO figure out how to use Nack in this case
 		err = msg.Ack(false)
 		if err != nil {
 			// TODO
-			fmt.Printf("failed acking: %s\n", err)
+			fmt.Printf("assign ack: %s\n", err)
 		}
 	}
 }
 func (sub *Subscriber) deliverStream(deliveries <-chan amqp.Delivery) {
 	for msg := range deliveries {
 		streamId, number, groupNumber, err := parseMessageId(msg.MessageId)
+		id := stream.ParseId(streamId)
 		rec := record.Record{
 			Number:      number,
-			Stream:      stream.ParseId(streamId),
+			Stream:      id,
 			Data:        msg.Body,
-			Group:       msg.Type,
+			Group:       id.Group,
+			ContentType: msg.ContentType,
 			GroupNumber: groupNumber,
 			Time:        msg.Timestamp,
 		}
@@ -192,14 +194,14 @@ func (sub *Subscriber) deliverStream(deliveries <-chan amqp.Delivery) {
 		_, err = sub.broker.distributor.Distribute(context.Background(), rec)
 		if err != nil {
 			// TODO
-			fmt.Printf("failed handling: %s", err)
+			fmt.Printf("stream distribute: %s\n", err)
 		}
 
 		// TODO figure out how to use Nack in this case
 		err = msg.Ack(true)
 		if err != nil {
 			// TODO
-			fmt.Printf("failed acking: %s", err)
+			fmt.Printf("stream acking: %s\n", err)
 		}
 	}
 }

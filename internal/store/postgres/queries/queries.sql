@@ -25,7 +25,7 @@ SET grp_no  = $1,
     updated = NOW()
 WHERE stream = $2
   AND no = $3
-  AND grp_no = 0
+  AND grp_no IS NULL
 RETURNING *;
 
 -- name: GetRecordByStream :one

@@ -53,7 +53,7 @@ func (pub *Publisher) notify(ctx context.Context, record record.Record) error {
 		false, // immediate
 		amqp.Publishing{
 			Headers:         amqp.Table{},
-			ContentType:     "application/json",
+			ContentType:     record.ContentType,
 			ContentEncoding: "",
 			DeliveryMode:    amqp.Transient,
 			Priority:        0,
