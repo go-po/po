@@ -88,7 +88,7 @@ func (sub *Subscriber) deliver(deliveries <-chan amqp.Delivery) {
 			Number:      number,
 			Stream:      stream.ParseId(streamId),
 			Data:        msg.Body,
-			Type:        msg.Type,
+			Group:       msg.Type,
 			GroupNumber: groupNumber,
 			Time:        msg.Timestamp,
 		}

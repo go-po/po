@@ -7,6 +7,7 @@ import (
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/stream"
 	"sync"
+	"time"
 )
 
 func New() *InMemory {
@@ -48,14 +49,27 @@ func (mem *InMemory) Begin(ctx context.Context) (store.Tx, error) {
 	}, nil
 }
 
-func (mem *InMemory) Store(tx store.Tx, record record.Record) error {
+func (mem *InMemory) StoreRecord(tx store.Tx, id stream.Id, msgType string, data []byte) (record.Record, error) {
 	inTx, ok := tx.(*inMemoryTx)
 	if !ok {
-		return fmt.Errorf("unknown tx type: %T", tx)
+		return record.Record{}, fmt.Errorf("unknown tx type: %T", tx)
 	}
-	inTx.records = append(inTx.records, record)
 
-	return nil
+	current, err := mem.ReadRecords(context.Background(), id)
+	if err != nil {
+		return record.Record{}, err
+	}
+	number := int64(len(current) + len(inTx.records))
+	r := record.Record{
+		Number:      number,
+		Stream:      id,
+		Data:        data,
+		Group:       msgType,
+		GroupNumber: 0,
+		Time:        time.Now(),
+	}
+	inTx.records = append(inTx.records, r)
+	return r, nil
 }
 
 func (mem *InMemory) ReadRecords(ctx context.Context, id stream.Id) ([]record.Record, error) {

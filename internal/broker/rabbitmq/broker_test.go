@@ -30,7 +30,7 @@ func TestBroker_Roundtrip(t *testing.T) {
 			Number:      int64(i),
 			Stream:      stream.ParseId("my test stream"),
 			Data:        []byte(`{ "Foo" : "Bar" }`),
-			Type:        "rabbitmq.TestMessage",
+			Group:       "rabbitmq.TestMessage",
 			Time:        time.Now(),
 			GroupNumber: 0,
 		})

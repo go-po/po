@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS po_msgs
     stream       VARCHAR                                NOT NULL,
     no           BIGINT                   DEFAULT 0     NOT NULL,
     grp          varchar                                NOT NULL, -- group in Go
-    grp_no       BIGINT                   DEFAULT 0     NOT NULL,
+    grp_no       BIGINT                                 NULL,
     content_type varchar                                NOT NULL,
     data         bytea                                  NOT NULL
 );

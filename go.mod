@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.9.1
+	github.com/google/uuid v1.0.0
 	github.com/jteeuwen/go-bindata v3.0.7+incompatible // indirect
 	github.com/kyleconroy/sqlc v1.0.0 // indirect
 	github.com/lib/pq v1.3.0

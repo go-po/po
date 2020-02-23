@@ -11,8 +11,6 @@ import (
 
 func TestMigrateDatabase(t *testing.T) {
 	// setup
-	databaseUrl := "postgres://po:po@localhost:5431/po?sslmode=disable"
-
 	db, err := sql.Open("postgres", databaseUrl)
 	assert.NoError(t, err, "connecting")
 

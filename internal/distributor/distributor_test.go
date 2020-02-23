@@ -113,7 +113,7 @@ func TestDistributor_Distribute(t *testing.T) {
 		Number:      1,
 		Stream:      stream.ParseId("test stream"),
 		Data:        []byte(`{ "Foo" : "Bar"}`),
-		Type:        "distributor.TestMessage",
+		Group:       "distributor.TestMessage",
 		GroupNumber: 0,
 		Time:        time.Now(),
 	}

@@ -47,13 +47,8 @@ func (s *Stream) Append(messages ...interface{}) error {
 		if err != nil {
 			return err
 		}
-		record := record.Record{
-			Number: s.size + 1,
-			Stream: s.ID,
-			Data:   b,
-			Type:   s.registry.LookupType(msg),
-		}
-		err = s.store.Store(tx, record)
+		msgType := s.registry.LookupType(msg)
+		record, err := s.store.StoreRecord(tx, s.ID, msgType, b)
 		if err != nil {
 			return err
 		}

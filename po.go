@@ -13,8 +13,8 @@ import (
 type Store interface {
 	ReadRecords(ctx context.Context, id stream.Id) ([]record.Record, error)
 	Begin(ctx context.Context) (store.Tx, error)
-	Store(tx store.Tx, record record.Record) error
 	AssignGroupNumber(ctx context.Context, r record.Record) (int64, error)
+	StoreRecord(tx store.Tx, id stream.Id, msgType string, data []byte) (record.Record, error)
 }
 
 type Broker interface {

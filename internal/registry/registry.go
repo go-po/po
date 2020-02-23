@@ -41,7 +41,7 @@ func (reg *Registry) Register(initializers ...MessageUnmarshaller) {
 }
 
 func (reg *Registry) ToMessage(r record.Record) (stream.Message, error) {
-	data, err := reg.Unmarshal(r.Type, r.Data)
+	data, err := reg.Unmarshal(r.Group, r.Data)
 	if err != nil {
 		return stream.Message{}, err
 	}
@@ -49,7 +49,7 @@ func (reg *Registry) ToMessage(r record.Record) (stream.Message, error) {
 		Number:      r.Number,
 		Stream:      r.Stream,
 		Data:        data,
-		Type:        r.Type,
+		Type:        r.Group,
 		GroupNumber: r.GroupNumber,
 		Time:        r.Time,
 	}, nil

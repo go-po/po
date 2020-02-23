@@ -38,8 +38,10 @@ func (store *PGStore) ReadRecords(ctx context.Context, id stream.Id) ([]record.R
 	panic("implement me")
 }
 
-func (store *PGStore) Begin(ctx context.Context) (store.Tx, error) {
-	tx, err := store.conn.BeginTx(ctx, nil)
+func (store *PGStore) begin(ctx context.Context) (*pgTx, error) {
+	tx, err := store.conn.BeginTx(ctx, &sql.TxOptions{
+		Isolation: sql.LevelRepeatableRead,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -50,34 +52,99 @@ func (store *PGStore) Begin(ctx context.Context) (store.Tx, error) {
 	}, nil
 }
 
-func (store *PGStore) Store(tx store.Tx, record record.Record) error {
+func (store *PGStore) Begin(ctx context.Context) (store.Tx, error) {
+	return store.begin(ctx)
+}
+func (store *PGStore) StoreRecord(tx store.Tx, id stream.Id, contentType string, data []byte) (record.Record, error) {
 	t, ok := tx.(*pgTx)
 	if !ok {
-		return fmt.Errorf("unknown tx type: %T", tx)
+		return record.Record{}, fmt.Errorf("unknown tx type: %T", tx)
 	}
 
-	next, err := t.db.GetNextIndex(t.ctx, record.Stream.String())
+	next, err := t.db.GetNextIndex(t.ctx, id.String())
 	if err != nil {
-		return err
+		if err == sql.ErrNoRows {
+			next = 1
+		} else {
+			return record.Record{}, fmt.Errorf("get next index: %s", err)
+		}
 	}
+
 	err = t.db.Insert(t.ctx, db.InsertParams{
-		Stream:      record.Stream.String(),
+		Stream:      id.String(),
 		No:          next,
-		Grp:         record.Stream.Group,
-		ContentType: "application/json",
-		Data:        record.Data,
+		ContentType: contentType,
+		Data:        data,
+		Grp:         id.Group,
+		GrpNo: sql.NullInt64{
+			Int64: next,
+			Valid: !id.HasEntity(), // only written if it's a stream with no entity
+		},
 	})
-
-	err = t.db.SetNextIndex(t.ctx, record.Stream.String())
 	if err != nil {
-		return err
+		return record.Record{}, fmt.Errorf("insert: %s", err)
 	}
 
-	return nil
+	err = t.db.SetNextIndex(t.ctx, db.SetNextIndexParams{
+		Stream: id.String(),
+		Next:   next + 1,
+	})
+	if err != nil {
+		return record.Record{}, fmt.Errorf("set next index: %s", err)
+	}
+
+	msg, err := t.db.GetRecordByStream(t.ctx, db.GetRecordByStreamParams{
+		Stream: id.String(),
+		No:     next,
+	})
+	if err != nil {
+		return record.Record{}, fmt.Errorf("get record: %s", err)
+	}
+
+	return toRecord(msg), nil
 }
 
 func (store *PGStore) AssignGroupNumber(ctx context.Context, r record.Record) (int64, error) {
-	panic("implement me")
+	return 0, nil
+}
+
+func (store *PGStore) AssignGroup(ctx context.Context, id stream.Id, number int64) (record.Record, error) {
+	tx, err := store.begin(ctx)
+	if err != nil {
+		return record.Record{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	next, err := tx.db.GetNextIndex(tx.ctx, id.Group)
+	if err != nil {
+		return record.Record{}, err
+	}
+
+	err = tx.db.SetNextIndex(ctx, db.SetNextIndexParams{
+		Next:   next + 1,
+		Stream: id.Group,
+	})
+	if err != nil {
+		return record.Record{}, err
+	}
+
+	msg, err := tx.db.SetGroupNumber(tx.ctx, db.SetGroupNumberParams{
+		GrpNo: sql.NullInt64{
+			Int64: next,
+			Valid: true,
+		},
+		Stream: id.Group,
+		No:     number,
+	})
+	if err != nil {
+		return record.Record{}, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return record.Record{}, err
+	}
+
+	return toRecord(msg), nil
 }
 
 type pgTx struct {
@@ -92,4 +159,19 @@ func (t *pgTx) Commit() error {
 
 func (t *pgTx) Rollback() error {
 	return t.tx.Rollback()
+}
+
+func toRecord(msg db.PoMsg) record.Record {
+	var grpNo int64 = 0
+	if msg.GrpNo.Valid {
+		grpNo = msg.GrpNo.Int64
+	}
+	return record.Record{
+		Number:      msg.No,
+		Stream:      stream.ParseId(msg.Stream),
+		Data:        msg.Data,
+		Group:       msg.Grp,
+		GroupNumber: grpNo,
+		Time:        msg.Created,
+	}
 }

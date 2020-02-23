@@ -5,6 +5,7 @@ import (
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/stream"
+	"time"
 )
 
 type MockStore struct {
@@ -25,9 +26,17 @@ func (mock *MockStore) Begin(ctx context.Context) (store.Tx, error) {
 	return mock.Tx, nil
 }
 
-func (mock *MockStore) Store(tx store.Tx, record record.Record) error {
-	mock.Records = append(mock.Records, record)
-	return nil
+func (mock *MockStore) StoreRecord(tx store.Tx, id stream.Id, msgType string, data []byte) (record.Record, error) {
+	r := record.Record{
+		Number:      0,
+		Stream:      id,
+		Data:        data,
+		Group:       msgType,
+		GroupNumber: 0,
+		Time:        time.Time{},
+	}
+	mock.Records = append(mock.Records, r)
+	return r, nil
 }
 
 var _ store.Tx = &MockTx{}

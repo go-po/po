@@ -26,7 +26,7 @@ func (pub *Publisher) notify(ctx context.Context, record record.Record) error {
 			Expiration:      "",
 			MessageId:       toMessageId(record),
 			Timestamp:       record.Time,
-			Type:            record.Type,
+			Type:            record.Group,
 			UserId:          "",
 			AppId:           "",
 			Body:            record.Data,

@@ -62,9 +62,8 @@ func TestStream_Append(t *testing.T) {
 	stored := func(i int, expected record.Record) verify {
 		return func(t *testing.T, err error, store *mockstore.MockStore, broker *mockbroker.MockBroker) {
 			got := store.Records[i]
-			assert.Equal(t, expected.Number, got.Number, "store.Number")
 			assert.Equal(t, expected.Data, got.Data, "store.Data")
-			assert.Equal(t, expected.Type, got.Type, "store.Group")
+			assert.Equal(t, expected.Group, got.Group, "store.Group")
 			assert.Equal(t, expected.Stream, got.Stream, "store.Stream")
 		}
 	}
@@ -77,7 +76,7 @@ func TestStream_Append(t *testing.T) {
 		return func(t *testing.T, err error, store *mockstore.MockStore, broker *mockbroker.MockBroker) {
 			got := broker.Records[i]
 			assert.Equal(t, expected.Data, got.Data, "broker.Data")
-			assert.Equal(t, expected.Type, got.Type, "broker.Group")
+			assert.Equal(t, expected.Group, got.Group, "broker.Group")
 			assert.Equal(t, expected.Stream, got.Stream, "broker.Stream")
 		}
 	}
@@ -90,7 +89,7 @@ func TestStream_Append(t *testing.T) {
 				Number: int64(i),
 				Stream: streamId,
 				Data:   []byte(`{"A":1}`),
-				Type:   "po.A",
+				Group:  "po.A",
 			})
 		}
 		return result
@@ -122,16 +121,15 @@ func TestStream_Append(t *testing.T) {
 				txStarted(),
 				recordsInStore(1),
 				stored(0, record.Record{
-					Number: 1,
 					Stream: streamId,
 					Data:   []byte(`{"A":1}`),
-					Type:   "po.A",
+					Group:  "po.A",
 				}),
 				recordsNotified(1),
 				notified(0, record.Record{
 					Stream: streamId,
 					Data:   []byte(`{"A":1}`),
-					Type:   "po.A",
+					Group:  "po.A",
 				}),
 			),
 		},
@@ -148,22 +146,19 @@ func TestStream_Append(t *testing.T) {
 				txStarted(),
 				recordsInStore(3),
 				stored(0, record.Record{
-					Number: 1,
 					Stream: streamId,
 					Data:   []byte(`{"A":1}`),
-					Type:   "po.A",
+					Group:  "po.A",
 				}),
 				stored(1, record.Record{
-					Number: 2,
 					Stream: streamId,
 					Data:   []byte(`{"B":"B"}`),
-					Type:   "po.B",
+					Group:  "po.B",
 				}),
 				stored(2, record.Record{
-					Number: 3,
 					Stream: streamId,
 					Data:   []byte(`{"A":2}`),
-					Type:   "po.A",
+					Group:  "po.A",
 				}),
 				recordsNotified(3),
 			),
@@ -179,10 +174,9 @@ func TestStream_Append(t *testing.T) {
 				txStarted(),
 				recordsInStore(3),
 				stored(2, record.Record{
-					Number: 3,
 					Stream: streamId,
 					Data:   []byte(`{"B":"Data"}`),
-					Type:   "po.B",
+					Group:  "po.B",
 				}),
 			),
 		},
