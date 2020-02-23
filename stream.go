@@ -43,15 +43,16 @@ func (s *Stream) Append(messages ...interface{}) error {
 	}()
 	var records []record.Record
 	for _, msg := range messages {
+		nextNumber := s.size + 1
 		b, contentType, err := s.registry.Marshal(msg)
 		if err != nil {
 			return err
 		}
-		record, err := s.store.StoreRecord(tx, s.ID, contentType, b)
+		record, err := s.store.StoreRecord(tx, s.ID, nextNumber, contentType, b)
 		if err != nil {
 			return err
 		}
-		s.size = s.size + 1
+		s.size = nextNumber
 		records = append(records, record)
 	}
 	err = tx.Commit()

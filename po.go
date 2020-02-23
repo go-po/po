@@ -14,7 +14,7 @@ type Store interface {
 	ReadRecords(ctx context.Context, id stream.Id) ([]record.Record, error)
 	Begin(ctx context.Context) (store.Tx, error)
 	AssignGroupNumber(ctx context.Context, r record.Record) (int64, error)
-	StoreRecord(tx store.Tx, id stream.Id, contentType string, data []byte) (record.Record, error)
+	StoreRecord(tx store.Tx, id stream.Id, number int64, contentType string, data []byte) (record.Record, error)
 }
 
 type Broker interface {

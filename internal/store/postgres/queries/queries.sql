@@ -3,8 +3,8 @@ select *
 from po_msgs;
 
 -- name: Insert :exec
-INSERT INTO po_msgs (stream, no, grp, grp_no, content_type, data)
-VALUES ($1, $2, $3, $4, $5, $6);
+INSERT INTO po_msgs (stream, no, grp, content_type, data)
+VALUES ($1, $2, $3, $4, $5);
 
 -- name: GetNextIndex :one
 SELECT next

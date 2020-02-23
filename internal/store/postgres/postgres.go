@@ -77,7 +77,8 @@ func (store *PGStore) begin(ctx context.Context) (*pgTx, error) {
 func (store *PGStore) Begin(ctx context.Context) (store.Tx, error) {
 	return store.begin(ctx)
 }
-func (store *PGStore) StoreRecord(tx store.Tx, id stream.Id, contentType string, data []byte) (record.Record, error) {
+
+func (store *PGStore) StoreRecord(tx store.Tx, id stream.Id, number int64, contentType string, data []byte) (record.Record, error) {
 	t, ok := tx.(*pgTx)
 	if !ok {
 		return record.Record{}, fmt.Errorf("unknown tx type: %T", tx)
@@ -92,16 +93,16 @@ func (store *PGStore) StoreRecord(tx store.Tx, id stream.Id, contentType string,
 		}
 	}
 
+	if next != number {
+		return record.Record{}, fmt.Errorf("number out of order: number=%d next=%d", number, next)
+	}
+
 	err = t.db.Insert(t.ctx, db.InsertParams{
 		Stream:      id.String(),
 		No:          next,
 		ContentType: contentType,
 		Data:        data,
 		Grp:         id.Group,
-		GrpNo: sql.NullInt64{
-			Int64: next,
-			Valid: !id.HasEntity(), // only written if it's a stream with no entity
-		},
 	})
 	if err != nil {
 		return record.Record{}, fmt.Errorf("insert: %s", err)

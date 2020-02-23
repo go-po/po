@@ -178,17 +178,16 @@ func (q *Queries) GetRecordsByStream(ctx context.Context, arg GetRecordsByStream
 }
 
 const insert = `-- name: Insert :exec
-INSERT INTO po_msgs (stream, no, grp, grp_no, content_type, data)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO po_msgs (stream, no, grp, content_type, data)
+VALUES ($1, $2, $3, $4, $5)
 `
 
 type InsertParams struct {
-	Stream      string        `json:"stream"`
-	No          int64         `json:"no"`
-	Grp         string        `json:"grp"`
-	GrpNo       sql.NullInt64 `json:"grp_no"`
-	ContentType string        `json:"content_type"`
-	Data        []byte        `json:"data"`
+	Stream      string `json:"stream"`
+	No          int64  `json:"no"`
+	Grp         string `json:"grp"`
+	ContentType string `json:"content_type"`
+	Data        []byte `json:"data"`
 }
 
 func (q *Queries) Insert(ctx context.Context, arg InsertParams) error {
@@ -196,7 +195,6 @@ func (q *Queries) Insert(ctx context.Context, arg InsertParams) error {
 		arg.Stream,
 		arg.No,
 		arg.Grp,
-		arg.GrpNo,
 		arg.ContentType,
 		arg.Data,
 	)

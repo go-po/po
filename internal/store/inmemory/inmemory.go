@@ -49,17 +49,12 @@ func (mem *InMemory) Begin(ctx context.Context) (store.Tx, error) {
 	}, nil
 }
 
-func (mem *InMemory) StoreRecord(tx store.Tx, id stream.Id, msgType string, data []byte) (record.Record, error) {
+func (mem *InMemory) StoreRecord(tx store.Tx, id stream.Id, number int64, msgType string, data []byte) (record.Record, error) {
 	inTx, ok := tx.(*inMemoryTx)
 	if !ok {
 		return record.Record{}, fmt.Errorf("unknown tx type: %T", tx)
 	}
 
-	current, err := mem.ReadRecords(context.Background(), id)
-	if err != nil {
-		return record.Record{}, err
-	}
-	number := int64(len(current) + len(inTx.records))
 	r := record.Record{
 		Number:      number,
 		Stream:      id,
