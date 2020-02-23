@@ -172,6 +172,7 @@ func toRecord(msg db.PoMsg) record.Record {
 		Data:        msg.Data,
 		Group:       msg.Grp,
 		GroupNumber: grpNo,
+		ContentType: msg.ContentType,
 		Time:        msg.Created,
 	}
 }
