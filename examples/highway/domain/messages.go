@@ -3,10 +3,10 @@ package domain
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/go-po/po"
 	"github.com/go-po/po/stream"
 	"math"
+	"sync"
 )
 
 type Car struct {
@@ -24,16 +24,22 @@ func init() {
 }
 
 type CarCounter struct {
-	count int64
+	mu    sync.Mutex
+	count int
 }
 
 func (counter *CarCounter) Handle(ctx context.Context, msg stream.Message) error {
-	fmt.Printf("car\n")
+	counter.mu.Lock()
+	defer counter.mu.Unlock()
 	switch msg.Data.(type) {
 	case Car:
 		counter.count = counter.count + 1
 	}
 	return nil
+}
+
+func (counter *CarCounter) Count() int {
+	return counter.count
 }
 
 type SpeedMonitor struct {

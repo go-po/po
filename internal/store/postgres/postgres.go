@@ -8,6 +8,7 @@ import (
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/internal/store/postgres/generated/db"
 	"github.com/go-po/po/stream"
+	"github.com/lib/pq"
 )
 
 func NewFromUrl(databaseUrl string) (*PGStore, error) {
@@ -62,7 +63,7 @@ func (store *PGStore) ReadRecords(ctx context.Context, id stream.Id) ([]record.R
 
 func (store *PGStore) begin(ctx context.Context) (*pgTx, error) {
 	tx, err := store.conn.BeginTx(ctx, &sql.TxOptions{
-		Isolation: sql.LevelRepeatableRead,
+		//Isolation: sql.LevelRepeatableRead,
 	})
 	if err != nil {
 		return nil, err
@@ -134,12 +135,14 @@ func (store *PGStore) AssignGroup(ctx context.Context, id stream.Id, number int6
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	next, getIndexErr := tx.db.GetNextIndex(tx.ctx, id.Group)
-	if getIndexErr != nil {
-		if getIndexErr == sql.ErrNoRows {
+	next, nextIndexErr := tx.db.GetNextIndex(tx.ctx, id.Group)
+	if nextIndexErr != nil {
+		if nextIndexErr == sql.ErrNoRows {
 			next = 1
+		} else if pqErr, ok := nextIndexErr.(*pq.Error); ok {
+			fmt.Printf("PQ: %#v\n", pqErr)
 		} else {
-			return record.Record{}, fmt.Errorf("get next index: %s", getIndexErr)
+			return record.Record{}, fmt.Errorf("get next index: %T %s", nextIndexErr, nextIndexErr)
 		}
 	}
 

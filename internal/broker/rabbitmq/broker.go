@@ -9,15 +9,17 @@ import (
 	"github.com/streadway/amqp"
 )
 
-type ConnInfo struct {
+type Config struct {
 	AmqpUrl  string
 	Exchange string
+	Id       string
 }
 
-func New(uri, exchange string, assigner broker.GroupAssigner) (*Broker, error) {
-	broker := &Broker{ConnInfo: ConnInfo{
+func New(uri, exchange, id string, assigner broker.GroupAssigner) (*Broker, error) {
+	broker := &Broker{Config: Config{
 		AmqpUrl:  uri,
 		Exchange: exchange,
+		Id:       id,
 	},
 		assigner: assigner,
 	}
@@ -30,18 +32,13 @@ func New(uri, exchange string, assigner broker.GroupAssigner) (*Broker, error) {
 		return nil, err
 	}
 
-	err = broker.sub.connect()
-	if err != nil {
-		return nil, err
-	}
-
 	return broker, nil
 }
 
 var _ po.Broker = &Broker{}
 
 type Broker struct {
-	ConnInfo    ConnInfo
+	Config      Config
 	pub         *Publisher
 	sub         *Subscriber
 	distributor broker.Distributor
@@ -67,7 +64,7 @@ func (broker *Broker) Subscribe(ctx context.Context, streamId stream.Id) error {
 }
 
 func (broker *Broker) connect() (*amqp.Channel, error) {
-	conn, err := amqp.Dial(broker.ConnInfo.AmqpUrl)
+	conn, err := amqp.Dial(broker.Config.AmqpUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -76,26 +73,17 @@ func (broker *Broker) connect() (*amqp.Channel, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return channel, channel.ExchangeDeclare(
-		broker.ConnInfo.Exchange, // name
-		"direct",                 // type
-		true,                     // durable
-		false,                    // auto-deleted
-		false,                    // internal
-		false,                    // noWait
-		nil,                      // arguments
+		broker.Config.Exchange, // name
+		"direct",               // type
+		true,                   // durable
+		false,                  // auto-deleted
+		false,                  // internal
+		false,                  // noWait
+		nil,                    // arguments
 	)
 }
 
 func (broker *Broker) Shutdown() error {
-	err := broker.sub.channel.Close()
-	if err != nil {
-		return err
-	}
-	err = broker.pub.channel.Close()
-	if err != nil {
-		return err
-	}
 	return nil
 }

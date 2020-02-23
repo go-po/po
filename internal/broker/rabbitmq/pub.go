@@ -28,8 +28,8 @@ func routingKey(exchange, flow, group string) string {
 // Afterwards the record will be republished on the stream queue
 // and distributed to all listeners.
 func (pub *Publisher) assign(ctx context.Context, record record.Record) error {
-	return pub.channel.Publish(pub.broker.ConnInfo.Exchange,
-		routingKey(pub.broker.ConnInfo.Exchange, "assign", record.Stream.Group), // routing key,
+	return pub.channel.Publish(pub.broker.Config.Exchange,
+		routingKey(pub.broker.Config.Exchange, "assign", record.Stream.Group), // routing key,
 		false, // mandatory
 		false, // immediate
 		amqp.Publishing{
@@ -47,8 +47,8 @@ func (pub *Publisher) assign(ctx context.Context, record record.Record) error {
 }
 
 func (pub *Publisher) notify(ctx context.Context, record record.Record) error {
-	return pub.channel.Publish(pub.broker.ConnInfo.Exchange,
-		routingKey(pub.broker.ConnInfo.Exchange, "stream", record.Stream.Group), // routing key,
+	return pub.channel.Publish(pub.broker.Config.Exchange,
+		routingKey(pub.broker.Config.Exchange, "stream", record.Stream.Group), // routing key,
 		false, // mandatory
 		false, // immediate
 		amqp.Publishing{
