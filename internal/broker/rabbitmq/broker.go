@@ -20,10 +20,8 @@ func New(uri, exchange string) (*Broker, error) {
 		Exchange: exchange,
 	}}
 
-	broker.pub = &Publisher{
-		broker: broker,
-	}
-
+	broker.pub = newPublisher(broker)
+	broker.grp = newGroupNumberAssigner(broker)
 	broker.sub = newSubscriber(broker)
 
 	err := broker.pub.connect()
@@ -32,6 +30,11 @@ func New(uri, exchange string) (*Broker, error) {
 	}
 
 	err = broker.sub.connect()
+	if err != nil {
+		return nil, err
+	}
+
+	err = broker.grp.connect()
 	if err != nil {
 		return nil, err
 	}
@@ -45,6 +48,7 @@ type Broker struct {
 	ConnInfo    ConnInfo
 	pub         *Publisher
 	sub         *Subscriber
+	grp         *GroupNumberAssigner
 	distributor broker.Distributor
 }
 

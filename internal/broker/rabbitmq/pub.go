@@ -6,6 +6,12 @@ import (
 	"github.com/streadway/amqp"
 )
 
+func newPublisher(broker *Broker) *Publisher {
+	return &Publisher{
+		broker: broker,
+	}
+}
+
 type Publisher struct {
 	broker  *Broker
 	channel *amqp.Channel
