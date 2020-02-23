@@ -12,15 +12,17 @@ import (
 func newSubscriber(broker *Broker) *Subscriber {
 	return &Subscriber{
 		broker: broker,
-		queues: make(map[string]amqp.Queue),
+		stream: make(map[string]amqp.Queue),
+		assign: make(map[string]amqp.Queue),
 	}
 }
 
 type Subscriber struct {
 	broker  *Broker
 	channel *amqp.Channel
-	mu      sync.Mutex // protects the queues map
-	queues  map[string]amqp.Queue
+	mu      sync.Mutex // protects the stream map
+	stream  map[string]amqp.Queue
+	assign  map[string]amqp.Queue
 }
 
 func (sub *Subscriber) connect() error {
@@ -28,12 +30,77 @@ func (sub *Subscriber) connect() error {
 	sub.channel, err = sub.broker.connect()
 	return err
 }
-
 func (sub *Subscriber) subscribe(ctx context.Context, id stream.Id) error {
+	err := sub.subscribeAssign(ctx, id)
+	if err != nil {
+		return err
+	}
+	err = sub.subscribeStream(ctx, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (sub *Subscriber) subscribeAssign(ctx context.Context, id stream.Id) error {
 	sub.mu.Lock()
 	defer sub.mu.Unlock()
 
-	queue, hasQueue := sub.queues[id.Group]
+	queue, hasQueue := sub.stream[id.Group]
+	if hasQueue {
+		// already defined, bail out now
+		return nil
+	}
+
+	queue, err := sub.channel.QueueDeclare(
+		"po.assign."+id.Group, // name of the queue
+		true,                  // durable
+		false,                 // delete when unused
+		false,                 // exclusive
+		false,                 // noWait
+		amqp.Table{ // arguments
+			"x-single-active-consumer": true,
+		}, // arguments
+
+	)
+	if err != nil {
+		return err
+	}
+
+	err = sub.channel.QueueBind(
+		queue.Name, // name of the queue
+		routingKey(sub.broker.ConnInfo.Exchange, "assign", id.Group), // bindingKey
+		sub.broker.ConnInfo.Exchange,                                 // sourceExchange
+		false,                                                        // noWait
+		nil,                                                          // arguments
+	)
+	if err != nil {
+		return err
+	}
+
+	deliveries, err := sub.channel.Consume(
+		queue.Name, // name
+		"",         // consumerTag, unique id for the consumer on the given queue
+		false,      // noAck, false means deliveries should call Ack/NoAck explicitly
+		false,      // exclusive, false to allow others to consume the same queue
+		false,      // noLocal
+		false,      // noWait
+		nil,        // arguments
+	)
+
+	// closes when the deliverers are closed, which happens along with the amqp channel
+	go sub.deliverAssign(deliveries)
+
+	sub.assign[id.Group] = queue
+
+	return nil
+}
+
+func (sub *Subscriber) subscribeStream(ctx context.Context, id stream.Id) error {
+	sub.mu.Lock()
+	defer sub.mu.Unlock()
+
+	queue, hasQueue := sub.stream[id.Group]
 	if hasQueue {
 		// already defined, bail out now
 		return nil
@@ -53,11 +120,11 @@ func (sub *Subscriber) subscribe(ctx context.Context, id stream.Id) error {
 	}
 
 	err = sub.channel.QueueBind(
-		queue.Name,                   // name of the queue
-		id.Group,                     // bindingKey
-		sub.broker.ConnInfo.Exchange, // sourceExchange
-		false,                        // noWait
-		nil,                          // arguments
+		queue.Name, // name of the queue
+		routingKey(sub.broker.ConnInfo.Exchange, "stream", id.Group), // bindingKey
+		sub.broker.ConnInfo.Exchange,                                 // sourceExchange
+		false,                                                        // noWait
+		nil,                                                          // arguments
 	)
 	if err != nil {
 		return err
@@ -74,14 +141,43 @@ func (sub *Subscriber) subscribe(ctx context.Context, id stream.Id) error {
 	)
 
 	// closes when the deliverers are closed, which happens along with the amqp channel
-	go sub.deliver(deliveries)
+	go sub.deliverStream(deliveries)
 
-	sub.queues[id.Group] = queue
+	sub.stream[id.Group] = queue
 
 	return nil
 }
 
-func (sub *Subscriber) deliver(deliveries <-chan amqp.Delivery) {
+func (sub *Subscriber) deliverAssign(deliveries <-chan amqp.Delivery) {
+	count := 0
+	for msg := range deliveries {
+		streamId, number, _, err := parseMessageId(msg.MessageId)
+		if err != nil {
+			// TODO
+			fmt.Printf("failed handling: %s\n", err)
+		}
+		count = count + 1
+		r, err := sub.broker.assigner.AssignGroup(context.Background(), stream.ParseId(streamId), number)
+		if err != nil {
+			// TODO
+			fmt.Printf("failed handling: %s\n", err)
+		}
+
+		err = sub.broker.pub.notify(context.Background(), r)
+		if err != nil {
+			// TODO
+			fmt.Printf("failed handling: %s\n", err)
+		}
+
+		// TODO figure out how to use Nack in this case
+		err = msg.Ack(false)
+		if err != nil {
+			// TODO
+			fmt.Printf("failed acking: %s\n", err)
+		}
+	}
+}
+func (sub *Subscriber) deliverStream(deliveries <-chan amqp.Delivery) {
 	for msg := range deliveries {
 		streamId, number, groupNumber, err := parseMessageId(msg.MessageId)
 		rec := record.Record{

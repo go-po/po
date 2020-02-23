@@ -21,7 +21,8 @@ WHERE po_msg_index.next = $2 - 1
 
 -- name: SetGroupNumber :one
 UPDATE po_msgs
-SET grp_no = $1
+SET grp_no  = $1,
+    updated = NOW()
 WHERE stream = $2
   AND no = $3
   AND grp_no = 0

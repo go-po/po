@@ -14,14 +14,15 @@ type ConnInfo struct {
 	Exchange string
 }
 
-func New(uri, exchange string) (*Broker, error) {
+func New(uri, exchange string, assigner broker.GroupAssigner) (*Broker, error) {
 	broker := &Broker{ConnInfo: ConnInfo{
 		AmqpUrl:  uri,
 		Exchange: exchange,
-	}}
+	},
+		assigner: assigner,
+	}
 
 	broker.pub = newPublisher(broker)
-	broker.grp = newGroupNumberAssigner(broker)
 	broker.sub = newSubscriber(broker)
 
 	err := broker.pub.connect()
@@ -30,11 +31,6 @@ func New(uri, exchange string) (*Broker, error) {
 	}
 
 	err = broker.sub.connect()
-	if err != nil {
-		return nil, err
-	}
-
-	err = broker.grp.connect()
 	if err != nil {
 		return nil, err
 	}
@@ -48,8 +44,8 @@ type Broker struct {
 	ConnInfo    ConnInfo
 	pub         *Publisher
 	sub         *Subscriber
-	grp         *GroupNumberAssigner
 	distributor broker.Distributor
+	assigner    broker.GroupAssigner
 }
 
 func (broker *Broker) Distributor(distributor broker.Distributor) {
@@ -58,7 +54,7 @@ func (broker *Broker) Distributor(distributor broker.Distributor) {
 
 func (broker *Broker) Notify(ctx context.Context, records ...record.Record) error {
 	for _, record := range records {
-		err := broker.pub.notify(ctx, record)
+		err := broker.pub.assign(ctx, record)
 		if err != nil {
 			return err
 		}

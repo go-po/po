@@ -22,3 +22,6 @@ down:
 
 plantuml:
 	./scripts/plantuml.sh
+
+open-mq:
+	open http://localhost:15672/ -a Safari

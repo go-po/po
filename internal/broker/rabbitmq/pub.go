@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/go-po/po/internal/record"
 	"github.com/streadway/amqp"
+	"strings"
 )
 
 func newPublisher(broker *Broker) *Publisher {
@@ -17,11 +18,39 @@ type Publisher struct {
 	channel *amqp.Channel
 }
 
+func routingKey(exchange, flow, group string) string {
+	return strings.Join([]string{exchange, flow, group}, ".")
+}
+
+// first part of the step, puts the record on an assign queue
+// here it will be read sequential by a single consumer in
+// order to assign a group number
+// Afterwards the record will be republished on the stream queue
+// and distributed to all listeners.
+func (pub *Publisher) assign(ctx context.Context, record record.Record) error {
+	return pub.channel.Publish(pub.broker.ConnInfo.Exchange,
+		routingKey(pub.broker.ConnInfo.Exchange, "assign", record.Stream.Group), // routing key,
+		false, // mandatory
+		false, // immediate
+		amqp.Publishing{
+			Headers:         amqp.Table{},
+			ContentType:     "text/plain",
+			ContentEncoding: "",
+			DeliveryMode:    amqp.Transient,
+			Priority:        0,
+			CorrelationId:   "",
+			Expiration:      "",
+			MessageId:       toMessageId(record),
+			Timestamp:       record.Time,
+			Type:            record.Group,
+		})
+}
+
 func (pub *Publisher) notify(ctx context.Context, record record.Record) error {
 	return pub.channel.Publish(pub.broker.ConnInfo.Exchange,
-		record.Stream.Group, // routing key,
-		false,               // mandatory
-		false,               // immediate
+		routingKey(pub.broker.ConnInfo.Exchange, "stream", record.Stream.Group), // routing key,
+		false, // mandatory
+		false, // immediate
 		amqp.Publishing{
 			Headers:         amqp.Table{},
 			ContentType:     "application/json",
