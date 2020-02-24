@@ -66,9 +66,8 @@ func AssetNames() []string {
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() ([]byte, error){
 	"1_create_records.down.sql": _1_create_records_down_sql,
-	"1_create_records.up.sql":   _1_create_records_up_sql,
+	"1_create_records.up.sql": _1_create_records_up_sql,
 }
-
 // AssetDir returns the file names below a certain
 // directory embedded in the file by go-bindata.
 // For example if you run go-bindata on data/... and data contains the
@@ -105,11 +104,12 @@ func AssetDir(name string) ([]string, error) {
 }
 
 type _bintree_t struct {
-	Func     func() ([]byte, error)
+	Func func() ([]byte, error)
 	Children map[string]*_bintree_t
 }
-
 var _bintree = &_bintree_t{nil, map[string]*_bintree_t{
-	"1_create_records.down.sql": &_bintree_t{_1_create_records_down_sql, map[string]*_bintree_t{}},
-	"1_create_records.up.sql":   &_bintree_t{_1_create_records_up_sql, map[string]*_bintree_t{}},
+	"1_create_records.down.sql": &_bintree_t{_1_create_records_down_sql, map[string]*_bintree_t{
+	}},
+	"1_create_records.up.sql": &_bintree_t{_1_create_records_up_sql, map[string]*_bintree_t{
+	}},
 }}

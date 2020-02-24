@@ -41,10 +41,10 @@ func (app *App) Start(ctx context.Context, cars int) error {
 	if err != nil {
 		return err
 	}
-	//	err = app.po.Subscribe(ctx, "speed-monitor", "highways", app.monitor)
-	//	if err != nil {
-	//		return err
-	//	}
+	err = app.po.Subscribe(ctx, "speed-monitor", "highways", app.monitor)
+	if err != nil {
+		return err
+	}
 
 	for i := 0; i < cars; i++ {
 		err = app.po.Stream(context.Background(), "highways-"+app.id).

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/go-po/po"
 	"github.com/go-po/po/stream"
+	"log"
 	"math"
 	"sync"
 )
@@ -42,7 +43,17 @@ func (counter *CarCounter) Count() int {
 	return counter.count
 }
 
+func NewSpeedMonitor() *SpeedMonitor {
+	return &SpeedMonitor{
+		mu:  sync.Mutex{},
+		max: 0,
+		min: 100,
+	}
+}
+
 type SpeedMonitor struct {
+	mu sync.Mutex
+
 	max   float64
 	min   float64
 	avg   float64
@@ -50,14 +61,22 @@ type SpeedMonitor struct {
 	count float64
 }
 
-func (monitor *SpeedMonitor) Handle(ctx context.Context, msg stream.Message) error {
+func (m *SpeedMonitor) Handle(ctx context.Context, msg stream.Message) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	switch event := msg.Data.(type) {
 	case Car:
-		monitor.count = monitor.count + 1
-		monitor.min = math.Min(monitor.min, event.Speed)
-		monitor.max = math.Max(monitor.max, event.Speed)
-		monitor.total = monitor.total + event.Speed
-		monitor.avg = monitor.total / monitor.count
+		m.count = m.count + 1
+		m.min = math.Min(m.min, event.Speed)
+		m.max = math.Max(m.max, event.Speed)
+		m.total = m.total + event.Speed
+		m.avg = m.total / m.count
 	}
 	return nil
+}
+
+func (m *SpeedMonitor) PrintStats() {
+	log.Printf("Speeds %.2f < %.2f < %.2f", m.min, m.avg, m.max)
+	log.Printf("Total %.0f / %.0f = %.2f", m.total, m.count, m.avg)
 }

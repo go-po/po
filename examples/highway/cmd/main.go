@@ -13,8 +13,8 @@ import (
 const (
 	databaseUrl = "postgres://po:po@localhost:5431/po?sslmode=disable"
 	uri         = "amqp://po:po@localhost:5671/"
-	cardsPerApp = 100
-	apps        = 10
+	cardsPerApp = 50
+	apps        = 20
 )
 
 // runs multiple workers, that each send messages and reads them again
@@ -23,7 +23,7 @@ func main() {
 	start := time.Now()
 	rootCtx := context.Background()
 	counter := &domain.CarCounter{}
-	speed := &domain.SpeedMonitor{}
+	speed := domain.NewSpeedMonitor()
 
 	for i := 0; i < apps; i++ {
 		name := "app-" + strconv.Itoa(i)
@@ -52,6 +52,7 @@ func main() {
 	log.Printf("-------")
 	log.Printf("Total time: %s", time.Since(start))
 	log.Printf("Messages %.2f/sec", float64(expectedCount)/time.Since(start).Seconds())
+	speed.PrintStats()
 }
 
 func startWorker(ctx context.Context, app *app.App) {
