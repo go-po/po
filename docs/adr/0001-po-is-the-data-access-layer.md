@@ -1,10 +1,14 @@
-# 2. PO is the Data Access Layer
+# 1. PO is the Data Access Layer
 
 Date: 2020-02-25
 
 ## Status
 
 Accepted
+
+Mentions [2. Structure of Stream IDs](0002-structure-of-stream-ids.md)
+
+Mentions [2. Structure of Stream IDs](0002-structure-of-stream-ids.md)
 
 ## Context
 
