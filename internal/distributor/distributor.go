@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/stream"
 	"sync"
 )
@@ -21,8 +22,15 @@ func New(registry registry) *distributor {
 
 type distributor struct {
 	registry registry
-	mu       sync.Mutex                  // guards below maps
-	subs     map[string][]stream.Handler // stream group to handler
+	mu       sync.Mutex // guards below maps
+	subs     map[string][]stream.Handler
+	store    Store
+}
+
+type Store interface {
+	Begin(ctx context.Context) (store.Tx, error)
+	GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error)
+	SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error
 }
 
 func (dist *distributor) Register(ctx context.Context, subscriberId string, stream stream.Id, subscriber interface{}) error {
@@ -32,7 +40,12 @@ func (dist *distributor) Register(ctx context.Context, subscriberId string, stre
 	if err != nil {
 		return err
 	}
-	dist.subs[stream.Group] = append(dist.subs[stream.Group], handler)
+	dist.subs[stream.Group] = append(dist.subs[stream.Group], &recordingSubscription{
+		id:      subscriberId,
+		stream:  stream,
+		handler: handler,
+		store:   dist.store,
+	})
 
 	return nil
 }
@@ -49,7 +62,7 @@ func (dist *distributor) Distribute(ctx context.Context, record record.Record) (
 		return false, fmt.Errorf("dist: %w", err)
 	}
 	for _, sub := range subs {
-		err := sub.Handle(ctx, msg)
+		err = sub.Handle(ctx, msg)
 		if err != nil {
 			// TODO faulty implementation, catch later
 			return false, err

@@ -32,29 +32,12 @@ func TestDistributor_Distribute(t *testing.T) {
 	)
 
 	type deps struct{}
-	type subscription struct {
-		stream string
-		sub    *stubDistributorSub
-	}
-	type subs map[string]subscription
-	getSub := func(t *testing.T, subs subs, id string) subscription {
-		sub, found := subs[id]
-		if !found {
-			t.Logf("missing subscription: %s", id)
-			t.FailNow()
-		}
-		return sub
-	}
-	type verify func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps)
+
+	type verify func(t *testing.T, ack bool, errDist error, subs map[string][]*stubHandler, deps deps)
 	all := func(v ...verify) []verify { return v }
-	noErrRegister := func() verify {
-		return func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps) {
-			assert.Empty(t, errs, "register errors")
-		}
-	}
-	noErrDist := func() verify {
-		return func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps) {
-			assert.NoError(t, errDist, "no dist err")
+	noErr := func() verify {
+		return func(t *testing.T, ack bool, errDist error, subs map[string][]*stubHandler, deps deps) {
+			assert.NoError(t, errDist, "no err")
 		}
 	}
 
@@ -69,27 +52,39 @@ func TestDistributor_Distribute(t *testing.T) {
 			assert.Equal(t, expected, msg.Data, "message data content")
 		}
 	}
+	getSub := func(t *testing.T, subs map[string][]*stubHandler, subId string) *stubHandler {
+		for _, handlers := range subs {
+			for _, handler := range handlers {
+				if handler.name == subId {
+					return handler
+				}
+			}
+		}
+		t.Logf("sub id not declared: %s", subId)
+		t.FailNow()
+		return nil
+	}
 	subGotCount := func(subId string, expected int) verify {
-		return func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps) {
+		return func(t *testing.T, ack bool, errDist error, subs map[string][]*stubHandler, deps deps) {
 			sub := getSub(t, subs, subId)
-			if !assert.Equal(t, expected, len(sub.sub.msgs), "sub count") {
+			if !assert.Equal(t, expected, len(sub.msgs), "sub count") {
 				t.FailNow()
 			}
 		}
 	}
 	subGot := func(subId string, num int, expect ...verifyMessage) verify {
-		return func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps) {
+		return func(t *testing.T, ack bool, errDist error, subs map[string][]*stubHandler, deps deps) {
 			sub := getSub(t, subs, subId)
-			if assert.True(t, num < len(sub.sub.msgs), "sub got too few messages: %s", subId) {
+			if assert.True(t, num < len(sub.msgs), "sub got too few messages: %s", subId) {
 				for _, v := range expect {
-					v(t, sub.sub.msgs[num])
+					v(t, sub.msgs[num])
 				}
 			}
 		}
 	}
 
 	distAccept := func(dist int, expected bool) verify {
-		return func(t *testing.T, ack bool, errDist error, errs []error, subs subs, deps deps) {
+		return func(t *testing.T, ack bool, errDist error, subs map[string][]*stubHandler, deps deps) {
 			assert.Equal(t, expected, ack, "dist accept")
 		}
 	}
@@ -97,28 +92,27 @@ func TestDistributor_Distribute(t *testing.T) {
 		Number:      1,
 		Stream:      stream.ParseId("test stream"),
 		Data:        []byte(`{ "Foo" : "Bar"}`),
-		Group:       "distributor.TestMessage",
+		Group:       "",
+		ContentType: "application/json;type=distributor.TestMessage",
 		GroupNumber: 0,
 		Time:        time.Now(),
 	}
 	tests := map[string]struct {
 		deps   deps
-		subs   map[string]subscription
+		subs   map[string][]*stubHandler
 		record record.Record
 		verify []verify
 	}{
 		"one subscriber - one matching record": {
 
-			subs: map[string]subscription{
-				"sub": {
-					stream: "test stream",
-					sub:    &stubDistributorSub{},
+			subs: map[string][]*stubHandler{
+				"test stream": {
+					{name: "sub"},
 				},
 			},
 			record: DefaultTestRecord,
 			verify: all(
-				noErrRegister(),
-				noErrDist(),
+				noErr(),
 				subGotCount("sub", 1),
 				subGot("sub", 0,
 					msgNumber(1),
@@ -129,20 +123,14 @@ func TestDistributor_Distribute(t *testing.T) {
 		},
 		"two subscriber - one matching record": {
 
-			subs: map[string]subscription{
-				"sub 1": {
-					stream: "test stream",
-					sub:    &stubDistributorSub{},
-				},
-				"sub 2": {
-					stream: "test stream",
-					sub:    &stubDistributorSub{},
+			subs: map[string][]*stubHandler{
+				"test stream": {
+					{name: "sub 1"}, {name: "sub 2"},
 				},
 			},
 			record: DefaultTestRecord,
 			verify: all(
-				noErrRegister(),
-				noErrDist(),
+				noErr(),
 				subGotCount("sub 1", 1),
 				subGot("sub 1", 0,
 					msgNumber(1),
@@ -156,17 +144,37 @@ func TestDistributor_Distribute(t *testing.T) {
 				distAccept(0, true),
 			),
 		},
+		"two subscriber - different streams": {
+
+			subs: map[string][]*stubHandler{
+				"test stream": {
+					{name: "sub 1"},
+				},
+				"different stream": {
+					{name: "sub 2"},
+				},
+			},
+			record: DefaultTestRecord,
+			verify: all(
+				noErr(),
+				subGotCount("sub 1", 1),
+				subGot("sub 1", 0,
+					msgNumber(1),
+					msgData(TestMessage{Foo: "Bar"}),
+				),
+				subGotCount("sub 2", 0),
+				distAccept(0, true),
+			),
+		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			// setup
 
 			dist := New(messageRegistry)
-			var errs []error
-			for id, s := range test.subs {
-				err := dist.Register(context.Background(), id, stream.ParseId(s.stream), s.sub)
-				if err != nil {
-					errs = append(errs, err)
+			for id, subs := range test.subs {
+				for _, sub := range subs {
+					dist.subs[id] = append(dist.subs[id], sub)
 				}
 			}
 
@@ -175,34 +183,20 @@ func TestDistributor_Distribute(t *testing.T) {
 
 			// verify
 			for _, v := range test.verify {
-				v(t, ack, distErr, errs, test.subs, test.deps)
+				v(t, ack, distErr, test.subs, test.deps)
 			}
 
 		})
 	}
 }
 
-type stubDistributorSub struct {
+type stubHandler struct {
+	name string
 	msgs []stream.Message
 	err  error
 }
 
-func (stub *stubDistributorSub) Handle(ctx context.Context, msg stream.Message) error {
+func (stub *stubHandler) Handle(ctx context.Context, msg stream.Message) error {
 	stub.msgs = append(stub.msgs, msg)
 	return stub.err
-}
-
-type stubGroupNumberAssigner struct {
-	assigned []record.Record
-	fn       func(r record.Record) (int64, error)
-	err      error
-	number   int64
-}
-
-func (stub *stubGroupNumberAssigner) AssignGroupNumber(ctx context.Context, r record.Record) (int64, error) {
-	stub.assigned = append(stub.assigned, r)
-	if stub.fn == nil {
-		return stub.number, stub.err
-	}
-	return stub.fn(r)
 }
