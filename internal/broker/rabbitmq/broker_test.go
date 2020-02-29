@@ -31,7 +31,7 @@ func TestBroker_Roundtrip(t *testing.T) {
 	stubAssigner := &stubAssigner{
 		records: records,
 	}
-	broker, err := New(uri, "test-exchange", stubAssigner)
+	broker, err := New(uri, "test-exchange", "TestBroker_Roundtrip", stubAssigner)
 	assert.NoError(t, err)
 	defer func() {
 		_ = broker.Shutdown()

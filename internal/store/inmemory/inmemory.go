@@ -22,6 +22,14 @@ type InMemory struct {
 	data map[string][]record.Record // records by stream group id
 }
 
+func (mem *InMemory) GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
+	panic("implement me")
+}
+
+func (mem *InMemory) SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
+	panic("implement me")
+}
+
 func (mem *InMemory) AssignGroupNumber(ctx context.Context, r record.Record) (int64, error) {
 	mem.mu.Lock()
 	defer mem.mu.Unlock()

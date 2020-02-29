@@ -13,6 +13,14 @@ type MockStore struct {
 	Records []record.Record
 }
 
+func (mock *MockStore) GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
+	return 0, nil
+}
+
+func (mock *MockStore) SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
+	return nil
+}
+
 func (mock *MockStore) AssignGroupNumber(ctx context.Context, r record.Record) (int64, error) {
 	return 0, nil
 }

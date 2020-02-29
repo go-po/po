@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS po_msgs
     data         bytea                                  NOT NULL
 );
 
+comment on table po_msgs is 'contains messages';
+
 CREATE INDEX IF NOT EXISTS po_msgs_stream_index ON po_msgs (stream);
 CREATE INDEX IF NOT EXISTS po_msgs_grp_index ON po_msgs (grp);
 CREATE UNIQUE INDEX IF NOT EXISTS po_msgs_stream_number_uindex ON po_msgs (stream, no);
@@ -19,9 +21,29 @@ CREATE UNIQUE INDEX IF NOT EXISTS po_msgs_grp_grp_number_uindex ON po_msgs (grp,
 
 CREATE TABLE IF NOT EXISTS po_msg_index
 (
-    stream VARCHAR          NOT NULL,
-    next   bigint default 0 not null
+    updated timestamp with time zone default NOW() not null,
+    created timestamp with time zone default NOW() not null,
+    stream  VARCHAR                                NOT NULL,
+    next    bigint                   default 0     not null
 );
 
+comment on table po_msg_index is 'contains the next number assigned to a stream';
+
 CREATE UNIQUE INDEX IF NOT EXISTS po_msg_index_stream_uindex ON po_msg_index (stream);
+
+CREATE TABLE IF NOT EXISTS po_ptr
+(
+    updated      timestamp with time zone default NOW() NOT NULL,
+    created      timestamp with time zone default NOW() NOT NULL,
+    stream       varchar                                NOT NULL,
+    listener     varchar                                NOT NULL,
+    no           bigint                                 NOT NULL,
+    data         bytea                                  NOT NULL,
+    content_type varchar                                NOT NULL
+);
+
+comment on table po_ptr is 'information about how far a stream listener is';
+
+CREATE UNIQUE INDEX IF NOT EXISTS po_ptr_stream_listener_uindex
+    on po_ptr (stream, listener);
 

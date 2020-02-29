@@ -35,6 +35,14 @@ type PGStore struct {
 	db   *db.Queries
 }
 
+func (store *PGStore) GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
+	panic("implement me")
+}
+
+func (store *PGStore) SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
+	panic("implement me")
+}
+
 func (store *PGStore) ReadRecords(ctx context.Context, id stream.Id) ([]record.Record, error) {
 	var msgs []db.PoMsg
 	var err error

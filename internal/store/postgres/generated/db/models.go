@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// contains messages
 type PoMsg struct {
 	Created     time.Time     `json:"created"`
 	Updated     time.Time     `json:"updated"`
@@ -18,7 +19,21 @@ type PoMsg struct {
 	Data        []byte        `json:"data"`
 }
 
+// contains the next number assigned to a stream
 type PoMsgIndex struct {
-	Stream string `json:"stream"`
-	Next   int64  `json:"next"`
+	Updated time.Time `json:"updated"`
+	Created time.Time `json:"created"`
+	Stream  string    `json:"stream"`
+	Next    int64     `json:"next"`
+}
+
+// information about how far a stream listener is
+type PoPtr struct {
+	Updated     time.Time `json:"updated"`
+	Created     time.Time `json:"created"`
+	Stream      string    `json:"stream"`
+	Listener    string    `json:"listener"`
+	No          int64     `json:"no"`
+	Data        []byte    `json:"data"`
+	ContentType string    `json:"content_type"`
 }
