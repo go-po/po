@@ -21,6 +21,33 @@ func (q *Queries) GetNextIndex(ctx context.Context, stream string) (int64, error
 	return next, err
 }
 
+const getPosition = `-- name: GetPosition :one
+SELECT updated, created, stream, listener, no, data, content_type
+FROM po_ptr
+WHERE stream = $1
+  AND listener = $2
+`
+
+type GetPositionParams struct {
+	Stream   string `json:"stream"`
+	Listener string `json:"listener"`
+}
+
+func (q *Queries) GetPosition(ctx context.Context, arg GetPositionParams) (PoPtr, error) {
+	row := q.db.QueryRowContext(ctx, getPosition, arg.Stream, arg.Listener)
+	var i PoPtr
+	err := row.Scan(
+		&i.Updated,
+		&i.Created,
+		&i.Stream,
+		&i.Listener,
+		&i.No,
+		&i.Data,
+		&i.ContentType,
+	)
+	return i, err
+}
+
 const getRecordByStream = `-- name: GetRecordByStream :one
 SELECT created, updated, stream, no, grp, grp_no, content_type, data
 FROM po_msgs
@@ -249,5 +276,26 @@ type SetNextIndexParams struct {
 
 func (q *Queries) SetNextIndex(ctx context.Context, arg SetNextIndexParams) error {
 	_, err := q.db.ExecContext(ctx, setNextIndex, arg.Stream, arg.Next)
+	return err
+}
+
+const setPosition = `-- name: SetPosition :exec
+INSERT INTO po_ptr (stream, listener, no)
+VALUES ($1, $2, $3)
+ON CONFLICT (stream, listener) DO UPDATE
+    SET no      = $3,
+        updated = NOW()
+WHERE po_ptr.stream = $1
+  AND po_ptr.listener = $2
+`
+
+type SetPositionParams struct {
+	Stream   string `json:"stream"`
+	Listener string `json:"listener"`
+	No       int64  `json:"no"`
+}
+
+func (q *Queries) SetPosition(ctx context.Context, arg SetPositionParams) error {
+	_, err := q.db.ExecContext(ctx, setPosition, arg.Stream, arg.Listener, arg.No)
 	return err
 }

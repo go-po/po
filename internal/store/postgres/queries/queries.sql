@@ -49,3 +49,17 @@ WHERE grp = $1
   AND grp_no > $2
 ORDER BY grp_no;
 
+-- name: GetPosition :one
+SELECT *
+FROM po_ptr
+WHERE stream = $1
+  AND listener = $2;
+
+-- name: SetPosition :exec
+INSERT INTO po_ptr (stream, listener, no)
+VALUES ($1, $2, $3)
+ON CONFLICT (stream, listener) DO UPDATE
+    SET no      = $3,
+        updated = NOW()
+WHERE po_ptr.stream = $1
+  AND po_ptr.listener = $2;
