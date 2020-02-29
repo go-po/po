@@ -36,11 +36,37 @@ type PGStore struct {
 }
 
 func (store *PGStore) GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
-	panic("implement me")
+	t, ok := tx.(*pgTx)
+	if !ok {
+		return 0, ErrUnknownTx{tx}
+	}
+	position, err := t.db.GetPosition(t.ctx, db.GetPositionParams{
+		Stream:   stream.String(),
+		Listener: subscriberId,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, ErrUnknownTx{tx}
+	}
+	return position.No, nil
 }
 
 func (store *PGStore) SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
-	panic("implement me")
+	t, ok := tx.(*pgTx)
+	if !ok {
+		return ErrUnknownTx{tx}
+	}
+	err := t.db.SetPosition(t.ctx, db.SetPositionParams{
+		Stream:   stream.String(),
+		Listener: subscriberId,
+		No:       position,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (store *PGStore) ReadRecords(ctx context.Context, id stream.Id) ([]record.Record, error) {
@@ -90,7 +116,7 @@ func (store *PGStore) Begin(ctx context.Context) (store.Tx, error) {
 func (store *PGStore) StoreRecord(tx store.Tx, id stream.Id, number int64, contentType string, data []byte) (record.Record, error) {
 	t, ok := tx.(*pgTx)
 	if !ok {
-		return record.Record{}, fmt.Errorf("unknown tx type: %T", tx)
+		return record.Record{}, ErrUnknownTx{tx}
 	}
 
 	next, err := t.db.GetNextIndex(t.ctx, id.String())
