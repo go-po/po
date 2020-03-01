@@ -35,6 +35,38 @@ type PGStore struct {
 	db   *db.Queries
 }
 
+func (store *PGStore) ReadRecordsFromTx(tx store.Tx, id stream.Id, from int64) ([]record.Record, error) {
+	return nil, nil
+}
+
+func (store *PGStore) ReadRecordsFrom(ctx context.Context, id stream.Id, from int64) ([]record.Record, error) {
+	var records []record.Record
+	var poMsgs []db.PoMsg
+	var err error
+
+	if id.HasEntity() {
+		poMsgs, err = store.db.GetRecordsByStream(ctx, db.GetRecordsByStreamParams{
+			Stream: id.String(),
+			No:     from,
+		})
+	} else {
+		poMsgs, err = store.db.GetRecordsByGroup(ctx, db.GetRecordsByGroupParams{
+			Grp: id.Group,
+			GrpNo: sql.NullInt64{
+				Int64: from,
+				Valid: true,
+			},
+		})
+	}
+	if err != nil {
+		return nil, err
+	}
+	for _, msg := range poMsgs {
+		records = append(records, toRecord(msg))
+	}
+	return records, nil
+}
+
 func (store *PGStore) GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
 	t, ok := tx.(*pgTx)
 	if !ok {
@@ -48,7 +80,7 @@ func (store *PGStore) GetLastPosition(tx store.Tx, subscriberId string, stream s
 		if err == sql.ErrNoRows {
 			return 0, nil
 		}
-		return 0, ErrUnknownTx{tx}
+		return 0, err
 	}
 	return position.No, nil
 }

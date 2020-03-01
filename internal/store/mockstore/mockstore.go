@@ -13,6 +13,10 @@ type MockStore struct {
 	Records []record.Record
 }
 
+func (mock *MockStore) ReadRecordsFrom(ctx context.Context, id stream.Id, from int64) ([]record.Record, error) {
+	return nil, nil
+}
+
 func (mock *MockStore) GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
 	return 0, nil
 }

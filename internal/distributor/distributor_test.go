@@ -171,7 +171,7 @@ func TestDistributor_Distribute(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// setup
 
-			dist := New(messageRegistry)
+			dist := New(messageRegistry, nil)
 			for id, subs := range test.subs {
 				for _, sub := range subs {
 					dist.subs[id] = append(dist.subs[id], sub)

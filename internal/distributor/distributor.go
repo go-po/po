@@ -13,10 +13,11 @@ type registry interface {
 	ToMessage(r record.Record) (stream.Message, error)
 }
 
-func New(registry registry) *distributor {
+func New(registry registry, store Store) *distributor {
 	return &distributor{
 		subs:     make(map[string][]stream.Handler),
 		registry: registry,
+		store:    store,
 	}
 }
 
@@ -31,6 +32,7 @@ type Store interface {
 	Begin(ctx context.Context) (store.Tx, error)
 	GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error)
 	SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error
+	ReadRecordsFrom(ctx context.Context, id stream.Id, from int64) ([]record.Record, error)
 }
 
 func (dist *distributor) Register(ctx context.Context, subscriberId string, stream stream.Id, subscriber interface{}) error {
@@ -40,11 +42,13 @@ func (dist *distributor) Register(ctx context.Context, subscriberId string, stre
 	if err != nil {
 		return err
 	}
+
 	dist.subs[stream.Group] = append(dist.subs[stream.Group], &recordingSubscription{
-		id:      subscriberId,
-		stream:  stream,
-		handler: handler,
-		store:   dist.store,
+		id:       subscriberId,
+		stream:   stream,
+		handler:  handler,
+		store:    dist.store,
+		registry: dist.registry,
 	})
 
 	return nil
@@ -61,6 +65,7 @@ func (dist *distributor) Distribute(ctx context.Context, record record.Record) (
 		// TODO faulty implementation, catch later
 		return false, fmt.Errorf("dist: %w", err)
 	}
+
 	for _, sub := range subs {
 		err = sub.Handle(ctx, msg)
 		if err != nil {

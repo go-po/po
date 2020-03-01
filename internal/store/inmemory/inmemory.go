@@ -22,6 +22,10 @@ type InMemory struct {
 	data map[string][]record.Record // records by stream group id
 }
 
+func (mem *InMemory) ReadRecordsFrom(ctx context.Context, id stream.Id, from int64) ([]record.Record, error) {
+	panic("implement me")
+}
+
 func (mem *InMemory) GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
 	panic("implement me")
 }

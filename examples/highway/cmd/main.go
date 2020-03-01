@@ -13,8 +13,8 @@ import (
 const (
 	databaseUrl = "postgres://po:po@localhost:5431/po?sslmode=disable"
 	uri         = "amqp://po:po@localhost:5671/"
-	cardsPerApp = 50
-	apps        = 20
+	cardsPerApp = 10
+	apps        = 5
 )
 
 // runs multiple workers, that each send messages and reads them again

@@ -12,8 +12,11 @@ import (
 
 type Store interface {
 	ReadRecords(ctx context.Context, id stream.Id) ([]record.Record, error)
+	ReadRecordsFrom(ctx context.Context, id stream.Id, from int64) ([]record.Record, error)
 	Begin(ctx context.Context) (store.Tx, error)
 	StoreRecord(tx store.Tx, id stream.Id, number int64, contentType string, data []byte) (record.Record, error)
+	GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error)
+	SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error
 }
 
 type Broker interface {
@@ -34,7 +37,7 @@ type Distributor interface {
 }
 
 func New(store Store, broker Broker) *Po {
-	dist := distributor.New(registry.DefaultRegistry)
+	dist := distributor.New(registry.DefaultRegistry, store)
 	broker.Distributor(dist)
 	return &Po{
 		store:       store,

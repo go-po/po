@@ -27,8 +27,8 @@ type PoMsgIndex struct {
 	Next    int64     `json:"next"`
 }
 
-// information about how far a stream listener is
-type PoPtr struct {
+// position of a stream listener
+type PoPo struct {
 	Updated     time.Time `json:"updated"`
 	Created     time.Time `json:"created"`
 	Stream      string    `json:"stream"`
