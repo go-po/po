@@ -1,5 +1,3 @@
-// +build integration
-
 package rabbitmq
 
 import (
@@ -16,6 +14,10 @@ import (
 const uri = "amqp://po:po@localhost:5671/"
 
 func TestBroker_Roundtrip(t *testing.T) {
+	if testing.Short() {
+		t.SkipNow()
+	}
+
 	// setup
 	var records []record.Record
 	for i := 1; i <= 5; i++ {

@@ -11,10 +11,16 @@ mq-reset:
 reset: db-reset mq-reset
 
 test:
-	go test ./... -count 1 -race
+	go test ./... -count 1 -race -test.short
 
 test-all:
-	go test ./... -count 1 -tags integration
+	go test ./... -count 1 -race
+
+cover:
+	go test ./... -count 1 -race -cover -test.short
+
+cover-all:
+	go test ./... -count 1 -race -cover
 
 gen: clean
 	go generate ./...

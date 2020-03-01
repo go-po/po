@@ -1,5 +1,3 @@
-// +build integration
-
 package postgres
 
 import (
@@ -25,6 +23,9 @@ func connect(t *testing.T) *PGStore {
 }
 
 func TestPGStore_StoreRecord(t *testing.T) {
+	if testing.Short() {
+		t.SkipNow()
+	}
 	rand.Seed(time.Now().UnixNano())
 	type verify func(t *testing.T, r record.Record, err error)
 	type call struct {

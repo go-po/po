@@ -1,5 +1,3 @@
-// +build integration
-
 package postgres
 
 import (
@@ -10,6 +8,10 @@ import (
 )
 
 func TestMigrateDatabase(t *testing.T) {
+	if testing.Short() {
+		t.SkipNow()
+	}
+
 	// setup
 	db, err := sql.Open("postgres", databaseUrl)
 	assert.NoError(t, err, "connecting")
