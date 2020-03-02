@@ -53,7 +53,7 @@ func (s *recordingSubscription) Handle(ctx context.Context, msg stream.Message) 
 }
 
 func (s *recordingSubscription) handlePrev(ctx context.Context, last int64) (int64, error) {
-	records, err := s.store.ReadRecordsFrom(ctx, s.stream, last)
+	records, err := s.store.ReadRecords(ctx, s.stream, last)
 	if err != nil {
 		return last, err
 	}

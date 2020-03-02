@@ -22,8 +22,22 @@ type InMemory struct {
 	data map[string][]record.Record // records by stream group id
 }
 
-func (mem *InMemory) ReadRecordsFrom(ctx context.Context, id stream.Id, from int64) ([]record.Record, error) {
+func (mem *InMemory) AssignGroup(ctx context.Context, id stream.Id, number int64) (record.Record, error) {
 	panic("implement me")
+}
+
+func (mem *InMemory) ReadRecords(ctx context.Context, id stream.Id, from int64) ([]record.Record, error) {
+	data, found := mem.data[id.Group]
+	if !found {
+		return nil, nil
+	}
+	var result []record.Record
+	for _, r := range data {
+		if r.Stream.String() == id.String() && r.Number > from {
+			result = append(result, r)
+		}
+	}
+	return result, nil
 }
 
 func (mem *InMemory) GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
@@ -77,20 +91,6 @@ func (mem *InMemory) StoreRecord(tx store.Tx, id stream.Id, number int64, msgTyp
 	}
 	inTx.records = append(inTx.records, r)
 	return r, nil
-}
-
-func (mem *InMemory) ReadRecords(ctx context.Context, id stream.Id) ([]record.Record, error) {
-	data, found := mem.data[id.Group]
-	if !found {
-		return nil, nil
-	}
-	var result []record.Record
-	for _, r := range data {
-		if r.Stream.String() == id.String() {
-			result = append(result, r)
-		}
-	}
-	return result, nil
 }
 
 type inMemoryTx struct {

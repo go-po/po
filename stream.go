@@ -85,7 +85,7 @@ func (s *Stream) Load() error {
 		return nil
 	}
 
-	records, err := s.store.ReadRecords(s.ctx, s.ID)
+	records, err := s.store.ReadRecords(s.ctx, s.ID, 0)
 	if err != nil {
 		return err
 	}

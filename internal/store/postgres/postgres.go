@@ -39,7 +39,7 @@ func (store *PGStore) ReadRecordsFromTx(tx store.Tx, id stream.Id, from int64) (
 	return nil, nil
 }
 
-func (store *PGStore) ReadRecordsFrom(ctx context.Context, id stream.Id, from int64) ([]record.Record, error) {
+func (store *PGStore) ReadRecords(ctx context.Context, id stream.Id, from int64) ([]record.Record, error) {
 	var records []record.Record
 	var poMsgs []db.PoMsg
 	var err error
@@ -99,32 +99,6 @@ func (store *PGStore) SetPosition(tx store.Tx, subscriberId string, stream strea
 		return err
 	}
 	return nil
-}
-
-func (store *PGStore) ReadRecords(ctx context.Context, id stream.Id) ([]record.Record, error) {
-	var msgs []db.PoMsg
-	var err error
-	if id.HasEntity() {
-		msgs, err = store.db.GetRecordsByStream(ctx, db.GetRecordsByStreamParams{
-			Stream: id.String(),
-			No:     0, // will be useful when using snapshots
-		})
-	} else {
-		msgs, err = store.db.GetRecordsByGroup(ctx, db.GetRecordsByGroupParams{
-			Grp:   id.Group,
-			GrpNo: sql.NullInt64{}, // will be useful when using snapshots
-		})
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	var result []record.Record
-	for _, msg := range msgs {
-		result = append(result, toRecord(msg))
-	}
-	return result, nil
 }
 
 func (store *PGStore) begin(ctx context.Context) (*pgTx, error) {

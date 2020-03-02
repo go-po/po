@@ -32,7 +32,7 @@ type Store interface {
 	Begin(ctx context.Context) (store.Tx, error)
 	GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error)
 	SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error
-	ReadRecordsFrom(ctx context.Context, id stream.Id, from int64) ([]record.Record, error)
+	ReadRecords(ctx context.Context, id stream.Id, from int64) ([]record.Record, error)
 }
 
 func (dist *distributor) Register(ctx context.Context, subscriberId string, stream stream.Id, subscriber interface{}) error {
