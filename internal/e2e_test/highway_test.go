@@ -22,6 +22,16 @@ const (
 	uri         = "amqp://po:po@localhost:5671/"
 )
 
+type highwayTestCase struct {
+	name    string
+	store   func() (po.Store, error)                                    // constructor
+	broker  func(group broker.GroupAssigner, id int) (po.Broker, error) // constructor
+	apps    int                                                         // number of concurrent apps
+	subs    int                                                         // number of subscribers per app
+	cars    int                                                         // number of cars per app
+	timeout time.Duration
+}
+
 func TestHighwayApp(t *testing.T) {
 	if testing.Short() {
 		t.SkipNow()
@@ -40,98 +50,61 @@ func TestHighwayApp(t *testing.T) {
 		}
 	}
 
-	tests := []struct {
-		name    string
-		store   func() (po.Store, error)                                    // constructor
-		broker  func(group broker.GroupAssigner, id int) (po.Broker, error) // constructor
-		apps    int                                                         // number of concurrent apps
-		subs    int                                                         // number of subscribers per app
-		cars    int                                                         // number of cars per app
-		timeout time.Duration
-	}{
+	tests := []*highwayTestCase{
 		{name: "one consumer",
 			store: pg(), broker: rabbit(), apps: 1, subs: 1, cars: 10, timeout: time.Second * 5},
 		{name: "multi consumer",
-			store: pg(), broker: rabbit(), apps: 5, subs: 2, cars: 10, timeout: time.Second * 5},
+			store: pg(), broker: rabbit(), apps: 5, subs: 2, cars: 10, timeout: time.Second * 10},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// setup the shared values for the test
 			streamId := stream.ParseId("highways:" + strconv.Itoa(rand.Int()))
-			counters := make(map[string]*CarCounter)
-			timeoutCtx, cancelFn := context.WithTimeout(context.Background(), test.timeout)
-			t.Cleanup(cancelFn)
 			expected := test.cars * test.apps
-			wg := &sync.WaitGroup{}
-			for i := 0; i < test.subs; i++ {
-				subId := fmt.Sprintf("%s-%d", streamId, i)
-				c := &CarCounter{}
-				counters[subId] = c
-				wg.Add(1)
-				go func() {
-					for {
-						select {
-						case <-timeoutCtx.Done():
-							t.Logf("timeout reached for counter: %s", subId)
-							t.Fail()
-							wg.Done()
-							return
-						default:
-							if c.Count() == expected {
-								wg.Done()
-								return
-							}
-							time.Sleep(100 * time.Millisecond)
-						}
-					}
-				}()
-			}
+			hwCounters, wg := newHighwayCounter(t, test.subs, test.timeout, expected, streamId)
 
 			// setup the apps
 			for appId := 0; appId < test.apps; appId++ {
-				app := &testApp{
+				app := &highwayApp{
 					id:       appId,
 					streamId: streamId,
-					store:    test.store,
-					broker:   test.broker,
-					apps:     test.apps,
-					subs:     test.subs,
-					cars:     test.cars,
+					counters: hwCounters,
+					test:     test,
 				}
-				go app.start(t, counters)
+				go app.start(t)
 			}
 
 			wg.Wait()
 
 			// verify the tests
+			for id, counter := range hwCounters {
+				assert.Equal(t, expected, counter.Count(), "sub %s", id)
+			}
 
 		})
 	}
 }
 
-type testApp struct {
+type highwayApp struct {
 	id       int
 	streamId stream.Id
-	store    func() (po.Store, error)
-	broker   func(group broker.GroupAssigner, id int) (po.Broker, error)
-	apps     int
-	subs     int
-	cars     int
+	counters highwayCounters
+	test     *highwayTestCase
 }
 
-func (app *testApp) start(t *testing.T, counters map[string]*CarCounter) {
-	store, err := app.store()
+func (app *highwayApp) start(t *testing.T) {
+	store, err := app.test.store()
 	if !assert.NoError(t, err, "setup store") {
 		t.FailNow()
 	}
 
-	broker, err := app.broker(store, app.id)
+	broker, err := app.test.broker(store, app.id)
 	if !assert.NoError(t, err, "setup broker") {
 		t.FailNow()
 	}
 	es := po.New(store, broker)
 
-	for subId, counter := range counters {
+	for subId, counter := range app.counters {
 		err = es.Subscribe(context.Background(), subId, app.streamId.String(), counter)
 		if !assert.NoError(t, err, "setup subscriber [%d].[%s]", app.id, subId) {
 			t.FailNow()
@@ -140,7 +113,7 @@ func (app *testApp) start(t *testing.T, counters map[string]*CarCounter) {
 
 	// send cars
 	appStream := fmt.Sprintf("%s-app-%d", app.streamId, app.id)
-	for i := 0; i < app.cars; i++ {
+	for i := 0; i < app.test.cars; i++ {
 		err = es.Stream(context.Background(), appStream).
 			Append(Car{Speed: float64(rand.Int31n(100))})
 		if !assert.NoError(t, err, "send car [%d].[%s]", app.id, appStream) {
@@ -154,11 +127,6 @@ type Car struct {
 	Speed float64
 }
 
-type CarCounter struct {
-	mu    sync.Mutex
-	count int
-}
-
 func init() {
 	po.RegisterMessages(
 		func(b []byte) (interface{}, error) {
@@ -167,6 +135,44 @@ func init() {
 			return msg, err
 		},
 	)
+}
+
+func newHighwayCounter(t *testing.T, count int, timeout time.Duration, expected int, id stream.Id) (highwayCounters, *sync.WaitGroup) {
+	hw := make(map[string]*CarCounter)
+	timeoutCtx, cancelFn := context.WithTimeout(context.Background(), timeout)
+	t.Cleanup(cancelFn)
+	wg := &sync.WaitGroup{}
+	for i := 0; i < count; i++ {
+		subId := fmt.Sprintf("%s-%d", id, i)
+		c := &CarCounter{}
+		hw[subId] = c
+		wg.Add(1)
+		go func() {
+			for {
+				select {
+				case <-timeoutCtx.Done():
+					t.Logf("timeout reached for counter: %s", subId)
+					t.Fail()
+					wg.Done()
+					return
+				default:
+					if c.Count() == expected {
+						wg.Done()
+						return
+					}
+					time.Sleep(100 * time.Millisecond)
+				}
+			}
+		}()
+	}
+	return hw, wg
+}
+
+type highwayCounters map[string]*CarCounter
+
+type CarCounter struct {
+	mu    sync.Mutex
+	count int
 }
 
 func (counter *CarCounter) Handle(ctx context.Context, msg stream.Message) error {
