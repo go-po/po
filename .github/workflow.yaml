@@ -1,5 +1,5 @@
 on: push
-name: Continous Integration
+name: Continuous Integration
 jobs:
   checks:
     name: run
