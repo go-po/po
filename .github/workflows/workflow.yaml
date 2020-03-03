@@ -2,12 +2,12 @@ on: push
 name: Continuous Integration
 jobs:
   checks:
-    name: run
+    name: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
 
-      - name: test
+      - name: unit
         uses: cedrickring/golang-action@1.5.0
         with:
           args: make test-short
