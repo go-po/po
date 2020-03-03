@@ -1,0 +1,12 @@
+on: push
+name: Continous Integration
+jobs:
+  checks:
+    name: run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+
+      - name: test
+        uses: cedrickring/golang-action@1.5.0
+        with: make test-short
