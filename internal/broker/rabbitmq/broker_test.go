@@ -7,6 +7,7 @@ import (
 	"github.com/go-po/po/stream"
 	"github.com/stretchr/testify/assert"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -51,7 +52,7 @@ func TestBroker_Roundtrip(t *testing.T) {
 
 	// verify receive
 	time.Sleep(400 * time.Millisecond) // Wait for rabbit to distribute
-	if assert.Equal(t, 5, len(stubDist.records), "number of records received") {
+	if assert.Equal(t, 5, stubDist.Count(), "number of records received") {
 		assert.Equal(t, int64(1), stubDist.records[0].Number)
 		assert.Equal(t, "my test stream-1", stubDist.records[0].Stream.String())
 		assert.Equal(t, "my test stream-2", stubDist.records[1].Stream.String())
@@ -63,14 +64,23 @@ func TestBroker_Roundtrip(t *testing.T) {
 }
 
 type stubDistributor struct {
+	mu      sync.Mutex
 	records []record.Record
 	ack     bool
 	err     error
 }
 
 func (stub *stubDistributor) Distribute(ctx context.Context, record record.Record) (bool, error) {
+	stub.mu.Lock()
+	defer stub.mu.Unlock()
 	stub.records = append(stub.records, record)
 	return stub.ack, stub.err
+}
+
+func (stub *stubDistributor) Count() int {
+	stub.mu.Lock()
+	defer stub.mu.Unlock()
+	return len(stub.records)
 }
 
 type stubAssigner struct {
