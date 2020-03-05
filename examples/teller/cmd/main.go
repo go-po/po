@@ -17,7 +17,7 @@ func main() {
 	rootCtx := context.Background()
 
 	db := inmemory.New()
-	store := po.New(db, channels.New(db))
+	store := po.New(db, channels.New())
 
 	err := store.Subscribe(rootCtx, "command handler", "vars:commands", commands.NewCommandSubscriber(store))
 	if err != nil {

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-po/po"
-	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/broker/rabbitmq"
 	"github.com/go-po/po/internal/store/postgres"
 	"github.com/go-po/po/stream"
@@ -24,11 +23,11 @@ const (
 
 type highwayTestCase struct {
 	name    string
-	store   func() (po.Store, error)                                    // constructor
-	broker  func(group broker.GroupAssigner, id int) (po.Broker, error) // constructor
-	apps    int                                                         // number of concurrent apps
-	subs    int                                                         // number of subscribers per app
-	cars    int                                                         // number of cars per app
+	store   func() (po.Store, error)        // constructor
+	broker  func(id int) (po.Broker, error) // constructor
+	apps    int                             // number of concurrent apps
+	subs    int                             // number of subscribers per app
+	cars    int                             // number of cars per app
 	timeout time.Duration
 }
 
@@ -44,9 +43,9 @@ func TestHighwayApp(t *testing.T) {
 		}
 	}
 
-	rabbit := func() func(group broker.GroupAssigner, id int) (po.Broker, error) {
-		return func(group broker.GroupAssigner, id int) (po.Broker, error) {
-			return rabbitmq.New(uri, "highway", fmt.Sprintf("app-%d", id), group)
+	rabbit := func() func(id int) (po.Broker, error) {
+		return func(id int) (po.Broker, error) {
+			return rabbitmq.New(uri, "highway", fmt.Sprintf("app-%d", id))
 		}
 	}
 
@@ -98,7 +97,7 @@ func (app *highwayApp) start(t *testing.T) {
 		t.FailNow()
 	}
 
-	broker, err := app.test.broker(store, app.id)
+	broker, err := app.test.broker(app.id)
 	if !assert.NoError(t, err, "setup broker") {
 		t.FailNow()
 	}

@@ -3,7 +3,6 @@ package po
 import (
 	"context"
 	"github.com/go-po/po/internal/broker"
-	"github.com/go-po/po/internal/distributor"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/internal/store"
@@ -22,7 +21,7 @@ type Store interface {
 type Broker interface {
 	Notify(ctx context.Context, records ...record.Record) error
 	Subscribe(ctx context.Context, streamId stream.Id) error
-	Distributor(distributor broker.Distributor)
+	Prepare(distributor broker.Distributor, groupAssigner broker.GroupAssigner)
 }
 
 type Registry interface {
@@ -34,16 +33,6 @@ type Registry interface {
 type Distributor interface {
 	broker.Distributor
 	Register(ctx context.Context, subscriberId string, streamId stream.Id, subscriber interface{}) error
-}
-
-func New(store Store, broker Broker) *Po {
-	dist := distributor.New(registry.DefaultRegistry, store)
-	broker.Distributor(dist)
-	return &Po{
-		store:       store,
-		broker:      broker,
-		distributor: dist,
-	}
 }
 
 type Po struct {

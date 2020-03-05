@@ -14,7 +14,7 @@ func NewApp(databaseUrl, rabbitUrl, name string, counter *domain.CarCounter, spe
 	if err != nil {
 		return nil, err
 	}
-	broker, err := rabbitmq.New(rabbitUrl, "highway", name, db)
+	broker, err := rabbitmq.New(rabbitUrl, "highway", name)
 	if err != nil {
 		return nil, err
 	}

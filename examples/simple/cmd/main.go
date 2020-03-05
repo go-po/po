@@ -12,8 +12,7 @@ import (
 
 func main() {
 	rootCtx := context.Background()
-	db := inmemory.New()
-	store := po.New(db, channels.New(db))
+	store := po.New(inmemory.New(), channels.New())
 	err := store.Subscribe(rootCtx, "messages handler", "messages", simple.Sub{})
 	if err != nil {
 		log.Fatalf("failed subscribing: %s", err)

@@ -29,10 +29,6 @@ func (mock *MockStore) SetPosition(tx store.Tx, subscriberId string, stream stre
 	return nil
 }
 
-func (mock *MockStore) AssignGroupNumber(ctx context.Context, r record.Record) (int64, error) {
-	return 0, nil
-}
-
 func (mock *MockStore) Begin(ctx context.Context) (store.Tx, error) {
 	mock.Tx = &MockTx{}
 	return mock.Tx, nil

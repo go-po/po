@@ -34,13 +34,13 @@ func TestBroker_Roundtrip(t *testing.T) {
 	stubAssigner := &stubAssigner{
 		records: records,
 	}
-	broker, err := New(uri, "test-exchange", "TestBroker_Roundtrip", stubAssigner)
+	broker, err := New(uri, "test-exchange", "TestBroker_Roundtrip")
 	assert.NoError(t, err)
 	defer func() {
 		_ = broker.Shutdown()
 	}()
 	stubDist := &stubDistributor{}
-	broker.distributor = stubDist
+	broker.Prepare(stubDist, stubAssigner)
 	err = broker.Subscribe(context.Background(), stream.ParseId("my test stream"))
 	assert.NoError(t, err, "subscribing")
 

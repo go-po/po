@@ -3,17 +3,13 @@ package channels
 import (
 	"context"
 	"fmt"
-	"github.com/go-po/po"
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/stream"
 )
 
-func New(seq GroupNumberAssigner) *Channels {
-	return &Channels{
-		pub: newPublisher(),
-		sub: newSubscriber(seq),
-	}
+func New() *Channels {
+	return &Channels{}
 }
 
 type Channels struct {
@@ -32,11 +28,11 @@ func (ch *Channels) Subscribe(ctx context.Context, streamId stream.Id) error {
 	return nil
 }
 
-func (ch *Channels) Distributor(distributor broker.Distributor) {
+func (ch *Channels) Prepare(distributor broker.Distributor, groupAssigner broker.GroupAssigner) {
 	ch.distributor = distributor
+	ch.pub = newPublisher()
+	ch.sub = newSubscriber(groupAssigner)
 }
-
-var _ po.Broker = &Channels{}
 
 func (ch *Channels) Notify(ctx context.Context, records ...record.Record) error {
 	for _, record := range records {

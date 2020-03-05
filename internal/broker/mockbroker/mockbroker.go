@@ -15,7 +15,7 @@ func (mock *MockBroker) Subscribe(ctx context.Context, streamId stream.Id) error
 	return nil
 }
 
-func (mock *MockBroker) Distributor(distributor broker.Distributor) {
+func (mock *MockBroker) Prepare(distributor broker.Distributor, groupAssigner broker.GroupAssigner) {
 
 }
 

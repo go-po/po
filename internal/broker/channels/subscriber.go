@@ -7,18 +7,14 @@ import (
 	"github.com/go-po/po/stream"
 )
 
-func newSubscriber(groupNumbers GroupNumberAssigner) *subscriber {
+func newSubscriber(groupNumbers broker.GroupAssigner) *subscriber {
 	return &subscriber{
 		groupNumbers: groupNumbers,
 	}
 }
 
-type GroupNumberAssigner interface {
-	AssignGroupNumber(ctx context.Context, r record.Record) (int64, error)
-}
-
 type subscriber struct {
-	groupNumbers GroupNumberAssigner
+	groupNumbers broker.GroupAssigner
 	dist         broker.Distributor
 }
 

@@ -2,7 +2,6 @@ package rabbitmq
 
 import (
 	"context"
-	"github.com/go-po/po"
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/stream"
@@ -15,13 +14,12 @@ type Config struct {
 	Id       string
 }
 
-func New(uri, exchange, id string, assigner broker.GroupAssigner) (*Broker, error) {
+func New(uri, exchange, id string) (*Broker, error) {
 	broker := &Broker{Config: Config{
 		AmqpUrl:  uri,
 		Exchange: exchange,
 		Id:       id,
 	},
-		assigner: assigner,
 	}
 
 	broker.pub = newPublisher(broker)
@@ -35,8 +33,6 @@ func New(uri, exchange, id string, assigner broker.GroupAssigner) (*Broker, erro
 	return broker, nil
 }
 
-var _ po.Broker = &Broker{}
-
 type Broker struct {
 	Config      Config
 	pub         *Publisher
@@ -45,8 +41,9 @@ type Broker struct {
 	assigner    broker.GroupAssigner
 }
 
-func (broker *Broker) Distributor(distributor broker.Distributor) {
+func (broker *Broker) Prepare(distributor broker.Distributor, groupAssigner broker.GroupAssigner) {
 	broker.distributor = distributor
+	broker.assigner = groupAssigner
 }
 
 func (broker *Broker) Notify(ctx context.Context, records ...record.Record) error {

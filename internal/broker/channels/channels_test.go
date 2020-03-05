@@ -34,7 +34,7 @@ func TestChannels_Notify(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			// setup
 			ctx := context.Background()
-			ch := New(mockSeq{})
+			ch := New()
 
 			// execute
 			err := ch.Notify(ctx, test.records...)
@@ -49,9 +49,4 @@ func TestChannels_Notify(t *testing.T) {
 
 type mockSeq struct {
 	curr int64
-}
-
-func (mock mockSeq) AssignGroupNumber(ctx context.Context, r record.Record) (int64, error) {
-	mock.curr = mock.curr + 1
-	return mock.curr, nil
 }

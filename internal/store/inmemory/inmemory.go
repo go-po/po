@@ -23,7 +23,22 @@ type InMemory struct {
 }
 
 func (mem *InMemory) AssignGroup(ctx context.Context, id stream.Id, number int64) (record.Record, error) {
-	panic("implement me")
+	mem.mu.Lock()
+	defer mem.mu.Unlock()
+	groupData, found := mem.data[id.Group]
+	if !found {
+		return record.Record{}, fmt.Errorf("unknown stream group: %s", id.Group)
+	}
+	for i, item := range groupData {
+		if item.Stream.String() == id.String() && item.Number == number {
+			groupNumber := int64(i) + 1
+			r := groupData[i]
+			r.GroupNumber = groupNumber
+			groupData[i] = r
+			return r, nil
+		}
+	}
+	return record.Record{}, fmt.Errorf("number %d not found in stream %s", number, id.Group)
 }
 
 func (mem *InMemory) ReadRecords(ctx context.Context, id stream.Id, from int64) ([]record.Record, error) {
@@ -46,26 +61,6 @@ func (mem *InMemory) GetLastPosition(tx store.Tx, subscriberId string, stream st
 
 func (mem *InMemory) SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
 	panic("implement me")
-}
-
-func (mem *InMemory) AssignGroupNumber(ctx context.Context, r record.Record) (int64, error) {
-	mem.mu.Lock()
-	defer mem.mu.Unlock()
-	groupData, found := mem.data[r.Stream.Group]
-	if !found {
-		return -1, fmt.Errorf("unknown stream group: %s", r.Stream.Group)
-	}
-	for i, item := range groupData {
-		if item.Stream == r.Stream && item.Number == r.Number {
-			groupNumber := int64(i) + 1
-			r := groupData[i]
-			r.GroupNumber = groupNumber
-			groupData[i] = r
-			return groupNumber, nil
-		}
-	}
-	return -1, fmt.Errorf("number %d not found in stream %s", r.Number, r.Stream.Group)
-
 }
 
 func (mem *InMemory) Begin(ctx context.Context) (store.Tx, error) {
