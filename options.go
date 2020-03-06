@@ -17,28 +17,28 @@ type Options struct {
 
 type Option func(opt *Options) error
 
-func WithInMemoryStore() Option {
+func WithStoreInMemory() Option {
 	return func(opt *Options) error {
 		opt.store = inmemory.New()
 		return nil
 	}
 }
 
-func WithPGDatabaseUrlStore(connectionUrl string) Option {
+func WithStorePGUrl(connectionUrl string) Option {
 	return func(opt *Options) (err error) {
 		opt.store, err = postgres.NewFromUrl(connectionUrl)
 		return
 	}
 }
 
-func WithPGConnection(db *sql.DB) Option {
+func WithStorePGConn(db *sql.DB) Option {
 	return func(opt *Options) (err error) {
 		opt.store, err = postgres.New(db)
 		return
 	}
 }
 
-func WithChannelBroker() Option {
+func WithBrokerChannel() Option {
 	return func(opt *Options) error {
 		opt.broker = channels.New()
 		return nil
