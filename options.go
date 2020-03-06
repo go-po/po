@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/go-po/po/internal/broker/channels"
+	"github.com/go-po/po/internal/broker/rabbitmq"
 	"github.com/go-po/po/internal/distributor"
 	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/internal/store/inmemory"
@@ -42,6 +43,13 @@ func WithBrokerChannel() Option {
 	return func(opt *Options) error {
 		opt.broker = channels.New()
 		return nil
+	}
+}
+
+func WithBrokerRabbit(url, exchange, id string) Option {
+	return func(opt *Options) (err error) {
+		opt.broker, err = rabbitmq.New(url, exchange, id)
+		return
 	}
 }
 
