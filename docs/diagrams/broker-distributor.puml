@@ -11,24 +11,24 @@ collections Handlers    AS handlers
 
 [-> broker : record.Record
 activate broker
-    broker  -> dist ++ : record.Record
-        dist    -> registry ++ : ToMessage
+    broker  -> dist ++ : Distribute(record.Record)
+        dist    -> registry ++ : ToMessage(record.Record)
         return record.Message
 
         loop each handler
             dist -> store ++ : GetLastPosition
             return position
 
-            alt ahead
+            alt message is ahead of subscriber
                 dist -> store ++ : ReadRecords
                 return records
                 dist -> handlers ++ : Handle(records)
                 return
-            else isNext
+            else message is next in sequence
                 dist -> handlers ++ : Handle(record)
                 return
-            else already seen
-                note left: ignore
+            else message is already seen
+                dist -> dist : Ignore
             end
 
             dist -> store ++ : SetPosition
