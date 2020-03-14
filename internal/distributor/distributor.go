@@ -35,6 +35,15 @@ type Store interface {
 	ReadRecords(ctx context.Context, id stream.Id, from int64) ([]record.Record, error)
 }
 
+// package facade for hiding record/message translations
+// designed to be specific for the individual subscriber
+type messageStore interface {
+	Begin(ctx context.Context) (store.Tx, error)
+	GetLastPosition(tx store.Tx) (int64, error)
+	SetPosition(tx store.Tx, position int64) error
+	ReadMessages(ctx context.Context, from int64) ([]stream.Message, error)
+}
+
 func (dist *distributor) Register(ctx context.Context, subscriberId string, stream stream.Id, subscriber interface{}) error {
 	dist.mu.Lock()
 	defer dist.mu.Unlock()
@@ -44,11 +53,9 @@ func (dist *distributor) Register(ctx context.Context, subscriberId string, stre
 	}
 
 	dist.subs[stream.Group] = append(dist.subs[stream.Group], &recordingSubscription{
-		id:       subscriberId,
-		stream:   stream,
-		handler:  handler,
-		store:    dist.store,
-		registry: dist.registry,
+		groupStream: !stream.HasEntity(),
+		handler:     handler,
+		store:       newMsgStore(dist.store, dist.registry, stream, subscriberId),
 	})
 
 	return nil
