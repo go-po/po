@@ -2,11 +2,14 @@ package distributor
 
 import (
 	"context"
+	"errors"
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/stream"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
+
+var ErrTest = errors.New("test error")
 
 func TestRecordingSubscription_Handle(t *testing.T) {
 	type deps struct {
@@ -15,6 +18,12 @@ func TestRecordingSubscription_Handle(t *testing.T) {
 	}
 	type verify func(t *testing.T, err error, deps deps)
 	all := func(v ...verify) []verify { return v }
+
+	anErr := func(expected error) verify {
+		return func(t *testing.T, err error, deps deps) {
+			assert.Equal(t, expected, err, "an error")
+		}
+	}
 
 	noErr := func() verify {
 		return func(t *testing.T, err error, deps deps) {
@@ -44,6 +53,26 @@ func TestRecordingSubscription_Handle(t *testing.T) {
 		verify      []verify
 	}{
 		{
+			name: "failing handler",
+			deps: deps{
+				handler: &stubHandler{err: ErrTest},
+			},
+			msg: stream.Message{Number: 1},
+			verify: all(
+				anErr(ErrTest),
+			),
+		},
+		{
+			name: "failing store",
+			deps: deps{
+				store: &stubMsgStore{err: ErrTest},
+			},
+			msg: stream.Message{Number: 1},
+			verify: all(
+				anErr(ErrTest),
+			),
+		},
+		{
 			name: "first",
 			deps: deps{
 				store: &stubMsgStore{
@@ -69,6 +98,23 @@ func TestRecordingSubscription_Handle(t *testing.T) {
 			verify: all(
 				noErr(),
 				gotMessageCount(0),
+			),
+		},
+		{
+			name: "missing in between",
+			deps: deps{
+				store: &stubMsgStore{
+					lastPosition: 1,
+					msg:          []stream.Message{{Number: 1}, {Number: 2}, {Number: 3}},
+				},
+			},
+			msg:         stream.Message{Number: 3},
+			groupStream: false,
+			verify: all(
+				noErr(),
+				gotMessageCount(2),
+				gotMessageNumber(2),
+				gotMessageNumber(3),
 			),
 		},
 	}
