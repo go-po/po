@@ -2,16 +2,13 @@ package distributor
 
 import (
 	"context"
-	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/stream"
 )
 
 type recordingSubscription struct {
-	id       string
-	stream   stream.Id
-	handler  stream.Handler
-	store    Store
-	registry registry
+	groupStream bool
+	handler     stream.Handler
+	store       messageStore
 }
 
 func (s *recordingSubscription) Handle(ctx context.Context, msg stream.Message) error {
@@ -21,7 +18,7 @@ func (s *recordingSubscription) Handle(ctx context.Context, msg stream.Message) 
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	lastPosition, err := s.store.GetLastPosition(tx, s.id, s.stream)
+	lastPosition, err := s.store.GetLastPosition(tx)
 	if err != nil {
 		return err
 	}
@@ -44,7 +41,7 @@ func (s *recordingSubscription) Handle(ctx context.Context, msg stream.Message) 
 		}
 	}
 
-	err = s.store.SetPosition(tx, s.id, s.stream, nextPosition)
+	err = s.store.SetPosition(tx, nextPosition)
 	if err != nil {
 		return err
 	}
@@ -53,34 +50,23 @@ func (s *recordingSubscription) Handle(ctx context.Context, msg stream.Message) 
 }
 
 func (s *recordingSubscription) handlePrev(ctx context.Context, last int64) (int64, error) {
-	records, err := s.store.ReadRecords(ctx, s.stream, last)
+	messages, err := s.store.ReadMessages(ctx, last)
 	if err != nil {
 		return last, err
 	}
-	for _, r := range records {
-		msg, err := s.registry.ToMessage(r)
-		if err != nil {
-			return last, err
-		}
-
+	for _, msg := range messages {
 		err = s.handler.Handle(ctx, msg)
 		if err != nil {
 			return last, err
 		}
-		last = s.recordPosition(r)
+		last = s.messagePosition(msg)
 	}
 	return last, nil
 }
 
 func (s *recordingSubscription) messagePosition(msg stream.Message) int64 {
-	if s.stream.HasEntity() {
-		return msg.Number
+	if s.groupStream {
+		return msg.GroupNumber
 	}
-	return msg.GroupNumber
-}
-func (s *recordingSubscription) recordPosition(record record.Record) int64 {
-	if s.stream.HasEntity() {
-		return record.Number
-	}
-	return record.GroupNumber
+	return msg.Number
 }
