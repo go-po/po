@@ -3,6 +3,7 @@ package po
 import (
 	"database/sql"
 	"fmt"
+	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/broker/channels"
 	"github.com/go-po/po/internal/broker/rabbitmq"
 	"github.com/go-po/po/internal/distributor"
@@ -12,8 +13,8 @@ import (
 )
 
 type Options struct {
-	store  Store
-	broker Broker
+	store          Store
+	brokerProtocol broker.Protocol
 }
 
 type Option func(opt *Options) error
@@ -41,21 +42,24 @@ func WithStorePGConn(db *sql.DB) Option {
 
 func WithBrokerChannel() Option {
 	return func(opt *Options) error {
-		opt.broker = channels.New()
+		opt.brokerProtocol = channels.New()
 		return nil
 	}
 }
 
 func WithBrokerRabbit(url, exchange, id string) Option {
 	return func(opt *Options) (err error) {
-		opt.broker, err = rabbitmq.New(url, exchange, id)
+		opt.brokerProtocol = rabbitmq.New(rabbitmq.Config{
+			AmqpUrl:  url,
+			Exchange: exchange,
+			Id:       id,
+		})
 		return
 	}
 }
 
 func New(store Store, broker Broker) *Po {
 	dist := distributor.New(registry.DefaultRegistry, store)
-	broker.Prepare(dist, store)
 	return &Po{
 		store:       store,
 		broker:      broker,
@@ -73,14 +77,16 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 		}
 	}
 
-	if options.broker == nil {
-		return nil, fmt.Errorf("po: no broker provided")
-	}
-
 	if options.store == nil {
 		return nil, fmt.Errorf("po: no store provided")
 	}
+	if options.brokerProtocol == nil {
+		return nil, fmt.Errorf("po: no broker protocol provided")
+	}
 
-	return New(options.store, options.broker), nil
+	dist := distributor.New(registry.DefaultRegistry, options.store)
+	broker := broker.New(options.brokerProtocol, dist, options.store)
+
+	return New(options.store, broker), nil
 
 }

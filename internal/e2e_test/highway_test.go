@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-po/po"
+	"github.com/go-po/po/internal/broker"
+	"github.com/go-po/po/internal/broker/channels"
 	"github.com/go-po/po/internal/broker/rabbitmq"
+	"github.com/go-po/po/internal/distributor"
+	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/internal/store/postgres"
 	"github.com/go-po/po/stream"
 	"github.com/stretchr/testify/assert"
@@ -23,11 +27,11 @@ const (
 
 type highwayTestCase struct {
 	name    string
-	store   func() (po.Store, error)        // constructor
-	broker  func(id int) (po.Broker, error) // constructor
-	apps    int                             // number of concurrent apps
-	subs    int                             // number of subscribers per app
-	cars    int                             // number of cars per app
+	store   func() (po.Store, error)                        // constructor
+	broker  func(id int, store po.Store) (po.Broker, error) // constructor
+	apps    int                                             // number of concurrent apps
+	subs    int                                             // number of subscribers per app
+	cars    int                                             // number of cars per app
 	timeout time.Duration
 }
 
@@ -35,6 +39,7 @@ func TestHighwayApp(t *testing.T) {
 	if testing.Short() {
 		t.SkipNow()
 	}
+	t.Parallel()
 	rand.Seed(13171)
 
 	pg := func() func() (po.Store, error) {
@@ -43,9 +48,23 @@ func TestHighwayApp(t *testing.T) {
 		}
 	}
 
-	rabbit := func() func(id int) (po.Broker, error) {
-		return func(id int) (po.Broker, error) {
-			return rabbitmq.New(uri, "highway", fmt.Sprintf("app-%d", id))
+	rabbit := func() func(id int, store po.Store) (po.Broker, error) {
+		return func(id int, store po.Store) (po.Broker, error) {
+			proto := rabbitmq.New(rabbitmq.Config{
+				AmqpUrl:  uri,
+				Exchange: "highway",
+				Id:       fmt.Sprintf("app-%d", id),
+			})
+			dist := distributor.New(registry.DefaultRegistry, store)
+			return broker.New(proto, dist, store), nil
+		}
+	}
+
+	channels := func() func(id int, store po.Store) (po.Broker, error) {
+		return func(id int, store po.Store) (po.Broker, error) {
+			proto := channels.New()
+			dist := distributor.New(registry.DefaultRegistry, store)
+			return broker.New(proto, dist, store), nil
 		}
 	}
 
@@ -54,6 +73,8 @@ func TestHighwayApp(t *testing.T) {
 			store: pg(), broker: rabbit(), apps: 1, subs: 1, cars: 10, timeout: time.Second * 5},
 		{name: "multi consumer",
 			store: pg(), broker: rabbit(), apps: 5, subs: 2, cars: 10, timeout: time.Second * 10},
+		{name: "channel broker",
+			store: pg(), broker: channels(), apps: 1, subs: 2, cars: 10, timeout: time.Second * 2},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -97,7 +118,7 @@ func (app *highwayApp) start(t *testing.T) {
 		t.FailNow()
 	}
 
-	broker, err := app.test.broker(app.id)
+	broker, err := app.test.broker(app.id, store)
 	if !assert.NoError(t, err, "setup broker") {
 		t.FailNow()
 	}

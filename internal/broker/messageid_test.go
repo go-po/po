@@ -1,4 +1,4 @@
-package rabbitmq
+package broker
 
 import (
 	"github.com/go-po/po/internal/record"
@@ -8,7 +8,7 @@ import (
 )
 
 func Test_ParseMessageId(t *testing.T) {
-	messageId := toMessageId(record.Record{
+	messageId := ToMessageId(record.Record{
 		Number:      5,
 		Stream:      stream.ParseId("my stream name"),
 		GroupNumber: 15,
@@ -16,7 +16,7 @@ func Test_ParseMessageId(t *testing.T) {
 
 	assert.Equal(t, "5#15#my stream name", messageId)
 
-	stream, number, groupNumber, err := parseMessageId(messageId)
+	stream, number, groupNumber, err := ParseMessageId(messageId)
 
 	if assert.NoError(t, err) {
 		assert.Equal(t, "my stream name", stream)

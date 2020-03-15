@@ -1,4 +1,4 @@
-package rabbitmq
+package broker
 
 import (
 	"fmt"
@@ -19,7 +19,7 @@ func stripFirstDigit(s string) (int64, string, error) {
 	return n, s[i+1:], nil
 }
 
-func parseMessageId(messageId string) (stream string, number, groupNumber int64, err error) {
+func ParseMessageId(messageId string) (stream string, number, groupNumber int64, err error) {
 	number, messageId, err = stripFirstDigit(messageId)
 	if err != nil {
 		return
@@ -32,6 +32,6 @@ func parseMessageId(messageId string) (stream string, number, groupNumber int64,
 	return
 }
 
-func toMessageId(record record.Record) string {
+func ToMessageId(record record.Record) string {
 	return fmt.Sprintf("%d#%d#%s", record.Number, record.GroupNumber, record.Stream)
 }

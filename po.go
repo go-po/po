@@ -21,7 +21,6 @@ type Store interface {
 type Broker interface {
 	Notify(ctx context.Context, records ...record.Record) error
 	Subscribe(ctx context.Context, streamId stream.Id) error
-	Prepare(distributor broker.Distributor, groupAssigner broker.GroupAssigner)
 }
 
 type Registry interface {
