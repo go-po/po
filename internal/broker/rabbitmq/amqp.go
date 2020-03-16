@@ -54,7 +54,7 @@ func newAssignChannel(cfg Config, id stream.Id) (*amqpChan, error) {
 
 	err = channel.QueueBind(
 		queue.Name, // name of the queue
-		routingKey(cfg.Exchange, "assignAmqp", id.Group), // bindingKey
+		routingKey(cfg.Exchange, "assign", id.Group), // bindingKey
 		cfg.Exchange, // sourceExchange
 		false,        // noWait
 		nil,          // arguments
@@ -62,15 +62,19 @@ func newAssignChannel(cfg Config, id stream.Id) (*amqpChan, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	deliveries, err := channel.Consume(
-		queue.Name, // name
-		cfg.Id,     // consumerTag, unique id for the consumer on the given queue
-		false,      // noAck, false means deliveries should call Ack/NoAck explicitly
-		false,      // exclusive, false to allow others to consume the same queue
-		false,      // noLocal
-		false,      // noWait
-		nil,        // arguments
+		queue.Name,   // name
+		cfg.Exchange, // consumerTag, unique id for the consumer on the given queue
+		false,        // noAck, false means deliveries should call Ack/NoAck explicitly
+		false,        // exclusive, false to allow others to consume the same queue
+		false,        // noLocal
+		false,        // noWait
+		nil,          // arguments
 	)
+	if err != nil {
+		return nil, err
+	}
 	return &amqpChan{
 		channel:    channel,
 		deliveries: deliveries,
@@ -98,7 +102,7 @@ func newStreamChannel(cfg Config, id stream.Id) (*amqpChan, error) {
 
 	err = channel.QueueBind(
 		queue.Name, // name of the queue
-		routingKey(cfg.Exchange, "streamAmqp", id.Group), // bindingKey
+		routingKey(cfg.Exchange, "stream", id.Group), // bindingKey
 		cfg.Exchange, // sourceExchange
 		false,        // noWait
 		nil,          // arguments

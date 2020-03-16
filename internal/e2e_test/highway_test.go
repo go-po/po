@@ -39,8 +39,7 @@ func TestHighwayApp(t *testing.T) {
 	if testing.Short() {
 		t.SkipNow()
 	}
-	t.Parallel()
-	rand.Seed(13171)
+	rand.Seed(time.Now().UnixNano())
 
 	pg := func() func() (po.Store, error) {
 		return func() (po.Store, error) {
@@ -72,7 +71,7 @@ func TestHighwayApp(t *testing.T) {
 		{name: "one consumer",
 			store: pg(), broker: rabbit(), apps: 1, subs: 1, cars: 10, timeout: time.Second * 5},
 		{name: "multi consumer",
-			store: pg(), broker: rabbit(), apps: 5, subs: 2, cars: 10, timeout: time.Second * 10},
+			store: pg(), broker: rabbit(), apps: 5, subs: 2, cars: 10, timeout: time.Second * 5},
 		{name: "channel broker",
 			store: pg(), broker: channels(), apps: 1, subs: 2, cars: 10, timeout: time.Second * 2},
 	}

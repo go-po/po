@@ -57,8 +57,13 @@ func (broker *Broker) Notify(ctx context.Context, records ...record.Record) erro
 	}
 	return nil
 }
+func (broker *Broker) Register(ctx context.Context, subscriberId string, streamId stream.Id, subscriber interface{}) error {
 
-func (broker *Broker) Subscribe(ctx context.Context, streamId stream.Id) error {
+	err := broker.distributor.Register(ctx, subscriberId, streamId, subscriber)
+	if err != nil {
+		return err
+	}
+
 	broker.mu.Lock()
 	defer broker.mu.Unlock()
 
@@ -96,6 +101,7 @@ func (broker *Broker) flowAssign(pipe ProtocolPipes) {
 			if err != nil {
 				// TODO
 				fmt.Printf("assign group [%s:%d]: %s\n", streamId, number, err)
+				continue
 			}
 
 			pipe.StreamNotify() <- r

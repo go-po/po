@@ -66,7 +66,7 @@ func newPipe(cfg Config, id stream.Id) (*RabbitPipe, error) {
 			select {
 			case <-pipe.ctx.Done():
 				break
-			case msg := <-assignAmqp.deliveries:
+			case msg := <-pipe.assignAmqp.deliveries:
 				pipe.assign <- parseMessageIdAck(msg)
 			}
 		}

@@ -24,7 +24,6 @@ func (s *recordingSubscription) Handle(ctx context.Context, msg stream.Message) 
 	}
 	nextPosition := lastPosition + 1
 	messagePosition := s.messagePosition(msg)
-
 	switch {
 	case nextPosition > messagePosition:
 		// old one, ignore

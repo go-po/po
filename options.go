@@ -59,11 +59,9 @@ func WithBrokerRabbit(url, exchange, id string) Option {
 }
 
 func New(store Store, broker Broker) *Po {
-	dist := distributor.New(registry.DefaultRegistry, store)
 	return &Po{
-		store:       store,
-		broker:      broker,
-		distributor: dist,
+		store:  store,
+		broker: broker,
 	}
 }
 
