@@ -19,6 +19,37 @@ type Options struct {
 
 type Option func(opt *Options) error
 
+func New(store Store, protocol broker.Protocol) *Po {
+	dist := distributor.New(registry.DefaultRegistry, store)
+	broker := broker.New(protocol, dist, store)
+	return &Po{
+		store:  store,
+		broker: broker,
+	}
+}
+
+func NewFromOptions(opts ...Option) (*Po, error) {
+	options := &Options{}
+
+	for _, opt := range opts {
+		err := opt(options)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if options.store == nil {
+		return nil, fmt.Errorf("po: no store provided")
+	}
+	if options.protocol == nil {
+		return nil, fmt.Errorf("po: no protocol provided")
+	}
+
+	return New(options.store, options.protocol), nil
+}
+
+// Available options
+
 func WithStoreInMemory() Option {
 	return func(opt *Options) error {
 		opt.store = NewStoreInMemory()
@@ -52,35 +83,6 @@ func WithProtocolRabbitMQ(url, exchange, id string) Option {
 		opt.protocol = NewProtocolRabbitMQ(url, exchange, id)
 		return
 	}
-}
-
-func New(store Store, protocol broker.Protocol) *Po {
-	dist := distributor.New(registry.DefaultRegistry, store)
-	broker := broker.New(protocol, dist, store)
-	return &Po{
-		store:  store,
-		broker: broker,
-	}
-}
-
-func NewFromOptions(opts ...Option) (*Po, error) {
-	options := &Options{}
-
-	for _, opt := range opts {
-		err := opt(options)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if options.store == nil {
-		return nil, fmt.Errorf("po: no store provided")
-	}
-	if options.protocol == nil {
-		return nil, fmt.Errorf("po: no protocol provided")
-	}
-
-	return New(options.store, options.protocol), nil
 }
 
 // Constructors to main components
