@@ -10,6 +10,7 @@ import (
 	"github.com/go-po/po/internal/broker/rabbitmq"
 	"github.com/go-po/po/internal/distributor"
 	"github.com/go-po/po/internal/registry"
+	"github.com/go-po/po/internal/store/inmemory"
 	"github.com/go-po/po/internal/store/postgres"
 	"github.com/go-po/po/stream"
 	"github.com/stretchr/testify/assert"
@@ -47,6 +48,12 @@ func TestHighwayApp(t *testing.T) {
 		}
 	}
 
+	inmem := func() func() (po.Store, error) {
+		return func() (store po.Store, err error) {
+			return inmemory.New(), nil
+		}
+	}
+
 	rabbit := func() func(id int, store po.Store) (po.Broker, error) {
 		return func(id int, store po.Store) (po.Broker, error) {
 			proto := rabbitmq.New(rabbitmq.Config{
@@ -74,7 +81,10 @@ func TestHighwayApp(t *testing.T) {
 			store: pg(), broker: rabbit(), apps: 5, subs: 2, cars: 10, timeout: time.Second * 5},
 		{name: "channel broker",
 			store: pg(), broker: channels(), apps: 1, subs: 2, cars: 10, timeout: time.Second * 2},
+		{name: "inmemory/channel",
+			store: inmem(), broker: channels(), apps: 1, subs: 5, cars: 10, timeout: time.Second},
 	}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// setup the shared values for the test

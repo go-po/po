@@ -44,6 +44,8 @@ func (mem *InMemory) AssignGroup(ctx context.Context, id stream.Id, number int64
 }
 
 func (mem *InMemory) ReadRecords(ctx context.Context, id stream.Id, from int64) ([]record.Record, error) {
+	mem.mu.RLock()
+	defer mem.mu.RUnlock()
 	data, found := mem.data[id.Group]
 	if !found {
 		return nil, nil
