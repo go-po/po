@@ -7,34 +7,6 @@ import (
 	"context"
 )
 
-const getPosition = `-- name: GetPosition :one
-SELECT updated, created, stream, listener, no, data, content_type
-FROM po_pos
-WHERE stream = $1
-  AND listener = $2
-    FOR UPDATE
-`
-
-type GetPositionParams struct {
-	Stream   string `json:"stream"`
-	Listener string `json:"listener"`
-}
-
-func (q *Queries) GetPosition(ctx context.Context, arg GetPositionParams) (PoPo, error) {
-	row := q.db.QueryRowContext(ctx, getPosition, arg.Stream, arg.Listener)
-	var i PoPo
-	err := row.Scan(
-		&i.Updated,
-		&i.Created,
-		&i.Stream,
-		&i.Listener,
-		&i.No,
-		&i.Data,
-		&i.ContentType,
-	)
-	return i, err
-}
-
 const getStreamPosition = `-- name: GetStreamPosition :one
 SELECT GREATEST(MAX(no), 0)::bigint
 FROM po_msgs
@@ -48,7 +20,35 @@ func (q *Queries) GetStreamPosition(ctx context.Context, stream string) (int64, 
 	return column_1, err
 }
 
-const setPosition = `-- name: SetPosition :exec
+const getSubscriberPosition = `-- name: GetSubscriberPosition :one
+SELECT updated, created, stream, listener, no, data, content_type
+FROM po_pos
+WHERE stream = $1
+  AND listener = $2
+    FOR UPDATE
+`
+
+type GetSubscriberPositionParams struct {
+	Stream   string `json:"stream"`
+	Listener string `json:"listener"`
+}
+
+func (q *Queries) GetSubscriberPosition(ctx context.Context, arg GetSubscriberPositionParams) (PoPo, error) {
+	row := q.db.QueryRowContext(ctx, getSubscriberPosition, arg.Stream, arg.Listener)
+	var i PoPo
+	err := row.Scan(
+		&i.Updated,
+		&i.Created,
+		&i.Stream,
+		&i.Listener,
+		&i.No,
+		&i.Data,
+		&i.ContentType,
+	)
+	return i, err
+}
+
+const setSubscriberPosition = `-- name: SetSubscriberPosition :exec
 INSERT INTO po_pos (stream, listener, no, content_type, data)
 VALUES ($1, $2, $3, 'application/json', '{}'::bytea)
 ON CONFLICT (stream, listener) DO UPDATE
@@ -58,13 +58,13 @@ WHERE po_pos.stream = $1
   AND po_pos.listener = $2
 `
 
-type SetPositionParams struct {
+type SetSubscriberPositionParams struct {
 	Stream   string `json:"stream"`
 	Listener string `json:"listener"`
 	No       int64  `json:"no"`
 }
 
-func (q *Queries) SetPosition(ctx context.Context, arg SetPositionParams) error {
-	_, err := q.db.ExecContext(ctx, setPosition, arg.Stream, arg.Listener, arg.No)
+func (q *Queries) SetSubscriberPosition(ctx context.Context, arg SetSubscriberPositionParams) error {
+	_, err := q.db.ExecContext(ctx, setSubscriberPosition, arg.Stream, arg.Listener, arg.No)
 	return err
 }

@@ -79,7 +79,7 @@ func (store *PGStore) GetSubscriberPosition(tx store.Tx, subscriberId string, st
 	if !ok {
 		return 0, ErrUnknownTx{tx}
 	}
-	position, err := t.db.GetPosition(t.ctx, db.GetPositionParams{
+	position, err := t.db.GetSubscriberPosition(t.ctx, db.GetSubscriberPositionParams{
 		Stream:   stream.String(),
 		Listener: subscriberId,
 	})
@@ -97,7 +97,7 @@ func (store *PGStore) SetSubscriberPosition(tx store.Tx, subscriberId string, st
 	if !ok {
 		return ErrUnknownTx{tx}
 	}
-	err := t.db.SetPosition(t.ctx, db.SetPositionParams{
+	err := t.db.SetSubscriberPosition(t.ctx, db.SetSubscriberPositionParams{
 		Stream:   stream.String(),
 		Listener: subscriberId,
 		No:       position,
