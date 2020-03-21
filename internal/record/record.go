@@ -16,3 +16,9 @@ type Record struct {
 	GroupNumber int64     // strictly sequential number for all messages in a group
 	Time        time.Time // when this message was first recorded
 }
+
+type Snapshot struct {
+	Data        []byte
+	Position    int64
+	ContentType string
+}

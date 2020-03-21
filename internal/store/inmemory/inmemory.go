@@ -24,6 +24,14 @@ type InMemory struct {
 	ptr  map[string]int64           // subscriber positions
 }
 
+func (mem *InMemory) ReadSnapshot(ctx context.Context, id stream.Id, snapshotId string) (record.Snapshot, error) {
+	return record.Snapshot{}, fmt.Errorf("implement me")
+}
+
+func (mem *InMemory) UpdateSnapshot(ctx context.Context, id stream.Id, snapshotId string, snapshot record.Snapshot) error {
+	return fmt.Errorf("implement me")
+}
+
 func (mem *InMemory) GetStreamPosition(ctx context.Context, id stream.Id) (int64, error) {
 	mem.mu.Lock()
 	defer mem.mu.Unlock()

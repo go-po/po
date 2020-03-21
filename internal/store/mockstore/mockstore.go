@@ -2,6 +2,7 @@ package mockstore
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/stream"
@@ -11,6 +12,14 @@ import (
 type MockStore struct {
 	Tx      *MockTx
 	Records []record.Record
+}
+
+func (mock *MockStore) ReadSnapshot(ctx context.Context, id stream.Id, snapshotId string) (record.Snapshot, error) {
+	return record.Snapshot{}, fmt.Errorf("implement me")
+}
+
+func (mock *MockStore) UpdateSnapshot(ctx context.Context, id stream.Id, snapshotId string, snapshot record.Snapshot) error {
+	return fmt.Errorf("implement me")
 }
 
 func (mock *MockStore) GetStreamPosition(ctx context.Context, id stream.Id) (int64, error) {

@@ -35,3 +35,9 @@ WHERE grp = $1
   AND grp_no IS NOT NULL
   AND grp_no > $2
 ORDER BY grp_no;
+
+
+-- name: GetStreamPosition :one
+SELECT GREATEST(MAX(no), 0)::bigint
+FROM po_msgs
+WHERE stream = $1;

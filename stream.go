@@ -2,6 +2,7 @@ package po
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/stream"
 	"sync"
@@ -79,38 +80,38 @@ type Stream struct {
 var _ Appender = &Stream{}
 var _ TxAppender = &Stream{}
 
-func (stream *Stream) Begin() (*Tx, error) {
-	stream.mu.Lock()
-	defer stream.mu.Unlock()
-	if stream.tx == nil {
-		position, err := stream.store.GetStreamPosition(stream.ctx, stream.ID)
+func (s *Stream) Begin() (*Tx, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.tx == nil {
+		position, err := s.store.GetStreamPosition(s.ctx, s.ID)
 		if err != nil {
 			return nil, err
 		}
-		stream.tx = &Tx{
+		s.tx = &Tx{
 			position: position,
-			stream:   stream,
+			stream:   s,
 		}
 	}
-	return stream.tx, nil
+	return s.tx, nil
 }
 
-func (stream *Stream) AppendTx(tx *Tx, messages ...interface{}) {
+func (s *Stream) AppendTx(tx *Tx, messages ...interface{}) {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	tx.uncommitted = append(tx.uncommitted, messages...)
 }
 
-func (stream *Stream) Append(messages ...interface{}) error {
+func (s *Stream) Append(messages ...interface{}) error {
 	if len(messages) == 0 {
 		return nil // nothing to do
 	}
 
-	tx, err := stream.Begin()
+	tx, err := s.Begin()
 	if err != nil {
 		return err
 	}
-	stream.AppendTx(tx, messages...)
+	s.AppendTx(tx, messages...)
 
 	return tx.Commit()
 }
@@ -118,10 +119,66 @@ func (stream *Stream) Append(messages ...interface{}) error {
 // Projects the stream onto the provided projection.
 // Doing so starts an implicit transaction,
 // so that Appends will join the transaction
-func (stream *Stream) Project(projection interface{}) error {
-	_, err := stream.Begin()
+func (s *Stream) Project(projection stream.Handler) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var position int64 = 0
+	snap, supportsSnapshot := projection.(stream.NamedSnapshot)
+	if supportsSnapshot {
+		snapshot, err := s.store.ReadSnapshot(s.ctx, s.ID, snap.SnapshotName())
+		if err != nil {
+			return err
+		}
+
+		err = json.Unmarshal(snapshot.Data, projection)
+		if err != nil {
+			return err
+		}
+		position = snapshot.Position
+	}
+
+	records, err := s.store.ReadRecords(s.ctx, s.ID, position)
 	if err != nil {
 		return err
+	}
+
+	for _, r := range records {
+		message, err := s.registry.ToMessage(r)
+		if err != nil {
+			return err
+		}
+		err = projection.Handle(s.ctx, message)
+		if err != nil {
+			return err
+		}
+		if s.ID.HasEntity() {
+			position = message.Number
+		} else {
+			position = message.GroupNumber
+		}
+
+	}
+
+	if supportsSnapshot {
+		b, err := json.Marshal(projection)
+		if err != nil {
+			return err
+		}
+
+		err = s.store.UpdateSnapshot(s.ctx, s.ID, snap.SnapshotName(), record.Snapshot{
+			Data:        b,
+			Position:    position,
+			ContentType: "application/json",
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	s.tx = &Tx{
+		position: position,
+		stream:   s,
 	}
 
 	return nil
