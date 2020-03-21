@@ -8,8 +8,6 @@ import (
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/broker/channels"
 	"github.com/go-po/po/internal/broker/rabbitmq"
-	"github.com/go-po/po/internal/distributor"
-	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/internal/store/inmemory"
 	"github.com/go-po/po/internal/store/postgres"
 	"github.com/go-po/po/stream"
@@ -27,13 +25,13 @@ const (
 )
 
 type highwayTestCase struct {
-	name    string
-	store   func() (po.Store, error)                        // constructor
-	broker  func(id int, store po.Store) (po.Broker, error) // constructor
-	apps    int                                             // number of concurrent apps
-	subs    int                                             // number of subscribers per app
-	cars    int                                             // number of cars per app
-	timeout time.Duration
+	name     string
+	store    func() (po.Store, error)     // constructor
+	protocol func(id int) broker.Protocol // constructor
+	apps     int                          // number of concurrent apps
+	subs     int                          // number of subscribers per app
+	cars     int                          // number of cars per app
+	timeout  time.Duration
 }
 
 func TestHighwayApp(t *testing.T) {
@@ -54,35 +52,31 @@ func TestHighwayApp(t *testing.T) {
 		}
 	}
 
-	rabbit := func() func(id int, store po.Store) (po.Broker, error) {
-		return func(id int, store po.Store) (po.Broker, error) {
-			proto := rabbitmq.New(rabbitmq.Config{
+	rabbit := func() func(id int) broker.Protocol {
+		return func(id int) broker.Protocol {
+			return rabbitmq.New(rabbitmq.Config{
 				AmqpUrl:  uri,
 				Exchange: "highway",
 				Id:       fmt.Sprintf("app-%d", id),
 			})
-			dist := distributor.New(registry.DefaultRegistry, store)
-			return broker.New(proto, dist, store), nil
 		}
 	}
 
-	channels := func() func(id int, store po.Store) (po.Broker, error) {
-		return func(id int, store po.Store) (po.Broker, error) {
-			proto := channels.New()
-			dist := distributor.New(registry.DefaultRegistry, store)
-			return broker.New(proto, dist, store), nil
+	channels := func() func(id int) broker.Protocol {
+		return func(id int) broker.Protocol {
+			return channels.New()
 		}
 	}
 
 	tests := []*highwayTestCase{
 		{name: "one consumer",
-			store: pg(), broker: rabbit(), apps: 1, subs: 1, cars: 10, timeout: time.Second * 5},
+			store: pg(), protocol: rabbit(), apps: 1, subs: 1, cars: 10, timeout: time.Second * 5},
 		{name: "multi consumer",
-			store: pg(), broker: rabbit(), apps: 5, subs: 2, cars: 10, timeout: time.Second * 5},
+			store: pg(), protocol: rabbit(), apps: 5, subs: 2, cars: 10, timeout: time.Second * 5},
 		{name: "channel broker",
-			store: pg(), broker: channels(), apps: 1, subs: 2, cars: 10, timeout: time.Second * 2},
+			store: pg(), protocol: channels(), apps: 1, subs: 2, cars: 10, timeout: time.Second * 2},
 		{name: "inmemory/channel",
-			store: inmem(), broker: channels(), apps: 1, subs: 5, cars: 10, timeout: time.Second},
+			store: inmem(), protocol: channels(), apps: 1, subs: 5, cars: 10, timeout: time.Second},
 	}
 
 	for _, test := range tests {
@@ -127,11 +121,7 @@ func (app *highwayApp) start(t *testing.T) {
 		t.FailNow()
 	}
 
-	broker, err := app.test.broker(app.id, store)
-	if !assert.NoError(t, err, "setup broker") {
-		t.FailNow()
-	}
-	es := po.New(store, broker)
+	es := po.New(store, app.test.protocol(app.id))
 
 	for subId, counter := range app.counters {
 		err = es.Subscribe(context.Background(), subId, app.streamId.String(), counter)

@@ -13,52 +13,50 @@ import (
 )
 
 type Options struct {
-	store          Store
-	brokerProtocol broker.Protocol
+	store    Store
+	protocol broker.Protocol
 }
 
 type Option func(opt *Options) error
 
 func WithStoreInMemory() Option {
 	return func(opt *Options) error {
-		opt.store = inmemory.New()
+		opt.store = NewStoreInMemory()
 		return nil
 	}
 }
 
-func WithStorePGUrl(connectionUrl string) Option {
+func WithStorePostgresUrl(connectionUrl string) Option {
 	return func(opt *Options) (err error) {
-		opt.store, err = postgres.NewFromUrl(connectionUrl)
+		opt.store, err = NewStorePostgresUrl(connectionUrl)
 		return
 	}
 }
 
-func WithStorePGConn(db *sql.DB) Option {
+func WithStorePostgresDB(db *sql.DB) Option {
 	return func(opt *Options) (err error) {
-		opt.store, err = postgres.New(db)
+		opt.store, err = NewStorePostgresDB(db)
 		return
 	}
 }
 
-func WithBrokerChannel() Option {
+func WithProtocolChannels() Option {
 	return func(opt *Options) error {
-		opt.brokerProtocol = channels.New()
+		opt.protocol = NewProtocolChannels()
 		return nil
 	}
 }
 
-func WithBrokerRabbit(url, exchange, id string) Option {
+func WithProtocolRabbitMQ(url, exchange, id string) Option {
 	return func(opt *Options) (err error) {
-		opt.brokerProtocol = rabbitmq.New(rabbitmq.Config{
-			AmqpUrl:  url,
-			Exchange: exchange,
-			Id:       id,
-		})
+		opt.protocol = NewProtocolRabbitMQ(url, exchange, id)
 		return
 	}
 }
 
-func New(store Store, broker Broker) *Po {
+func New(store Store, protocol broker.Protocol) *Po {
+	dist := distributor.New(registry.DefaultRegistry, store)
+	broker := broker.New(protocol, dist, store)
 	return &Po{
 		store:  store,
 		broker: broker,
@@ -78,13 +76,35 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 	if options.store == nil {
 		return nil, fmt.Errorf("po: no store provided")
 	}
-	if options.brokerProtocol == nil {
-		return nil, fmt.Errorf("po: no broker protocol provided")
+	if options.protocol == nil {
+		return nil, fmt.Errorf("po: no protocol provided")
 	}
 
-	dist := distributor.New(registry.DefaultRegistry, options.store)
-	broker := broker.New(options.brokerProtocol, dist, options.store)
+	return New(options.store, options.protocol), nil
+}
 
-	return New(options.store, broker), nil
+// Constructors to main components
 
+func NewStoreInMemory() *inmemory.InMemory {
+	return inmemory.New()
+}
+
+func NewProtocolChannels() *channels.Channels {
+	return channels.New()
+}
+
+func NewStorePostgresUrl(connectionUrl string) (*postgres.PGStore, error) {
+	return postgres.NewFromUrl(connectionUrl)
+}
+
+func NewStorePostgresDB(db *sql.DB) (*postgres.PGStore, error) {
+	return postgres.New(db)
+}
+
+func NewProtocolRabbitMQ(url, exchange, id string) *rabbitmq.Protocol {
+	return rabbitmq.New(rabbitmq.Config{
+		AmqpUrl:  url,
+		Exchange: exchange,
+		Id:       id,
+	})
 }
