@@ -12,24 +12,47 @@ import (
 
 func New() *InMemory {
 	return &InMemory{
-		mu:   sync.RWMutex{},
-		data: make(map[string][]record.Record),
-		ptr:  make(map[string]int64),
+		mu:        sync.RWMutex{},
+		data:      make(map[string][]record.Record),
+		ptr:       make(map[string]int64),
+		snapshots: make(map[stream.Id]map[string]record.Snapshot),
 	}
 }
 
 type InMemory struct {
-	mu   sync.RWMutex               // guards the data
-	data map[string][]record.Record // records by stream group id
-	ptr  map[string]int64           // subscriber positions
+	mu        sync.RWMutex               // guards the data
+	data      map[string][]record.Record // records by stream group id
+	ptr       map[string]int64           // subscriber positions
+	snapshots map[stream.Id]map[string]record.Snapshot
+}
+
+var emptySnapshot = record.Snapshot{
+	Data:        []byte("{}"),
+	Position:    0,
+	ContentType: "application/json",
 }
 
 func (mem *InMemory) ReadSnapshot(ctx context.Context, id stream.Id, snapshotId string) (record.Snapshot, error) {
-	return record.Snapshot{}, fmt.Errorf("implement me")
+	streamSnaps, found := mem.snapshots[id]
+	if !found {
+		return emptySnapshot, nil
+	}
+
+	snapshot, found := streamSnaps[snapshotId]
+	if !found {
+		fmt.Printf("didn't find it 2\n")
+		return emptySnapshot, nil
+	}
+	return snapshot, nil
+
 }
 
 func (mem *InMemory) UpdateSnapshot(ctx context.Context, id stream.Id, snapshotId string, snapshot record.Snapshot) error {
-	return fmt.Errorf("implement me")
+	if _, found := mem.snapshots[id]; !found {
+		mem.snapshots[id] = make(map[string]record.Snapshot)
+	}
+	mem.snapshots[id][snapshotId] = snapshot
+	return nil
 }
 
 func (mem *InMemory) GetStreamPosition(ctx context.Context, id stream.Id) (int64, error) {
