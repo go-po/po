@@ -15,21 +15,19 @@ import (
 type Options struct {
 	store    Store
 	protocol broker.Protocol
+	registry Registry
 }
 
 type Option func(opt *Options) error
 
 func New(store Store, protocol broker.Protocol) *Po {
-	dist := distributor.New(registry.DefaultRegistry, store)
-	broker := broker.New(protocol, dist, store)
-	return &Po{
-		store:  store,
-		broker: broker,
-	}
+	return newPo(store, protocol, registry.DefaultRegistry)
 }
 
 func NewFromOptions(opts ...Option) (*Po, error) {
-	options := &Options{}
+	options := &Options{
+		registry: registry.DefaultRegistry,
+	}
 
 	for _, opt := range opts {
 		err := opt(options)
@@ -44,8 +42,22 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 	if options.protocol == nil {
 		return nil, fmt.Errorf("po: no protocol provided")
 	}
+	if options.registry == nil {
+		return nil, fmt.Errorf("po: no registry provided")
+	}
 
-	return New(options.store, options.protocol), nil
+	return newPo(options.store, options.protocol, options.registry), nil
+}
+
+func newPo(store Store, protocol broker.Protocol, registry Registry) *Po {
+	return &Po{
+		store: store,
+		broker: broker.New(
+			protocol,
+			distributor.New(registry, store),
+			store,
+		),
+	}
 }
 
 // Available options
@@ -53,6 +65,13 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 func WithStoreInMemory() Option {
 	return func(opt *Options) error {
 		opt.store = NewStoreInMemory()
+		return nil
+	}
+}
+
+func WithRegistry(registry Registry) Option {
+	return func(opt *Options) error {
+		opt.registry = registry
 		return nil
 	}
 }
