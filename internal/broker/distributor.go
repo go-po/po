@@ -8,6 +8,7 @@ import (
 
 type Distributor interface {
 	Distribute(ctx context.Context, record record.Record) (bool, error)
+	Register(ctx context.Context, subscriberId string, streamId stream.Id, subscriber interface{}) error
 }
 
 type GroupAssigner interface {

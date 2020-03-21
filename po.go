@@ -20,8 +20,7 @@ type Store interface {
 
 type Broker interface {
 	Notify(ctx context.Context, records ...record.Record) error
-	Subscribe(ctx context.Context, streamId stream.Id) error
-	Prepare(distributor broker.Distributor, groupAssigner broker.GroupAssigner)
+	Register(ctx context.Context, subscriberId string, streamId stream.Id, subscriber interface{}) error
 }
 
 type Registry interface {
@@ -32,13 +31,11 @@ type Registry interface {
 
 type Distributor interface {
 	broker.Distributor
-	Register(ctx context.Context, subscriberId string, streamId stream.Id, subscriber interface{}) error
 }
 
 type Po struct {
-	store       Store
-	broker      Broker
-	distributor Distributor
+	store  Store
+	broker Broker
 }
 
 func (po *Po) Stream(ctx context.Context, streamId string) *Stream {
@@ -58,11 +55,7 @@ func (po *Po) Project(ctx context.Context, streamId string, projection interface
 
 func (po *Po) Subscribe(ctx context.Context, subscriptionId, streamId string, subscriber interface{}) error {
 	id := stream.ParseId(streamId)
-	err := po.distributor.Register(ctx, subscriptionId, id, subscriber)
-	if err != nil {
-		return err
-	}
-	return po.broker.Subscribe(ctx, id)
+	return po.broker.Register(ctx, subscriptionId, id, subscriber)
 }
 
 func RegisterMessages(initializers ...registry.MessageUnmarshaller) {
