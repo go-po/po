@@ -14,7 +14,7 @@ func main() {
 	rootCtx := context.Background()
 	store, err := po.NewFromOptions(
 		po.WithStoreInMemory(),
-		po.WithBrokerChannel(),
+		po.WithProtocolChannels(),
 	)
 	if err != nil {
 		log.Fatalf("failed starting po")
