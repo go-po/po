@@ -27,11 +27,11 @@ func (facade *msgStore) Begin(ctx context.Context) (store.Tx, error) {
 }
 
 func (facade *msgStore) GetLastPosition(tx store.Tx) (int64, error) {
-	return facade.store.GetLastPosition(tx, facade.subscriberId, facade.stream)
+	return facade.store.GetSubscriberPosition(tx, facade.subscriberId, facade.stream)
 }
 
 func (facade *msgStore) SetPosition(tx store.Tx, position int64) error {
-	return facade.store.SetPosition(tx, facade.subscriberId, facade.stream, position)
+	return facade.store.SetSubscriberPosition(tx, facade.subscriberId, facade.stream, position)
 }
 
 func (facade *msgStore) ReadMessages(ctx context.Context, from int64) ([]stream.Message, error) {

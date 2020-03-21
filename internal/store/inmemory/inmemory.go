@@ -24,6 +24,22 @@ type InMemory struct {
 	ptr  map[string]int64           // subscriber positions
 }
 
+func (mem *InMemory) GetStreamPosition(ctx context.Context, id stream.Id) (int64, error) {
+	mem.mu.Lock()
+	defer mem.mu.Unlock()
+	stream, found := mem.data[id.Group]
+	if !found {
+		return 0, nil
+	}
+	var position int64 = 0
+	for _, r := range stream {
+		if r.Stream.String() == id.String() {
+			position = position + 1
+		}
+	}
+	return position, nil
+}
+
 func (mem *InMemory) AssignGroup(ctx context.Context, id stream.Id, number int64) (record.Record, error) {
 	mem.mu.Lock()
 	defer mem.mu.Unlock()
@@ -59,7 +75,7 @@ func (mem *InMemory) ReadRecords(ctx context.Context, id stream.Id, from int64) 
 	return result, nil
 }
 
-func (mem *InMemory) GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
+func (mem *InMemory) GetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
 	mem.mu.RLock()
 	defer mem.mu.RUnlock()
 	pos, found := mem.ptr[subscriberId]
@@ -69,7 +85,7 @@ func (mem *InMemory) GetLastPosition(tx store.Tx, subscriberId string, stream st
 	return 0, nil
 }
 
-func (mem *InMemory) SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
+func (mem *InMemory) SetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
 	mem.mu.Lock()
 	defer mem.mu.Unlock()
 	mem.ptr[subscriberId] = position

@@ -13,6 +13,10 @@ type MockStore struct {
 	Records []record.Record
 }
 
+func (mock *MockStore) GetStreamPosition(ctx context.Context, id stream.Id) (int64, error) {
+	return int64(len(mock.Records)), nil
+}
+
 func (mock *MockStore) AssignGroup(ctx context.Context, id stream.Id, number int64) (record.Record, error) {
 	panic("implement me")
 }
@@ -21,11 +25,11 @@ func (mock *MockStore) ReadRecords(ctx context.Context, id stream.Id, from int64
 	return mock.Records, nil
 }
 
-func (mock *MockStore) GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
+func (mock *MockStore) GetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
 	return 0, nil
 }
 
-func (mock *MockStore) SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
+func (mock *MockStore) SetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
 	return nil
 }
 

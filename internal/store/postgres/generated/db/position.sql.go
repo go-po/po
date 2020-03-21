@@ -7,7 +7,20 @@ import (
 	"context"
 )
 
-const getPosition = `-- name: GetPosition :one
+const getStreamPosition = `-- name: GetStreamPosition :one
+SELECT GREATEST(MAX(no), 0)::bigint
+FROM po_msgs
+WHERE stream = $1
+`
+
+func (q *Queries) GetStreamPosition(ctx context.Context, stream string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getStreamPosition, stream)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const getSubscriberPosition = `-- name: GetSubscriberPosition :one
 SELECT updated, created, stream, listener, no, data, content_type
 FROM po_pos
 WHERE stream = $1
@@ -15,13 +28,13 @@ WHERE stream = $1
     FOR UPDATE
 `
 
-type GetPositionParams struct {
+type GetSubscriberPositionParams struct {
 	Stream   string `json:"stream"`
 	Listener string `json:"listener"`
 }
 
-func (q *Queries) GetPosition(ctx context.Context, arg GetPositionParams) (PoPo, error) {
-	row := q.db.QueryRowContext(ctx, getPosition, arg.Stream, arg.Listener)
+func (q *Queries) GetSubscriberPosition(ctx context.Context, arg GetSubscriberPositionParams) (PoPo, error) {
+	row := q.db.QueryRowContext(ctx, getSubscriberPosition, arg.Stream, arg.Listener)
 	var i PoPo
 	err := row.Scan(
 		&i.Updated,
@@ -35,7 +48,7 @@ func (q *Queries) GetPosition(ctx context.Context, arg GetPositionParams) (PoPo,
 	return i, err
 }
 
-const setPosition = `-- name: SetPosition :exec
+const setSubscriberPosition = `-- name: SetSubscriberPosition :exec
 INSERT INTO po_pos (stream, listener, no, content_type, data)
 VALUES ($1, $2, $3, 'application/json', '{}'::bytea)
 ON CONFLICT (stream, listener) DO UPDATE
@@ -45,13 +58,13 @@ WHERE po_pos.stream = $1
   AND po_pos.listener = $2
 `
 
-type SetPositionParams struct {
+type SetSubscriberPositionParams struct {
 	Stream   string `json:"stream"`
 	Listener string `json:"listener"`
 	No       int64  `json:"no"`
 }
 
-func (q *Queries) SetPosition(ctx context.Context, arg SetPositionParams) error {
-	_, err := q.db.ExecContext(ctx, setPosition, arg.Stream, arg.Listener, arg.No)
+func (q *Queries) SetSubscriberPosition(ctx context.Context, arg SetSubscriberPositionParams) error {
+	_, err := q.db.ExecContext(ctx, setSubscriberPosition, arg.Stream, arg.Listener, arg.No)
 	return err
 }

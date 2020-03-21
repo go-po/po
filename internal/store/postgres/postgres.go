@@ -35,8 +35,15 @@ type PGStore struct {
 	db   *db.Queries
 }
 
-func (store *PGStore) ReadRecordsFromTx(tx store.Tx, id stream.Id, from int64) ([]record.Record, error) {
-	return nil, nil
+func (store *PGStore) GetStreamPosition(ctx context.Context, id stream.Id) (int64, error) {
+	position, err := store.db.GetStreamPosition(ctx, id.String())
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, err
+	}
+	return position, nil
 }
 
 func (store *PGStore) ReadRecords(ctx context.Context, id stream.Id, from int64) ([]record.Record, error) {
@@ -67,12 +74,12 @@ func (store *PGStore) ReadRecords(ctx context.Context, id stream.Id, from int64)
 	return records, nil
 }
 
-func (store *PGStore) GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
+func (store *PGStore) GetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
 	t, ok := tx.(*pgTx)
 	if !ok {
 		return 0, ErrUnknownTx{tx}
 	}
-	position, err := t.db.GetPosition(t.ctx, db.GetPositionParams{
+	position, err := t.db.GetSubscriberPosition(t.ctx, db.GetSubscriberPositionParams{
 		Stream:   stream.String(),
 		Listener: subscriberId,
 	})
@@ -85,12 +92,12 @@ func (store *PGStore) GetLastPosition(tx store.Tx, subscriberId string, stream s
 	return position.No, nil
 }
 
-func (store *PGStore) SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
+func (store *PGStore) SetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
 	t, ok := tx.(*pgTx)
 	if !ok {
 		return ErrUnknownTx{tx}
 	}
-	err := t.db.SetPosition(t.ctx, db.SetPositionParams{
+	err := t.db.SetSubscriberPosition(t.ctx, db.SetSubscriberPositionParams{
 		Stream:   stream.String(),
 		Listener: subscriberId,
 		No:       position,

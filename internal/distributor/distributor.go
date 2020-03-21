@@ -30,8 +30,8 @@ type distributor struct {
 
 type Store interface {
 	Begin(ctx context.Context) (store.Tx, error)
-	GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error)
-	SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error
+	GetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error)
+	SetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error
 	ReadRecords(ctx context.Context, id stream.Id, from int64) ([]record.Record, error)
 }
 
