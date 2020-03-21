@@ -4,16 +4,20 @@ import (
 	"context"
 	"github.com/go-po/po"
 	"github.com/go-po/po/examples/simple"
-	"github.com/go-po/po/internal/broker/channels"
-	"github.com/go-po/po/internal/store/inmemory"
 	"log"
 	"time"
 )
 
 func main() {
 	rootCtx := context.Background()
-	store := po.New(inmemory.New(), channels.New())
-	err := store.Subscribe(rootCtx, "messages handler", "messages", simple.Sub{})
+	store, err := po.NewFromOptions(
+		po.WithStoreInMemory(),
+		po.WithBrokerChannel(),
+	)
+	if err != nil {
+		log.Fatalf("failed starting po")
+	}
+	err = store.Subscribe(rootCtx, "messages handler", "messages", simple.Sub{})
 	if err != nil {
 		log.Fatalf("failed subscribing: %s", err)
 	}
