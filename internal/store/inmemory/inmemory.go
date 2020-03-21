@@ -14,12 +14,14 @@ func New() *InMemory {
 	return &InMemory{
 		mu:   sync.RWMutex{},
 		data: make(map[string][]record.Record),
+		ptr:  make(map[string]int64),
 	}
 }
 
 type InMemory struct {
 	mu   sync.RWMutex               // guards the data
 	data map[string][]record.Record // records by stream group id
+	ptr  map[string]int64           // subscriber positions
 }
 
 func (mem *InMemory) AssignGroup(ctx context.Context, id stream.Id, number int64) (record.Record, error) {
@@ -56,11 +58,20 @@ func (mem *InMemory) ReadRecords(ctx context.Context, id stream.Id, from int64) 
 }
 
 func (mem *InMemory) GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
-	panic("implement me")
+	mem.mu.RLock()
+	defer mem.mu.RUnlock()
+	pos, found := mem.ptr[subscriberId]
+	if found {
+		return pos, nil
+	}
+	return 0, nil
 }
 
 func (mem *InMemory) SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
-	panic("implement me")
+	mem.mu.Lock()
+	defer mem.mu.Unlock()
+	mem.ptr[subscriberId] = position
+	return nil
 }
 
 func (mem *InMemory) Begin(ctx context.Context) (store.Tx, error) {
@@ -80,7 +91,8 @@ func (mem *InMemory) StoreRecord(tx store.Tx, id stream.Id, number int64, msgTyp
 		Number:      number,
 		Stream:      id,
 		Data:        data,
-		Group:       msgType,
+		Group:       id.Group,
+		ContentType: msgType,
 		GroupNumber: 0,
 		Time:        time.Now(),
 	}

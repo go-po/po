@@ -71,9 +71,9 @@ type Subscriber struct{}
 func (sub Subscriber) Handle(ctx context.Context, msg stream.Message) error {
 	switch message := msg.Data.(type) {
 	case HelloMessage:
-		fmt.Printf("[%d/%d] Greet: %s\n", msg.Number, msg.GroupNumber, message.Greeting)
+		fmt.Printf("[%d/%d] {%s} Greet: %s\n", msg.Number, msg.GroupNumber, msg.Stream, message.Greeting)
 	default:
-		fmt.Printf("[%d/%d] Unknown type: %T\n", msg.Number, msg.GroupNumber, message)
+		fmt.Printf("[%d/%d] {%s} Unknown type: %T\n", msg.Number, msg.GroupNumber, msg.Stream, message)
 	}
 	return nil
 }
