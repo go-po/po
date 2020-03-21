@@ -53,6 +53,7 @@ func (tx *Tx) Commit() error {
 		return err
 	}
 	tx.uncommitted = nil
+	tx.stream.tx = nil // delete own reference
 	tx.position = next
 
 	return tx.stream.broker.Notify(tx.stream.ctx, records...)
@@ -60,12 +61,15 @@ func (tx *Tx) Commit() error {
 
 func (tx *Tx) Rollback() error {
 	tx.uncommitted = nil
+	tx.stream.tx = nil // delete own reference
 	return nil
 }
 
 type Stream struct {
 	ID  stream.Id       // Unique ID of the stream
 	ctx context.Context // to use for the operation
+	mu  sync.RWMutex    // protects tx
+	tx  *Tx
 
 	registry Registry
 	broker   Broker
@@ -76,14 +80,19 @@ var _ Appender = &Stream{}
 var _ TxAppender = &Stream{}
 
 func (stream *Stream) Begin() (*Tx, error) {
-	position, err := stream.store.GetStreamPosition(stream.ctx, stream.ID)
-	if err != nil {
-		return nil, err
+	stream.mu.Lock()
+	defer stream.mu.Unlock()
+	if stream.tx == nil {
+		position, err := stream.store.GetStreamPosition(stream.ctx, stream.ID)
+		if err != nil {
+			return nil, err
+		}
+		stream.tx = &Tx{
+			position: position,
+			stream:   stream,
+		}
 	}
-	return &Tx{
-		position: position,
-		stream:   stream,
-	}, nil
+	return stream.tx, nil
 }
 
 func (stream *Stream) AppendTx(tx *Tx, messages ...interface{}) {
@@ -106,6 +115,14 @@ func (stream *Stream) Append(messages ...interface{}) error {
 	return tx.Commit()
 }
 
+// Projects the stream onto the provided projection.
+// Doing so starts an implicit transaction,
+// so that Appends will join the transaction
 func (stream *Stream) Project(projection interface{}) error {
+	_, err := stream.Begin()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
