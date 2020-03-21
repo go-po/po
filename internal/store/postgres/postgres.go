@@ -36,8 +36,14 @@ type PGStore struct {
 }
 
 func (store *PGStore) GetStreamPosition(ctx context.Context, id stream.Id) (int64, error) {
-	// TODO implement
-	return 0, nil
+	position, err := store.db.GetStreamPosition(ctx, id.String())
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, err
+	}
+	return position, nil
 }
 
 func (store *PGStore) ReadRecords(ctx context.Context, id stream.Id, from int64) ([]record.Record, error) {

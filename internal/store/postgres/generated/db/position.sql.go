@@ -35,7 +35,20 @@ func (q *Queries) GetPosition(ctx context.Context, arg GetPositionParams) (PoPo,
 	return i, err
 }
 
-const setPosition = `-- name: SetSubscriberPosition :exec
+const getStreamPosition = `-- name: GetStreamPosition :one
+SELECT GREATEST(MAX(no), 0)::bigint
+FROM po_msgs
+WHERE stream = $1
+`
+
+func (q *Queries) GetStreamPosition(ctx context.Context, stream string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getStreamPosition, stream)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const setPosition = `-- name: SetPosition :exec
 INSERT INTO po_pos (stream, listener, no, content_type, data)
 VALUES ($1, $2, $3, 'application/json', '{}'::bytea)
 ON CONFLICT (stream, listener) DO UPDATE

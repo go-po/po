@@ -13,3 +13,8 @@ ON CONFLICT (stream, listener) DO UPDATE
         updated = NOW()
 WHERE po_pos.stream = $1
   AND po_pos.listener = $2;
+
+-- name: GetStreamPosition :one
+SELECT GREATEST(MAX(no), 0)::bigint
+FROM po_msgs
+WHERE stream = $1;

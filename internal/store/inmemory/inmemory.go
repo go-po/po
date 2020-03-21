@@ -25,6 +25,8 @@ type InMemory struct {
 }
 
 func (mem *InMemory) GetStreamPosition(ctx context.Context, id stream.Id) (int64, error) {
+	mem.mu.Lock()
+	defer mem.mu.Unlock()
 	stream, found := mem.data[id.Group]
 	if !found {
 		return 0, nil
