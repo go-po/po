@@ -24,6 +24,20 @@ type InMemory struct {
 	ptr  map[string]int64           // subscriber positions
 }
 
+func (mem *InMemory) GetStreamPosition(ctx context.Context, id stream.Id) (int64, error) {
+	stream, found := mem.data[id.Group]
+	if !found {
+		return 0, nil
+	}
+	var position int64 = 0
+	for _, r := range stream {
+		if r.Stream.String() == id.String() {
+			position = position + 1
+		}
+	}
+	return position, nil
+}
+
 func (mem *InMemory) AssignGroup(ctx context.Context, id stream.Id, number int64) (record.Record, error) {
 	mem.mu.Lock()
 	defer mem.mu.Unlock()
