@@ -93,6 +93,10 @@ func (stream *Stream) AppendTx(tx *Tx, messages ...interface{}) {
 }
 
 func (stream *Stream) Append(messages ...interface{}) error {
+	if len(messages) == 0 {
+		return nil // nothing to do
+	}
+
 	tx, err := stream.Begin()
 	if err != nil {
 		return err
