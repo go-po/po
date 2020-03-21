@@ -21,39 +21,35 @@ type Option func(opt *Options) error
 
 func WithStoreInMemory() Option {
 	return func(opt *Options) error {
-		opt.store = inmemory.New()
+		opt.store = NewStoreInMemory()
 		return nil
 	}
 }
 
-func WithStorePGUrl(connectionUrl string) Option {
+func WithStorePostgresUrl(connectionUrl string) Option {
 	return func(opt *Options) (err error) {
-		opt.store, err = postgres.NewFromUrl(connectionUrl)
+		opt.store, err = NewStorePostgresUrl(connectionUrl)
 		return
 	}
 }
 
-func WithStorePGConn(db *sql.DB) Option {
+func WithStorePostgresDB(db *sql.DB) Option {
 	return func(opt *Options) (err error) {
-		opt.store, err = postgres.New(db)
+		opt.store, err = NewStorePostgresDB(db)
 		return
 	}
 }
 
 func WithProtocolChannels() Option {
 	return func(opt *Options) error {
-		opt.protocol = channels.New()
+		opt.protocol = NewProtocolChannels()
 		return nil
 	}
 }
 
 func WithProtocolRabbitMQ(url, exchange, id string) Option {
 	return func(opt *Options) (err error) {
-		opt.protocol = rabbitmq.New(rabbitmq.Config{
-			AmqpUrl:  url,
-			Exchange: exchange,
-			Id:       id,
-		})
+		opt.protocol = NewProtocolRabbitMQ(url, exchange, id)
 		return
 	}
 }
@@ -85,4 +81,30 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 	}
 
 	return New(options.store, options.protocol), nil
+}
+
+// Constructors to main components
+
+func NewStoreInMemory() *inmemory.InMemory {
+	return inmemory.New()
+}
+
+func NewProtocolChannels() *channels.Channels {
+	return channels.New()
+}
+
+func NewStorePostgresUrl(connectionUrl string) (*postgres.PGStore, error) {
+	return postgres.NewFromUrl(connectionUrl)
+}
+
+func NewStorePostgresDB(db *sql.DB) (*postgres.PGStore, error) {
+	return postgres.New(db)
+}
+
+func NewProtocolRabbitMQ(url, exchange, id string) *rabbitmq.Protocol {
+	return rabbitmq.New(rabbitmq.Config{
+		AmqpUrl:  url,
+		Exchange: exchange,
+		Id:       id,
+	})
 }
