@@ -57,6 +57,7 @@ func newPo(store Store, protocol broker.Protocol, registry Registry) *Po {
 			distributor.New(registry, store),
 			store,
 		),
+		registry: registry,
 	}
 }
 
