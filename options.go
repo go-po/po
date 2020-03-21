@@ -15,13 +15,63 @@ import (
 type Options struct {
 	store    Store
 	protocol broker.Protocol
+	registry Registry
 }
 
 type Option func(opt *Options) error
 
+func New(store Store, protocol broker.Protocol) *Po {
+	return newPo(store, protocol, registry.DefaultRegistry)
+}
+
+func NewFromOptions(opts ...Option) (*Po, error) {
+	options := &Options{
+		registry: registry.DefaultRegistry,
+	}
+
+	for _, opt := range opts {
+		err := opt(options)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if options.store == nil {
+		return nil, fmt.Errorf("po: no store provided")
+	}
+	if options.protocol == nil {
+		return nil, fmt.Errorf("po: no protocol provided")
+	}
+	if options.registry == nil {
+		return nil, fmt.Errorf("po: no registry provided")
+	}
+
+	return newPo(options.store, options.protocol, options.registry), nil
+}
+
+func newPo(store Store, protocol broker.Protocol, registry Registry) *Po {
+	return &Po{
+		store: store,
+		broker: broker.New(
+			protocol,
+			distributor.New(registry, store),
+			store,
+		),
+	}
+}
+
+// Available options
+
 func WithStoreInMemory() Option {
 	return func(opt *Options) error {
 		opt.store = NewStoreInMemory()
+		return nil
+	}
+}
+
+func WithRegistry(registry Registry) Option {
+	return func(opt *Options) error {
+		opt.registry = registry
 		return nil
 	}
 }
@@ -52,35 +102,6 @@ func WithProtocolRabbitMQ(url, exchange, id string) Option {
 		opt.protocol = NewProtocolRabbitMQ(url, exchange, id)
 		return
 	}
-}
-
-func New(store Store, protocol broker.Protocol) *Po {
-	dist := distributor.New(registry.DefaultRegistry, store)
-	broker := broker.New(protocol, dist, store)
-	return &Po{
-		store:  store,
-		broker: broker,
-	}
-}
-
-func NewFromOptions(opts ...Option) (*Po, error) {
-	options := &Options{}
-
-	for _, opt := range opts {
-		err := opt(options)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if options.store == nil {
-		return nil, fmt.Errorf("po: no store provided")
-	}
-	if options.protocol == nil {
-		return nil, fmt.Errorf("po: no protocol provided")
-	}
-
-	return New(options.store, options.protocol), nil
 }
 
 // Constructors to main components
