@@ -140,8 +140,8 @@ func (store *PGStore) SetSubscriberPosition(tx store.Tx, subscriberId string, st
 		Stream:      stream.String(),
 		Listener:    subscriberId,
 		No:          position,
-		ContentType: "application/json",
-		Data:        emptyJson,
+		ContentType: "text/plain",
+		Data:        []byte(""),
 	})
 	if err != nil {
 		return err

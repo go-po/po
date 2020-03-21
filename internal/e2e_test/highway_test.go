@@ -82,7 +82,8 @@ func TestHighwayApp(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// setup the shared values for the test
-			streamId := stream.ParseId("highways:" + strconv.Itoa(rand.Int()))
+			testId := strconv.Itoa(rand.Int())
+			streamId := stream.ParseId("highways:" + testId)
 			expected := test.cars * test.apps
 			hwCounters, wg := newHighwayCounter(t, test.subs, test.timeout, expected, streamId)
 
@@ -103,6 +104,22 @@ func TestHighwayApp(t *testing.T) {
 			for id, counter := range hwCounters {
 				assert.Equal(t, expected, counter.Count(), "sub %s", id)
 			}
+
+			// prepare po for Projecting
+			store, err := test.store()
+			if !assert.NoError(t, err, "setup store") {
+				t.FailNow()
+			}
+			es := po.New(store, test.protocol(1000))
+			projection := &CarProjection{
+				name:  "car-projection-" + testId,
+				Cars:  make(map[int64]float64),
+				Count: 0,
+			}
+			err = es.Project(context.Background(), streamId.String(), projection)
+
+			assert.NoError(t, err, "projecting")
+			assert.Equal(t, expected, projection.Count, "projection count")
 
 		})
 	}
@@ -208,4 +225,25 @@ func (counter *CarCounter) Count() int {
 	counter.mu.Lock()
 	defer counter.mu.Unlock()
 	return counter.count
+}
+
+type CarProjection struct {
+	name  string
+	Cars  map[int64]float64 `json:"cars"`
+	Count int               `json:"count"`
+}
+
+func (projection *CarProjection) Handle(ctx context.Context, msg stream.Message) error {
+	switch car := msg.Data.(type) {
+	case Car:
+		projection.Cars[msg.Number] = car.Speed
+		projection.Count = projection.Count + 1
+	default:
+		return fmt.Errorf("unknown type: %T", msg)
+	}
+	return nil
+}
+
+func (projection *CarProjection) SnapshotName() string {
+	return projection.name
 }
