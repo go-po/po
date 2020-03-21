@@ -11,12 +11,14 @@ import (
 
 type Store interface {
 	ReadRecords(ctx context.Context, id stream.Id, from int64) ([]record.Record, error)
+	AssignGroup(ctx context.Context, id stream.Id, number int64) (record.Record, error)
+
 	Begin(ctx context.Context) (store.Tx, error)
 	StoreRecord(tx store.Tx, id stream.Id, number int64, contentType string, data []byte) (record.Record, error)
-	GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error)
+
+	GetSubscriberPosition(tx store.Tx, subscriberId string, id stream.Id) (int64, error)
+	SetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error
 	GetStreamPosition(ctx context.Context, id stream.Id) (int64, error)
-	SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error
-	AssignGroup(ctx context.Context, id stream.Id, number int64) (record.Record, error)
 }
 
 type Broker interface {

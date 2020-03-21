@@ -35,7 +35,7 @@ func (q *Queries) GetPosition(ctx context.Context, arg GetPositionParams) (PoPo,
 	return i, err
 }
 
-const setPosition = `-- name: SetPosition :exec
+const setPosition = `-- name: SetSubscriberPosition :exec
 INSERT INTO po_pos (stream, listener, no, content_type, data)
 VALUES ($1, $2, $3, 'application/json', '{}'::bytea)
 ON CONFLICT (stream, listener) DO UPDATE

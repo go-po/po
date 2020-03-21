@@ -68,7 +68,7 @@ func (store *PGStore) ReadRecords(ctx context.Context, id stream.Id, from int64)
 	return records, nil
 }
 
-func (store *PGStore) GetLastPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
+func (store *PGStore) GetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
 	t, ok := tx.(*pgTx)
 	if !ok {
 		return 0, ErrUnknownTx{tx}
@@ -86,7 +86,7 @@ func (store *PGStore) GetLastPosition(tx store.Tx, subscriberId string, stream s
 	return position.No, nil
 }
 
-func (store *PGStore) SetPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
+func (store *PGStore) SetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
 	t, ok := tx.(*pgTx)
 	if !ok {
 		return ErrUnknownTx{tx}
