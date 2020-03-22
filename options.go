@@ -88,7 +88,7 @@ func WithStore(store Store) Option {
 	}
 }
 
-func WithProtocol(protocol Protocol) Option {
+func WithProtocol(protocol broker.Protocol) Option {
 	return func(opt *Options) error {
 		opt.protocol = protocol
 		return nil
