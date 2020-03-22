@@ -67,10 +67,11 @@ func (tx *Tx) Rollback() error {
 }
 
 type Stream struct {
-	ID  stream.Id       // Unique ID of the stream
-	ctx context.Context // to use for the operation
-	mu  sync.RWMutex    // protects tx
-	tx  *Tx
+	logger Logger
+	ID     stream.Id       // Unique ID of the stream
+	ctx    context.Context // to use for the operation
+	mu     sync.RWMutex    // protects tx
+	tx     *Tx
 
 	registry Registry
 	broker   Broker
@@ -125,6 +126,7 @@ func (s *Stream) Size() (int64, error) {
 // Doing so starts an implicit transaction,
 // so that Appends will join the transaction
 func (s *Stream) Project(projection stream.Handler) error {
+	s.logger.Debugf("po/stream projecting %s", s.ID)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

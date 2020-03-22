@@ -35,11 +35,19 @@ type Registry interface {
 	ToMessage(r record.Record) (stream.Message, error)
 }
 
+type Logger interface {
+	Debugf(template string, args ...interface{})
+	Errorf(template string, args ...interface{})
+	Infof(template string, args ...interface{})
+	Errf(err error, template string, args ...interface{})
+}
+
 type Distributor interface {
 	broker.Distributor
 }
 
 type Po struct {
+	logger   Logger
 	store    Store
 	broker   Broker
 	registry Registry
@@ -47,6 +55,7 @@ type Po struct {
 
 func (po *Po) Stream(ctx context.Context, streamId string) *Stream {
 	return &Stream{
+		logger:   po.logger,
 		ID:       stream.ParseId(streamId),
 		ctx:      ctx,
 		store:    po.store,

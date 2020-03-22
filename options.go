@@ -7,6 +7,7 @@ import (
 	"github.com/go-po/po/internal/broker/channels"
 	"github.com/go-po/po/internal/broker/rabbitmq"
 	"github.com/go-po/po/internal/distributor"
+	"github.com/go-po/po/internal/logger"
 	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/internal/store/inmemory"
 	"github.com/go-po/po/internal/store/postgres"
@@ -16,17 +17,24 @@ type Options struct {
 	store    Store
 	protocol broker.Protocol
 	registry Registry
+	logger   Logger
 }
 
 type Option func(opt *Options) error
 
 func New(store Store, protocol broker.Protocol) *Po {
-	return newPo(store, protocol, registry.DefaultRegistry)
+	return newPo(
+		store,
+		protocol,
+		registry.DefaultRegistry,
+		&logger.NoopLogger{},
+	)
 }
 
 func NewFromOptions(opts ...Option) (*Po, error) {
 	options := &Options{
 		registry: registry.DefaultRegistry,
+		logger:   &logger.NoopLogger{},
 	}
 
 	for _, opt := range opts {
@@ -45,13 +53,16 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 	if options.registry == nil {
 		return nil, fmt.Errorf("po: no registry provided")
 	}
-
-	return newPo(options.store, options.protocol, options.registry), nil
+	if options.logger == nil {
+		return nil, fmt.Errorf("po: no logger provided")
+	}
+	return newPo(options.store, options.protocol, options.registry, options.logger), nil
 }
 
-func newPo(store Store, protocol broker.Protocol, registry Registry) *Po {
+func newPo(store Store, protocol broker.Protocol, registry Registry, logger Logger) *Po {
 	return &Po{
-		store: store,
+		logger: logger,
+		store:  store,
 		broker: broker.New(
 			protocol,
 			distributor.New(registry, store),
@@ -62,6 +73,27 @@ func newPo(store Store, protocol broker.Protocol, registry Registry) *Po {
 }
 
 // Available options
+
+func WithLogger(logger Logger) Option {
+	return func(opt *Options) error {
+		opt.logger = logger
+		return nil
+	}
+}
+
+func WithStore(store Store) Option {
+	return func(opt *Options) error {
+		opt.store = store
+		return nil
+	}
+}
+
+func WithProtocol(protocol broker.Protocol) Option {
+	return func(opt *Options) error {
+		opt.protocol = protocol
+		return nil
+	}
+}
 
 func WithStoreInMemory() Option {
 	return func(opt *Options) error {
