@@ -8,6 +8,10 @@ import (
 	"github.com/go-po/po/internal/broker/rabbitmq"
 	"github.com/go-po/po/internal/store/inmemory"
 	"github.com/go-po/po/internal/store/postgres"
+	"github.com/go-po/po/stream"
+	"math/rand"
+	"strconv"
+	"time"
 )
 
 const (
@@ -45,4 +49,14 @@ func channel() ProtocolBuilder {
 	return func(id int) broker.Protocol {
 		return channels.New()
 	}
+}
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+func randStreamId(groupBase string, entity string) stream.Id {
+	id := stream.ParseId(groupBase + ":" + strconv.Itoa(rand.Int()))
+	id.Entity = entity
+	return id
 }
