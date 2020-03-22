@@ -97,7 +97,7 @@ type highwayApp struct {
 func (app *highwayApp) start(t *testing.T) {
 	store, err := app.test.store()
 	if !assert.NoError(t, err, "setup store") {
-		t.FailNow()
+		t.Fail()
 	}
 
 	es := po.New(store, app.test.protocol(app.id))
@@ -105,17 +105,17 @@ func (app *highwayApp) start(t *testing.T) {
 	for subId, counter := range app.counters {
 		err = es.Subscribe(context.Background(), subId, app.streamId.String(), counter)
 		if !assert.NoError(t, err, "setup subscriber [%d].[%s]", app.id, subId) {
-			t.FailNow()
+			t.Fail()
 		}
 	}
 
 	// send cars
 	appStream := fmt.Sprintf("%s-app-%d", app.streamId, app.id)
 	for i := 0; i < app.test.cars; i++ {
-		err = es.Stream(context.Background(), appStream).
-			Append(Car{Speed: float64(rand.Int31n(100))})
+		message := Car{Speed: float64(rand.Int31n(100))}
+		err = es.Stream(context.Background(), appStream).Append(message)
 		if !assert.NoError(t, err, "send car [%d].[%s]", app.id, appStream) {
-			t.FailNow()
+			t.Fail()
 		}
 	}
 

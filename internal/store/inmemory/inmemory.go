@@ -12,18 +12,22 @@ import (
 
 func New() *InMemory {
 	return &InMemory{
-		mu:        sync.RWMutex{},
-		data:      make(map[string][]record.Record),
-		ptr:       make(map[string]int64),
-		snapshots: make(map[stream.Id]map[string]record.Snapshot),
+		mu:          sync.RWMutex{},
+		data:        make(map[string][]record.Record),
+		ptr:         make(map[string]int64),
+		snapshots:   make(map[stream.Id]map[string]record.Snapshot),
+		entityIndex: make(map[string]int64),
+		groupIndex:  make(map[string]int64),
 	}
 }
 
 type InMemory struct {
-	mu        sync.RWMutex               // guards the data
-	data      map[string][]record.Record // records by stream group id
-	ptr       map[string]int64           // subscriber positions
-	snapshots map[stream.Id]map[string]record.Snapshot
+	mu          sync.RWMutex               // guards the data
+	data        map[string][]record.Record // records by stream group id
+	ptr         map[string]int64           // subscriber positions
+	snapshots   map[stream.Id]map[string]record.Snapshot
+	entityIndex map[string]int64
+	groupIndex  map[string]int64
 }
 
 var emptySnapshot = record.Snapshot{
@@ -83,7 +87,11 @@ func (mem *InMemory) AssignGroup(ctx context.Context, id stream.Id, number int64
 			if item.GroupNumber != 0 {
 				return record.Record{}, fmt.Errorf("already assigned")
 			}
-			groupNumber := int64(i) + 1
+			groupNumber, found := mem.groupIndex[id.Group]
+			if !found {
+				groupNumber = 1
+			}
+			mem.groupIndex[id.Group] = groupNumber + 1
 			r := groupData[i]
 			r.GroupNumber = groupNumber
 			groupData[i] = r
@@ -147,11 +155,12 @@ func (mem *InMemory) StoreRecord(tx store.Tx, id stream.Id, number int64, msgTyp
 
 	mem.mu.RLock()
 	defer mem.mu.RUnlock()
-	current, err := mem.ReadRecords(context.Background(), id, 0)
-	if err != nil {
-		return record.Record{}, err
+
+	current, found := mem.entityIndex[id.String()]
+	if !found {
+		current = 0
 	}
-	var next = int64(len(current) + len(inTx.records) + 1)
+	var next = current + int64(len(inTx.records)) + 1
 	if next != number {
 		return record.Record{}, fmt.Errorf("out of order: %d != %d", next, number)
 	}
