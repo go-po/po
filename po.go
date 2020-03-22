@@ -47,6 +47,7 @@ type Distributor interface {
 }
 
 type Po struct {
+	logger   Logger
 	store    Store
 	broker   Broker
 	registry Registry
