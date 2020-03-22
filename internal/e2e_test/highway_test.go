@@ -50,6 +50,7 @@ func TestHighwayApp(t *testing.T) {
 			hwCounters, wg := newHighwayCounter(t, test.subs, test.timeout, expected, streamId)
 
 			// setup the apps
+			var apps []*highwayApp
 			for appId := 0; appId < test.apps; appId++ {
 				app := &highwayApp{
 					id:       appId,
@@ -57,6 +58,7 @@ func TestHighwayApp(t *testing.T) {
 					counters: hwCounters,
 					test:     test,
 				}
+				apps = append(apps, app)
 				go app.start(t)
 			}
 
@@ -67,21 +69,9 @@ func TestHighwayApp(t *testing.T) {
 				assert.Equal(t, expected, counter.Count(), "sub %s", id)
 			}
 
-			// prepare po for Projecting
-			store, err := test.store()
-			if !assert.NoError(t, err, "setup store") {
-				t.FailNow()
+			for _, app := range apps {
+				app.verifyProjection(t, expected)
 			}
-			es := po.New(store, test.protocol(1000))
-			projection := &CarProjection{
-				name:  "car-projection-" + testId,
-				Cars:  make(map[int64]float64),
-				Count: 0,
-			}
-			err = es.Project(context.Background(), streamId.String(), projection)
-
-			assert.NoError(t, err, "projecting")
-			assert.Equal(t, expected, projection.Count, "projection count")
 
 		})
 	}
@@ -92,6 +82,7 @@ type highwayApp struct {
 	streamId stream.Id
 	counters highwayCounters
 	test     *highwayTestCase
+	es       *po.Po
 }
 
 func (app *highwayApp) start(t *testing.T) {
@@ -100,10 +91,10 @@ func (app *highwayApp) start(t *testing.T) {
 		t.Fail()
 	}
 
-	es := po.New(store, app.test.protocol(app.id))
+	app.es = po.New(store, app.test.protocol(app.id))
 
 	for subId, counter := range app.counters {
-		err = es.Subscribe(context.Background(), subId, app.streamId.String(), counter)
+		err = app.es.Subscribe(context.Background(), subId, app.streamId.String(), counter)
 		if !assert.NoError(t, err, "setup subscriber [%d].[%s]", app.id, subId) {
 			t.Fail()
 		}
@@ -113,12 +104,24 @@ func (app *highwayApp) start(t *testing.T) {
 	appStream := fmt.Sprintf("%s-app-%d", app.streamId, app.id)
 	for i := 0; i < app.test.cars; i++ {
 		message := Car{Speed: float64(rand.Int31n(100))}
-		err = es.Stream(context.Background(), appStream).Append(message)
+		err = app.es.Stream(context.Background(), appStream).Append(message)
 		if !assert.NoError(t, err, "send car [%d].[%s]", app.id, appStream) {
 			t.Fail()
 		}
 	}
 
+}
+
+func (app *highwayApp) verifyProjection(t *testing.T, expected int) {
+	projection := &CarProjection{
+		name:  "car-projection-" + app.streamId.String(),
+		Cars:  make(map[int64]float64),
+		Count: 0,
+	}
+	err := app.es.Project(context.Background(), app.streamId.String(), projection)
+
+	assert.NoError(t, err, "projecting")
+	assert.Equal(t, expected, projection.Count, "projection count")
 }
 
 type Car struct {
