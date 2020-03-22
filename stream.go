@@ -116,6 +116,11 @@ func (s *Stream) Append(messages ...interface{}) error {
 	return tx.Commit()
 }
 
+// Number of messages in a Stream
+func (s *Stream) Size() (int64, error) {
+	return s.store.GetStreamPosition(s.ctx, s.ID)
+}
+
 // Projects the stream onto the provided projection.
 // Doing so starts an implicit transaction,
 // so that Appends will join the transaction
