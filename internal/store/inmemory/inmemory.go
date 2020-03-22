@@ -12,16 +12,51 @@ import (
 
 func New() *InMemory {
 	return &InMemory{
-		mu:   sync.RWMutex{},
-		data: make(map[string][]record.Record),
-		ptr:  make(map[string]int64),
+		mu:          sync.RWMutex{},
+		data:        make(map[string][]record.Record),
+		ptr:         make(map[string]int64),
+		snapshots:   make(map[stream.Id]map[string]record.Snapshot),
+		entityIndex: make(map[string]int64),
+		groupIndex:  make(map[string]int64),
 	}
 }
 
 type InMemory struct {
-	mu   sync.RWMutex               // guards the data
-	data map[string][]record.Record // records by stream group id
-	ptr  map[string]int64           // subscriber positions
+	mu          sync.RWMutex               // guards the data
+	data        map[string][]record.Record // records by stream group id
+	ptr         map[string]int64           // subscriber positions
+	snapshots   map[stream.Id]map[string]record.Snapshot
+	entityIndex map[string]int64
+	groupIndex  map[string]int64
+}
+
+var emptySnapshot = record.Snapshot{
+	Data:        []byte("{}"),
+	Position:    0,
+	ContentType: "application/json",
+}
+
+func (mem *InMemory) ReadSnapshot(ctx context.Context, id stream.Id, snapshotId string) (record.Snapshot, error) {
+	streamSnaps, found := mem.snapshots[id]
+	if !found {
+		return emptySnapshot, nil
+	}
+
+	snapshot, found := streamSnaps[snapshotId]
+	if !found {
+		fmt.Printf("didn't find it 2\n")
+		return emptySnapshot, nil
+	}
+	return snapshot, nil
+
+}
+
+func (mem *InMemory) UpdateSnapshot(ctx context.Context, id stream.Id, snapshotId string, snapshot record.Snapshot) error {
+	if _, found := mem.snapshots[id]; !found {
+		mem.snapshots[id] = make(map[string]record.Snapshot)
+	}
+	mem.snapshots[id][snapshotId] = snapshot
+	return nil
 }
 
 func (mem *InMemory) GetStreamPosition(ctx context.Context, id stream.Id) (int64, error) {
@@ -49,7 +84,14 @@ func (mem *InMemory) AssignGroup(ctx context.Context, id stream.Id, number int64
 	}
 	for i, item := range groupData {
 		if item.Stream.String() == id.String() && item.Number == number {
-			groupNumber := int64(i) + 1
+			if item.GroupNumber != 0 {
+				return record.Record{}, fmt.Errorf("already assigned")
+			}
+			groupNumber, found := mem.groupIndex[id.Group]
+			if !found {
+				groupNumber = 1
+			}
+			mem.groupIndex[id.Group] = groupNumber + 1
 			r := groupData[i]
 			r.GroupNumber = groupNumber
 			groupData[i] = r
@@ -68,8 +110,14 @@ func (mem *InMemory) ReadRecords(ctx context.Context, id stream.Id, from int64) 
 	}
 	var result []record.Record
 	for _, r := range data {
-		if r.Stream.String() == id.String() && r.Number > from {
-			result = append(result, r)
+		if id.HasEntity() {
+			if r.Stream.String() == id.String() && r.Number > from {
+				result = append(result, r)
+			}
+		} else {
+			if r.GroupNumber > from {
+				result = append(result, r)
+			}
 		}
 	}
 	return result, nil
@@ -105,6 +153,18 @@ func (mem *InMemory) StoreRecord(tx store.Tx, id stream.Id, number int64, msgTyp
 		return record.Record{}, fmt.Errorf("unknown tx type: %T", tx)
 	}
 
+	mem.mu.RLock()
+	defer mem.mu.RUnlock()
+
+	current, found := mem.entityIndex[id.String()]
+	if !found {
+		current = 0
+	}
+	var next = current + int64(len(inTx.records)) + 1
+	if next != number {
+		return record.Record{}, fmt.Errorf("out of order: %d != %d", next, number)
+	}
+
 	r := record.Record{
 		Number:      number,
 		Stream:      id,
@@ -127,12 +187,12 @@ func (tx inMemoryTx) Commit() error {
 	tx.store.mu.Lock()
 	defer tx.store.mu.Unlock()
 	for _, r := range tx.records {
-
 		_, hasStream := tx.store.data[r.Stream.Group]
 		if !hasStream {
 			tx.store.data[r.Stream.Group] = make([]record.Record, 0)
 		}
 		tx.store.data[r.Stream.Group] = append(tx.store.data[r.Stream.Group], r)
+		tx.store.entityIndex[r.Stream.String()] = r.Number
 	}
 	return nil
 }

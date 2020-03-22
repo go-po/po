@@ -24,12 +24,13 @@ CREATE TABLE IF NOT EXISTS po_msg_index
     updated timestamp with time zone default NOW() not null,
     created timestamp with time zone default NOW() not null,
     stream  VARCHAR                                NOT NULL,
-    next    bigint                   default 0     not null
+    next    bigint                   default 0     not null,
+    grp     bool                     default FALSE not null
 );
 
 comment on table po_msg_index is 'contains the next number assigned to a stream';
 
-CREATE UNIQUE INDEX IF NOT EXISTS po_msg_index_stream_uindex ON po_msg_index (stream);
+CREATE UNIQUE INDEX IF NOT EXISTS po_msg_index_stream_grp_uindex ON po_msg_index (stream, grp);
 
 CREATE TABLE IF NOT EXISTS po_pos
 (

@@ -16,6 +16,9 @@ type Store interface {
 	Begin(ctx context.Context) (store.Tx, error)
 	StoreRecord(tx store.Tx, id stream.Id, number int64, contentType string, data []byte) (record.Record, error)
 
+	ReadSnapshot(ctx context.Context, id stream.Id, snapshotId string) (record.Snapshot, error)
+	UpdateSnapshot(ctx context.Context, id stream.Id, snapshotId string, snapshot record.Snapshot) error
+
 	GetSubscriberPosition(tx store.Tx, subscriberId string, id stream.Id) (int64, error)
 	SetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error
 	GetStreamPosition(ctx context.Context, id stream.Id) (int64, error)
@@ -53,7 +56,7 @@ func (po *Po) Stream(ctx context.Context, streamId string) *Stream {
 }
 
 // convenience method to load a stream and project it
-func (po *Po) Project(ctx context.Context, streamId string, projection interface{}) error {
+func (po *Po) Project(ctx context.Context, streamId string, projection stream.Handler) error {
 	return po.Stream(ctx, streamId).Project(projection)
 }
 

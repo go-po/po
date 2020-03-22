@@ -5,11 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-po/po"
-	"github.com/go-po/po/internal/broker"
-	"github.com/go-po/po/internal/broker/channels"
-	"github.com/go-po/po/internal/broker/rabbitmq"
-	"github.com/go-po/po/internal/store/inmemory"
-	"github.com/go-po/po/internal/store/postgres"
 	"github.com/go-po/po/stream"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
@@ -19,18 +14,13 @@ import (
 	"time"
 )
 
-const (
-	databaseUrl = "postgres://po:po@localhost:5431/po?sslmode=disable"
-	uri         = "amqp://po:po@localhost:5671/"
-)
-
 type highwayTestCase struct {
 	name     string
-	store    func() (po.Store, error)     // constructor
-	protocol func(id int) broker.Protocol // constructor
-	apps     int                          // number of concurrent apps
-	subs     int                          // number of subscribers per app
-	cars     int                          // number of cars per app
+	store    StoreBuilder    // constructor
+	protocol ProtocolBuilder // constructor
+	apps     int             // number of concurrent apps
+	subs     int             // number of subscribers per app
+	cars     int             // number of cars per app
 	timeout  time.Duration
 }
 
@@ -40,53 +30,29 @@ func TestHighwayApp(t *testing.T) {
 	}
 	rand.Seed(time.Now().UnixNano())
 
-	pg := func() func() (po.Store, error) {
-		return func() (po.Store, error) {
-			return postgres.NewFromUrl(databaseUrl)
-		}
-	}
-
-	inmem := func() func() (po.Store, error) {
-		return func() (store po.Store, err error) {
-			return inmemory.New(), nil
-		}
-	}
-
-	rabbit := func() func(id int) broker.Protocol {
-		return func(id int) broker.Protocol {
-			return rabbitmq.New(rabbitmq.Config{
-				AmqpUrl:  uri,
-				Exchange: "highway",
-				Id:       fmt.Sprintf("app-%d", id),
-			})
-		}
-	}
-
-	channels := func() func(id int) broker.Protocol {
-		return func(id int) broker.Protocol {
-			return channels.New()
-		}
-	}
-
 	tests := []*highwayTestCase{
 		{name: "one consumer",
 			store: pg(), protocol: rabbit(), apps: 1, subs: 1, cars: 10, timeout: time.Second * 5},
 		{name: "multi consumer",
 			store: pg(), protocol: rabbit(), apps: 5, subs: 2, cars: 10, timeout: time.Second * 5},
 		{name: "channel broker",
-			store: pg(), protocol: channels(), apps: 1, subs: 2, cars: 10, timeout: time.Second * 2},
+			store: pg(), protocol: channel(), apps: 1, subs: 2, cars: 10, timeout: time.Second * 2},
 		{name: "inmemory/channel",
-			store: inmem(), protocol: channels(), apps: 1, subs: 5, cars: 10, timeout: time.Second},
+			store: inmem(), protocol: channel(), apps: 1, subs: 5, cars: 10, timeout: time.Second},
+		{name: "inmemory/rabbit",
+			store: inmem(), protocol: rabbit(), apps: 1, subs: 5, cars: 10, timeout: time.Second * 5},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// setup the shared values for the test
-			streamId := stream.ParseId("highways:" + strconv.Itoa(rand.Int()))
+			testId := strconv.Itoa(rand.Int())
+			streamId := stream.ParseId("highways:" + testId)
 			expected := test.cars * test.apps
 			hwCounters, wg := newHighwayCounter(t, test.subs, test.timeout, expected, streamId)
 
 			// setup the apps
+			var apps []*highwayApp
 			for appId := 0; appId < test.apps; appId++ {
 				app := &highwayApp{
 					id:       appId,
@@ -94,6 +60,7 @@ func TestHighwayApp(t *testing.T) {
 					counters: hwCounters,
 					test:     test,
 				}
+				apps = append(apps, app)
 				go app.start(t)
 			}
 
@@ -102,6 +69,10 @@ func TestHighwayApp(t *testing.T) {
 			// verify the tests
 			for id, counter := range hwCounters {
 				assert.Equal(t, expected, counter.Count(), "sub %s", id)
+			}
+
+			for _, app := range apps {
+				app.verifyProjection(t, expected)
 			}
 
 		})
@@ -113,33 +84,46 @@ type highwayApp struct {
 	streamId stream.Id
 	counters highwayCounters
 	test     *highwayTestCase
+	es       *po.Po
 }
 
 func (app *highwayApp) start(t *testing.T) {
 	store, err := app.test.store()
 	if !assert.NoError(t, err, "setup store") {
-		t.FailNow()
+		t.Fail()
 	}
 
-	es := po.New(store, app.test.protocol(app.id))
+	app.es = po.New(store, app.test.protocol(app.id))
 
 	for subId, counter := range app.counters {
-		err = es.Subscribe(context.Background(), subId, app.streamId.String(), counter)
+		err = app.es.Subscribe(context.Background(), subId, app.streamId.String(), counter)
 		if !assert.NoError(t, err, "setup subscriber [%d].[%s]", app.id, subId) {
-			t.FailNow()
+			t.Fail()
 		}
 	}
 
 	// send cars
 	appStream := fmt.Sprintf("%s-app-%d", app.streamId, app.id)
 	for i := 0; i < app.test.cars; i++ {
-		err = es.Stream(context.Background(), appStream).
-			Append(Car{Speed: float64(rand.Int31n(100))})
+		message := Car{Speed: float64(rand.Int31n(100))}
+		err = app.es.Stream(context.Background(), appStream).Append(message)
 		if !assert.NoError(t, err, "send car [%d].[%s]", app.id, appStream) {
-			t.FailNow()
+			t.Fail()
 		}
 	}
 
+}
+
+func (app *highwayApp) verifyProjection(t *testing.T, expected int) {
+	projection := &CarProjection{
+		name:  "car-projection-" + app.streamId.String(),
+		Cars:  make(map[int64]float64),
+		Count: 0,
+	}
+	err := app.es.Project(context.Background(), app.streamId.String(), projection)
+
+	assert.NoError(t, err, "projecting")
+	assert.Equal(t, expected, projection.Count, "projection count")
 }
 
 type Car struct {
@@ -192,11 +176,20 @@ type highwayCounters map[string]*CarCounter
 type CarCounter struct {
 	mu    sync.Mutex
 	count int
+	last  int64
 }
 
 func (counter *CarCounter) Handle(ctx context.Context, msg stream.Message) error {
 	counter.mu.Lock()
 	defer counter.mu.Unlock()
+
+	if counter.last+1 > msg.GroupNumber {
+		// handle messages with idempotence
+		return nil
+	}
+
+	counter.last = msg.GroupNumber
+
 	switch msg.Data.(type) {
 	case Car:
 		counter.count = counter.count + 1
@@ -208,4 +201,25 @@ func (counter *CarCounter) Count() int {
 	counter.mu.Lock()
 	defer counter.mu.Unlock()
 	return counter.count
+}
+
+type CarProjection struct {
+	name  string
+	Cars  map[int64]float64 `json:"cars"`
+	Count int               `json:"count"`
+}
+
+func (projection *CarProjection) Handle(ctx context.Context, msg stream.Message) error {
+	switch car := msg.Data.(type) {
+	case Car:
+		projection.Cars[msg.Number] = car.Speed
+		projection.Count = projection.Count + 1
+	default:
+		return fmt.Errorf("unknown type: %T", msg)
+	}
+	return nil
+}
+
+func (projection *CarProjection) SnapshotName() string {
+	return projection.name
 }

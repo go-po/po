@@ -164,6 +164,19 @@ func (q *Queries) GetRecordsByStream(ctx context.Context, arg GetRecordsByStream
 	return items, nil
 }
 
+const getStreamPosition = `-- name: GetStreamPosition :one
+SELECT GREATEST(MAX(no), 0)::bigint
+FROM po_msgs
+WHERE stream = $1
+`
+
+func (q *Queries) GetStreamPosition(ctx context.Context, stream string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getStreamPosition, stream)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const insert = `-- name: Insert :exec
 INSERT INTO po_msgs (stream, no, grp, content_type, data)
 VALUES ($1, $2, $3, $4, $5)
