@@ -173,7 +173,10 @@ func (store *PGStore) StoreRecord(tx store.Tx, id stream.Id, number int64, conte
 		return record.Record{}, ErrUnknownTx{tx}
 	}
 
-	next, err := t.db.GetNextIndex(t.ctx, id.String())
+	next, err := t.db.GetNextIndex(t.ctx, db.GetNextIndexParams{
+		Stream: id.String(),
+		Grp:    false,
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			next = 1
@@ -199,6 +202,7 @@ func (store *PGStore) StoreRecord(tx store.Tx, id stream.Id, number int64, conte
 
 	err = t.db.SetNextIndex(t.ctx, db.SetNextIndexParams{
 		Stream: id.String(),
+		Grp:    false,
 		Next:   next + 1,
 	})
 	if err != nil {
@@ -223,7 +227,10 @@ func (store *PGStore) AssignGroup(ctx context.Context, id stream.Id, number int6
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	next, nextIndexErr := tx.db.GetNextIndex(tx.ctx, id.Group)
+	next, nextIndexErr := tx.db.GetNextIndex(tx.ctx, db.GetNextIndexParams{
+		Stream: id.Group,
+		Grp:    true,
+	})
 	if nextIndexErr != nil {
 		if nextIndexErr == sql.ErrNoRows {
 			next = 1
@@ -237,6 +244,7 @@ func (store *PGStore) AssignGroup(ctx context.Context, id stream.Id, number int6
 	err = tx.db.SetNextIndex(ctx, db.SetNextIndexParams{
 		Next:   next + 1,
 		Stream: id.Group,
+		Grp:    true,
 	})
 	if err != nil {
 		return record.Record{}, err

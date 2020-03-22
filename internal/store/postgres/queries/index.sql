@@ -1,12 +1,13 @@
 -- name: GetNextIndex :one
 SELECT next
 FROM po_msg_index
-WHERE stream = $1 FOR UPDATE;
+WHERE stream = $1 AND grp = $2 FOR UPDATE;
 
 -- name: SetNextIndex :exec
-INSERT INTO po_msg_index (stream, next)
-VALUES ($1, $2)
-ON CONFLICT (stream) DO UPDATE
-    SET next = $2
-WHERE po_msg_index.next = $2 - 1
-  AND po_msg_index.stream = $1;
+INSERT INTO po_msg_index (stream, grp, next)
+VALUES ($1, $2, $3)
+ON CONFLICT (stream, grp) DO UPDATE
+    SET next = $3
+WHERE po_msg_index.next = $3 - 1
+  AND po_msg_index.stream = $1
+  AND po_msg_index.grp = $2;

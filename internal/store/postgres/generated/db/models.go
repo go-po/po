@@ -25,6 +25,7 @@ type PoMsgIndex struct {
 	Created time.Time `json:"created"`
 	Stream  string    `json:"stream"`
 	Next    int64     `json:"next"`
+	Grp     bool      `json:"grp"`
 }
 
 // position of a stream listener
