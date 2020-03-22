@@ -142,6 +142,17 @@ func (mem *InMemory) StoreRecord(tx store.Tx, id stream.Id, number int64, msgTyp
 		return record.Record{}, fmt.Errorf("unknown tx type: %T", tx)
 	}
 
+	mem.mu.RLock()
+	defer mem.mu.RUnlock()
+	current, err := mem.ReadRecords(context.Background(), id, 0)
+	if err != nil {
+		return record.Record{}, err
+	}
+	var next = int64(len(current) + len(inTx.records) + 1)
+	if next != number {
+		return record.Record{}, fmt.Errorf("out of order: %d != %d", next, number)
+	}
+
 	r := record.Record{
 		Number:      number,
 		Stream:      id,
