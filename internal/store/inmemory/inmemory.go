@@ -80,6 +80,9 @@ func (mem *InMemory) AssignGroup(ctx context.Context, id stream.Id, number int64
 	}
 	for i, item := range groupData {
 		if item.Stream.String() == id.String() && item.Number == number {
+			if item.GroupNumber != 0 {
+				return record.Record{}, fmt.Errorf("already assigned")
+			}
 			groupNumber := int64(i) + 1
 			r := groupData[i]
 			r.GroupNumber = groupNumber
