@@ -1,7 +1,7 @@
 clean:
 	rm -r internal/store/postgres/generated/db || TRUE
 
-db-reset: gen
+db-reset: 
 	echo "drop schema public cascade" 			| docker exec -i po_pg psql -U po po
 	echo "create schema if not exists public" 	| docker exec -i po_pg psql -U po po
 
