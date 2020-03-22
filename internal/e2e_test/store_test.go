@@ -216,6 +216,22 @@ func assignGroupNumber(t *testing.T, db po.Store) {
 		assert.Equal(t, int64(1), record.GroupNumber)
 	})
 
+	t.Run("double call", func(t *testing.T) {
+		// setup
+		id := randStreamId("assignGroupStream", "")
+		fixture(t, id, 1)
+		_, err := db.AssignGroup(context.Background(), id, 1)
+		if !assert.NoError(t, err, "failed assign") {
+			t.FailNow()
+		}
+
+		// execute
+		_, err = db.AssignGroup(context.Background(), id, 1)
+
+		// verify
+		assert.Errorf(t, err, "failure to assign the same")
+	})
+
 	t.Run("append two entity streams in same group", func(t *testing.T) {
 		// setup
 		group := randStreamId("assignGroupMultiStream", "")
@@ -251,25 +267,33 @@ func assignGroupNumber(t *testing.T, db po.Store) {
 		entityStream := groupStream
 		entityStream.Entity = "entity"
 
+		fixture(t, groupStream, 2)
 		fixture(t, entityStream, 1)
-		fixture(t, groupStream, 1)
 
 		// execute
+		group1, err := db.AssignGroup(context.Background(), groupStream, 1)
+		if !assert.NoError(t, err, "failed assign") {
+			t.FailNow()
+		}
 		entity, err := db.AssignGroup(context.Background(), entityStream, 1)
 		if !assert.NoError(t, err, "failed assign") {
 			t.FailNow()
 		}
-		group, err := db.AssignGroup(context.Background(), groupStream, 1)
+		group2, err := db.AssignGroup(context.Background(), groupStream, 2)
 		if !assert.NoError(t, err, "failed assign") {
 			t.FailNow()
 		}
 
 		// verify
-		assert.Equal(t, int64(1), entity.Number, "entityStreams number")
-		assert.Equal(t, int64(1), entity.GroupNumber, "entityStreams group number")
+		assert.Equal(t, int64(1), group1.Number, "groupStreams number")
+		assert.Equal(t, int64(1), group1.GroupNumber, "groupStreams group number")
 
-		assert.Equal(t, int64(1), group.Number, "groupStreams number")
-		assert.Equal(t, int64(2), group.GroupNumber, "groupStreams group number")
+		assert.Equal(t, int64(1), entity.Number, "entityStreams number")
+		assert.Equal(t, int64(2), entity.GroupNumber, "entityStreams group number")
+
+		assert.Equal(t, int64(2), group2.Number, "groupStreams number")
+		assert.Equal(t, int64(3), group2.GroupNumber, "groupStreams group number")
+
 	})
 
 }
