@@ -176,11 +176,20 @@ type highwayCounters map[string]*CarCounter
 type CarCounter struct {
 	mu    sync.Mutex
 	count int
+	last  int64
 }
 
 func (counter *CarCounter) Handle(ctx context.Context, msg stream.Message) error {
 	counter.mu.Lock()
 	defer counter.mu.Unlock()
+
+	if counter.last+1 > msg.GroupNumber {
+		// handle messages with idempotence
+		return nil
+	}
+
+	counter.last = msg.GroupNumber
+
 	switch msg.Data.(type) {
 	case Car:
 		counter.count = counter.count + 1
