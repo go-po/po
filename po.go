@@ -55,6 +55,7 @@ type Po struct {
 
 func (po *Po) Stream(ctx context.Context, streamId string) *Stream {
 	return &Stream{
+		logger:   po.logger,
 		ID:       stream.ParseId(streamId),
 		ctx:      ctx,
 		store:    po.store,
