@@ -99,8 +99,14 @@ func (mem *InMemory) ReadRecords(ctx context.Context, id stream.Id, from int64) 
 	}
 	var result []record.Record
 	for _, r := range data {
-		if r.Stream.String() == id.String() && r.Number > from {
-			result = append(result, r)
+		if id.HasEntity() {
+			if r.Stream.String() == id.String() && r.Number > from {
+				result = append(result, r)
+			}
+		} else {
+			if r.GroupNumber > from {
+				result = append(result, r)
+			}
 		}
 	}
 	return result, nil
