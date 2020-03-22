@@ -23,6 +23,7 @@ func TestStoreInMemory(t *testing.T) {
 func StoreComplianceTest(t *testing.T, builder StoreBuilder) {
 
 	runStoreTestCase(t, builder, "store records", storeRecord)
+	runStoreTestCase(t, builder, "assign group numbers", assignGroupNumber)
 	runStoreTestCase(t, builder, "read records", readRecords)
 
 }
@@ -130,7 +131,6 @@ func readRecords(t *testing.T, db po.Store) {
 
 	t.Run("read middle of group stream", func(t *testing.T) {
 		// setup
-
 		groupStream := randStreamId("readMiddleGroup", "")
 		streamA := groupStream
 		streamA.Entity = "A"
@@ -164,6 +164,112 @@ func readRecords(t *testing.T, db po.Store) {
 			t.FailNow()
 		}
 		assert.Equal(t, 0, len(records), "number of records read")
+	})
+
+}
+
+func assignGroupNumber(t *testing.T, db po.Store) {
+	fixture := func(t *testing.T, id stream.Id, count int) {
+		tx := beginTx(t, db)
+		for i := 1; i <= count; i++ {
+			_, err := db.StoreRecord(tx, id, int64(i), "text/plain", []byte("assignGroupNumber"))
+			if !assert.NoError(t, err, "store record") {
+				t.FailNow()
+			}
+		}
+		err := tx.Commit()
+		if !assert.NoError(t, err, "failed commit") {
+			t.FailNow()
+		}
+	}
+
+	t.Run("append entity stream", func(t *testing.T) {
+		// setup
+		id := randStreamId("assignEntityStream", "entity")
+		fixture(t, id, 1)
+
+		// execute
+		record, err := db.AssignGroup(context.Background(), id, 1)
+
+		// verify
+		if !assert.NoError(t, err, "failed assign") {
+			t.FailNow()
+		}
+		assert.Equal(t, int64(1), record.Number)
+		assert.Equal(t, int64(1), record.GroupNumber)
+
+	})
+
+	t.Run("append the group stream", func(t *testing.T) {
+		// setup
+		id := randStreamId("assignGroupStream", "")
+		fixture(t, id, 1)
+
+		// execute
+		record, err := db.AssignGroup(context.Background(), id, 1)
+
+		// verify
+		if !assert.NoError(t, err, "failed assign") {
+			t.FailNow()
+		}
+		assert.Equal(t, int64(1), record.Number)
+		assert.Equal(t, int64(1), record.GroupNumber)
+	})
+
+	t.Run("append two entity streams in same group", func(t *testing.T) {
+		// setup
+		group := randStreamId("assignGroupMultiStream", "")
+		streamA := group
+		streamA.Entity = "A"
+		streamB := group
+		streamB.Entity = "B"
+
+		fixture(t, streamA, 1)
+		fixture(t, streamB, 1)
+
+		// execute
+		a, err := db.AssignGroup(context.Background(), streamA, 1)
+		if !assert.NoError(t, err, "failed assign") {
+			t.FailNow()
+		}
+		b, err := db.AssignGroup(context.Background(), streamB, 1)
+		if !assert.NoError(t, err, "failed assign") {
+			t.FailNow()
+		}
+
+		// verify
+		assert.Equal(t, int64(1), a.Number)
+		assert.Equal(t, int64(1), a.GroupNumber)
+
+		assert.Equal(t, int64(1), b.Number)
+		assert.Equal(t, int64(2), b.GroupNumber)
+	})
+
+	t.Run("append group and entity stream", func(t *testing.T) {
+		// setup
+		groupStream := randStreamId("assignGroupCombiStream", "")
+		entityStream := groupStream
+		entityStream.Entity = "entity"
+
+		fixture(t, entityStream, 1)
+		fixture(t, groupStream, 1)
+
+		// execute
+		entity, err := db.AssignGroup(context.Background(), entityStream, 1)
+		if !assert.NoError(t, err, "failed assign") {
+			t.FailNow()
+		}
+		group, err := db.AssignGroup(context.Background(), groupStream, 1)
+		if !assert.NoError(t, err, "failed assign") {
+			t.FailNow()
+		}
+
+		// verify
+		assert.Equal(t, int64(1), entity.Number, "entityStreams number")
+		assert.Equal(t, int64(1), entity.GroupNumber, "entityStreams group number")
+
+		assert.Equal(t, int64(1), group.Number, "groupStreams number")
+		assert.Equal(t, int64(2), group.GroupNumber, "groupStreams group number")
 	})
 
 }
