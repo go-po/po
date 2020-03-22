@@ -5,11 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-po/po"
-	"github.com/go-po/po/internal/broker"
-	"github.com/go-po/po/internal/broker/channels"
-	"github.com/go-po/po/internal/broker/rabbitmq"
-	"github.com/go-po/po/internal/store/inmemory"
-	"github.com/go-po/po/internal/store/postgres"
 	"github.com/go-po/po/stream"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
@@ -19,18 +14,13 @@ import (
 	"time"
 )
 
-const (
-	databaseUrl = "postgres://po:po@localhost:5431/po?sslmode=disable"
-	uri         = "amqp://po:po@localhost:5671/"
-)
-
 type highwayTestCase struct {
 	name     string
-	store    func() (po.Store, error)     // constructor
-	protocol func(id int) broker.Protocol // constructor
-	apps     int                          // number of concurrent apps
-	subs     int                          // number of subscribers per app
-	cars     int                          // number of cars per app
+	store    StoreBuilder    // constructor
+	protocol ProtocolBuilder // constructor
+	apps     int             // number of concurrent apps
+	subs     int             // number of subscribers per app
+	cars     int             // number of cars per app
 	timeout  time.Duration
 }
 
@@ -40,43 +30,15 @@ func TestHighwayApp(t *testing.T) {
 	}
 	rand.Seed(time.Now().UnixNano())
 
-	pg := func() func() (po.Store, error) {
-		return func() (po.Store, error) {
-			return postgres.NewFromUrl(databaseUrl)
-		}
-	}
-
-	inmem := func() func() (po.Store, error) {
-		return func() (store po.Store, err error) {
-			return inmemory.New(), nil
-		}
-	}
-
-	rabbit := func() func(id int) broker.Protocol {
-		return func(id int) broker.Protocol {
-			return rabbitmq.New(rabbitmq.Config{
-				AmqpUrl:  uri,
-				Exchange: "highway",
-				Id:       fmt.Sprintf("app-%d", id),
-			})
-		}
-	}
-
-	channels := func() func(id int) broker.Protocol {
-		return func(id int) broker.Protocol {
-			return channels.New()
-		}
-	}
-
 	tests := []*highwayTestCase{
 		{name: "one consumer",
 			store: pg(), protocol: rabbit(), apps: 1, subs: 1, cars: 10, timeout: time.Second * 5},
 		{name: "multi consumer",
 			store: pg(), protocol: rabbit(), apps: 5, subs: 2, cars: 10, timeout: time.Second * 5},
 		{name: "channel broker",
-			store: pg(), protocol: channels(), apps: 1, subs: 2, cars: 10, timeout: time.Second * 2},
+			store: pg(), protocol: channel(), apps: 1, subs: 2, cars: 10, timeout: time.Second * 2},
 		{name: "inmemory/channel",
-			store: inmem(), protocol: channels(), apps: 1, subs: 5, cars: 10, timeout: time.Second},
+			store: inmem(), protocol: channel(), apps: 1, subs: 5, cars: 10, timeout: time.Second},
 	}
 
 	for _, test := range tests {
