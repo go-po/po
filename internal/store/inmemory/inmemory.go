@@ -187,12 +187,12 @@ func (tx inMemoryTx) Commit() error {
 	tx.store.mu.Lock()
 	defer tx.store.mu.Unlock()
 	for _, r := range tx.records {
-
 		_, hasStream := tx.store.data[r.Stream.Group]
 		if !hasStream {
 			tx.store.data[r.Stream.Group] = make([]record.Record, 0)
 		}
 		tx.store.data[r.Stream.Group] = append(tx.store.data[r.Stream.Group], r)
+		tx.store.entityIndex[r.Stream.String()] = r.Number
 	}
 	return nil
 }
