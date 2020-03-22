@@ -35,6 +35,13 @@ type Registry interface {
 	ToMessage(r record.Record) (stream.Message, error)
 }
 
+type Logger interface {
+	Debugf(template string, args ...interface{})
+	Errorf(template string, args ...interface{})
+	Infof(template string, args ...interface{})
+	Errf(err error, template string, args ...interface{})
+}
+
 type Distributor interface {
 	broker.Distributor
 }
