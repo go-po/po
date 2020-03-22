@@ -39,6 +39,8 @@ func TestHighwayApp(t *testing.T) {
 			store: pg(), protocol: channel(), apps: 1, subs: 2, cars: 10, timeout: time.Second * 2},
 		{name: "inmemory/channel",
 			store: inmem(), protocol: channel(), apps: 1, subs: 5, cars: 10, timeout: time.Second},
+		{name: "inmemory/rabbit",
+			store: inmem(), protocol: rabbit(), apps: 1, subs: 5, cars: 10, timeout: time.Second * 5},
 	}
 
 	for _, test := range tests {
