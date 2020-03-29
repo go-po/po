@@ -2,6 +2,7 @@ package stream
 
 import (
 	"database/sql/driver"
+	"fmt"
 	"strings"
 )
 
@@ -37,4 +38,12 @@ func (id Id) String() string {
 
 func (id Id) HasEntity() bool {
 	return strings.TrimSpace(id.Entity) != ""
+}
+
+// convenience method to construct an entity id from another
+func (id Id) WithEntity(format string, args ...interface{}) Id {
+	return Id{
+		Group:  id.Group,
+		Entity: fmt.Sprintf(format, args...),
+	}
 }
