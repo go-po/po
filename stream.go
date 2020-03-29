@@ -9,7 +9,7 @@ import (
 )
 
 type Appender interface {
-	Append(message ...interface{}) error
+	Append(message ...interface{}) (int64, error)
 }
 
 type TxAppender interface {
@@ -25,13 +25,14 @@ type Tx struct {
 	position    int64         // last committed position
 }
 
-func (tx *Tx) Commit() error {
+// returns number of last message stored on stream (current position)
+func (tx *Tx) Commit() (int64, error) {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 
 	storeTx, err := tx.stream.store.Begin(tx.stream.ctx)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer func() { _ = storeTx.Rollback() }()
 
@@ -40,24 +41,28 @@ func (tx *Tx) Commit() error {
 	for _, msg := range tx.uncommitted {
 		b, contentType, err := tx.stream.registry.Marshal(msg)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		next = next + 1
 		stored, err := tx.stream.store.StoreRecord(storeTx, tx.stream.ID, next, contentType, b)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		records = append(records, stored)
 	}
 	err = storeTx.Commit()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	tx.uncommitted = nil
 	tx.stream.tx = nil // delete own reference
 	tx.position = next
 
-	return tx.stream.broker.Notify(tx.stream.ctx, records...)
+	err = tx.stream.broker.Notify(tx.stream.ctx, records...)
+	if err != nil {
+		return tx.position, err
+	}
+	return tx.position, nil
 }
 
 func (tx *Tx) Rollback() error {
@@ -103,14 +108,15 @@ func (s *Stream) AppendTx(tx *Tx, messages ...interface{}) {
 	tx.uncommitted = append(tx.uncommitted, messages...)
 }
 
-func (s *Stream) Append(messages ...interface{}) error {
+func (s *Stream) Append(messages ...interface{}) (int64, error) {
 	if len(messages) == 0 {
-		return nil // nothing to do
+		// nothing to do
+		return s.Size()
 	}
 
 	tx, err := s.Begin()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	s.AppendTx(tx, messages...)
 

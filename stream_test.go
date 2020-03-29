@@ -195,7 +195,7 @@ func TestStream_Append(t *testing.T) {
 			}
 
 			// execute
-			err := stream.Append(test.messages...)
+			_, err := stream.Append(test.messages...)
 
 			// verify
 			for _, v := range test.verify {
