@@ -8,129 +8,106 @@ import (
 	"sync"
 )
 
-type Appender interface {
-	Append(message ...interface{}) (int64, error)
+type CommitAppender interface {
+	AppendCommit(messages ...stream.Message) error
+}
+type MessageAppender interface {
+	Append(messages ...interface{})
+	Size() (int64, error)
 }
 
-type TxAppender interface {
-	Begin() (*Tx, error)
-	AppendTx(tx *Tx, message ...interface{})
-}
-
-type Tx struct {
-	stream *Stream
-
-	mu          sync.RWMutex  // protects below field
-	uncommitted []interface{} // messages to be appended
-	position    int64         // last committed position
-}
-
-// returns number of last message stored on stream (current position)
-func (tx *Tx) Commit() (int64, error) {
-	tx.mu.Lock()
-	defer tx.mu.Unlock()
-
-	storeTx, err := tx.stream.store.Begin(tx.stream.ctx)
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = storeTx.Rollback() }()
-
-	var records []record.Record
-	var next = tx.position
-	for _, msg := range tx.uncommitted {
-		b, contentType, err := tx.stream.registry.Marshal(msg)
-		if err != nil {
-			return 0, err
-		}
-		next = next + 1
-		stored, err := tx.stream.store.StoreRecord(storeTx, tx.stream.ID, next, contentType, b)
-		if err != nil {
-			return 0, err
-		}
-		records = append(records, stored)
-	}
-	err = storeTx.Commit()
-	if err != nil {
-		return 0, err
-	}
-	tx.uncommitted = nil
-	tx.stream.tx = nil // delete own reference
-	tx.position = next
-
-	err = tx.stream.broker.Notify(tx.stream.ctx, records...)
-	if err != nil {
-		return tx.position, err
-	}
-	return tx.position, nil
-}
-
-func (tx *Tx) Rollback() error {
-	tx.uncommitted = nil
-	tx.stream.tx = nil // delete own reference
-	return nil
+type Executor interface {
+	Execute(appender MessageAppender) error
 }
 
 type Stream struct {
 	logger Logger
 	ID     stream.Id       // Unique ID of the stream
 	ctx    context.Context // to use for the operation
-	mu     sync.RWMutex    // protects tx
-	tx     *Tx
 
 	registry Registry
 	broker   Broker
 	store    Store
+
+	mu          sync.RWMutex // protects the fields below
+	uncommitted []interface{}
+	position    int64
 }
 
-var _ Appender = &Stream{}
-var _ TxAppender = &Stream{}
-
-func (s *Stream) Begin() (*Tx, error) {
+// resets the stream object
+func (s *Stream) Rollback() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.tx == nil {
-		position, err := s.store.GetStreamPosition(s.ctx, s.ID)
-		if err != nil {
-			return nil, err
-		}
-		s.tx = &Tx{
-			position: position,
-			stream:   s,
-		}
-	}
-	return s.tx, nil
+	s.uncommitted = nil
+	s.position = -1
+	return nil
 }
 
-func (s *Stream) AppendTx(tx *Tx, messages ...interface{}) {
-	tx.mu.Lock()
-	defer tx.mu.Unlock()
-	tx.uncommitted = append(tx.uncommitted, messages...)
-}
-
-func (s *Stream) Append(messages ...interface{}) (int64, error) {
-	if len(messages) == 0 {
-		// nothing to do
-		return s.Size()
+func (s *Stream) Commit() error {
+	if len(s.uncommitted) == 0 {
+		return nil
 	}
-
-	tx, err := s.Begin()
+	err := s.Begin() // make sure the position is updated
 	if err != nil {
-		return 0, err
+		return err
 	}
-	s.AppendTx(tx, messages...)
+	s.mu.Lock()
+	defer func() {
+		s.position = -1
+		s.uncommitted = nil
+		s.mu.Unlock()
+	}()
 
-	return tx.Commit()
+	tx, err := s.store.Begin(s.ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var records []record.Record
+	var next = s.position
+	for _, msg := range s.uncommitted {
+		b, contentType, err := s.registry.Marshal(msg)
+		if err != nil {
+			return err
+		}
+		next = next + 1
+		stored, err := s.store.StoreRecord(tx, s.ID, next, contentType, b)
+		if err != nil {
+			return err
+		}
+		records = append(records, stored)
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	err = s.broker.Notify(s.ctx, records...)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-// Number of messages in a Stream
 func (s *Stream) Size() (int64, error) {
-	return s.store.GetStreamPosition(s.ctx, s.ID)
+	err := s.Begin()
+	if err != nil {
+		return -1, err
+	}
+	return s.position, nil
 }
 
-// Projects the stream onto the provided projection.
-// Doing so starts an implicit transaction,
-// so that Appends will join the transaction
+func (s *Stream) Append(messages ...interface{}) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.uncommitted = append(s.uncommitted, messages...)
+}
+func (s *Stream) AppendCommit(messages ...interface{}) error {
+	s.Append(messages...)
+	return s.Commit()
+}
+
 func (s *Stream) Project(projection stream.Handler) error {
 	s.logger.Debugf("po/stream projecting %s", s.ID)
 	s.mu.Lock()
@@ -189,10 +166,44 @@ func (s *Stream) Project(projection stream.Handler) error {
 		}
 	}
 
-	s.tx = &Tx{
-		position: position,
-		stream:   s,
+	// store the position as the stream object is now considered active
+	// This to guarantee users of the projection that messages appended
+	// afterwards will be in the order their projection was made.
+	s.position = position
+	return nil
+}
+
+func (s *Stream) Execute(exec Executor) error {
+	if handler, isHandler := exec.(stream.Handler); isHandler {
+		err := s.Project(handler)
+		if err != nil {
+			return nil
+		}
 	}
 
+	err := exec.Execute(s)
+	if err != nil {
+		return err
+	}
+
+	err = s.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// has side effect of updating the position
+func (s *Stream) Begin() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.position >= 0 {
+		return nil
+	}
+	position, err := s.store.GetStreamPosition(s.ctx, s.ID)
+	if err != nil {
+		return err
+	}
+	s.position = position
 	return nil
 }

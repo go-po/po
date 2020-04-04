@@ -53,20 +53,21 @@ type Po struct {
 	registry Registry
 }
 
-func (po *Po) Stream(ctx context.Context, streamId string) *Stream {
+func (po *Po) Stream(ctx context.Context, id stream.Id) *Stream {
 	return &Stream{
 		logger:   po.logger,
-		ID:       stream.ParseId(streamId),
+		ID:       id,
 		ctx:      ctx,
-		store:    po.store,
-		broker:   po.broker,
 		registry: po.registry,
+		broker:   po.broker,
+		store:    po.store,
+		position: -1,
 	}
 }
 
 // convenience method to load a stream and project it
-func (po *Po) Project(ctx context.Context, streamId string, projection stream.Handler) error {
-	return po.Stream(ctx, streamId).Project(projection)
+func (po *Po) Project(ctx context.Context, id stream.Id, projection stream.Handler) error {
+	return po.Stream(ctx, id).Project(projection)
 }
 
 func (po *Po) Subscribe(ctx context.Context, subscriptionId, streamId string, subscriber interface{}) error {

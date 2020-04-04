@@ -103,10 +103,10 @@ func (app *highwayApp) start(t *testing.T) {
 	}
 
 	// send cars
-	appStream := fmt.Sprintf("%s-app-%d", app.streamId, app.id)
+	appStream := stream.ParseId("%s-app-%d", app.streamId, app.id)
 	for i := 0; i < app.test.cars; i++ {
 		message := Car{Speed: float64(rand.Int31n(100))}
-		_, err = app.es.Stream(context.Background(), appStream).Append(message)
+		err = app.es.Stream(context.Background(), appStream).AppendCommit(message)
 		if !assert.NoError(t, err, "send car [%d].[%s]", app.id, appStream) {
 			t.Fail()
 		}
@@ -120,7 +120,7 @@ func (app *highwayApp) verifyProjection(t *testing.T, expected int) {
 		Cars:  make(map[int64]float64),
 		Count: 0,
 	}
-	err := app.es.Project(context.Background(), app.streamId.String(), projection)
+	err := app.es.Project(context.Background(), app.streamId, projection)
 
 	assert.NoError(t, err, "projecting")
 	assert.Equal(t, expected, projection.Count, "projection count")

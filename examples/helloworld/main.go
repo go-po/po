@@ -19,8 +19,8 @@ func main() {
 		log.Fatalf("failed subscribing: %s", err)
 	}
 
-	_, err = es.Stream(context.Background(), "messages").
-		Append(
+	err = es.Stream(context.Background(), stream.ParseId("messages")).
+		AppendCommit(
 			HelloMessage{Greeting: "world"},
 			HelloMessage{Greeting: "my friend"},
 			HelloMessage{Greeting: "to you as well!"},
@@ -30,8 +30,8 @@ func main() {
 		log.Fatalf("failed appending: %s", err)
 	}
 
-	_, err = es.Stream(context.Background(), "messages-german").
-		Append(
+	err = es.Stream(context.Background(), stream.ParseId("messages-german")).
+		AppendCommit(
 			HelloMessage{Greeting: "Guten Tag"},
 		)
 
