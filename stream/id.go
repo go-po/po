@@ -15,7 +15,8 @@ func (id Id) Value() (driver.Value, error) {
 	return id.String(), nil
 }
 
-func ParseId(streamId string) Id {
+func ParseId(format string, args ...interface{}) Id {
+	streamId := fmt.Sprintf(format, args...)
 	i := strings.Index(streamId, "-")
 	if i < 0 {
 		return Id{
