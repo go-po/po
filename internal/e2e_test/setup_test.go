@@ -8,7 +8,7 @@ import (
 	"github.com/go-po/po/internal/broker/rabbitmq"
 	"github.com/go-po/po/internal/store/inmemory"
 	"github.com/go-po/po/internal/store/postgres"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 	"math/rand"
 	"strconv"
 	"time"
@@ -55,8 +55,8 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func randStreamId(groupBase string, entity string) stream.Id {
-	id := stream.ParseId(groupBase + ":" + strconv.Itoa(rand.Int()))
+func randStreamId(groupBase string, entity string) streams.Id {
+	id := streams.ParseId(groupBase + ":" + strconv.Itoa(rand.Int()))
 	id.Entity = entity
 	return id
 }

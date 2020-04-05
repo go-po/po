@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 	"sync"
 )
 
@@ -24,7 +24,7 @@ type ProtocolPipes interface {
 // protocol away from the Broker logic
 type Protocol interface {
 	// // Start listening for channels relevant to the id
-	Register(ctx context.Context, id stream.Id) (ProtocolPipes, error)
+	Register(ctx context.Context, id streams.Id) (ProtocolPipes, error)
 }
 
 func New(protocol Protocol, distributor Distributor, groupAssigner GroupAssigner) *Broker {
@@ -57,7 +57,7 @@ func (broker *Broker) Notify(ctx context.Context, records ...record.Record) erro
 	}
 	return nil
 }
-func (broker *Broker) Register(ctx context.Context, subscriberId string, streamId stream.Id, subscriber interface{}) error {
+func (broker *Broker) Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber interface{}) error {
 
 	err := broker.distributor.Register(ctx, subscriberId, streamId, subscriber)
 	if err != nil {
@@ -97,7 +97,7 @@ func (broker *Broker) flowAssign(pipe ProtocolPipes) {
 				fmt.Printf("assign parse id: %s\n", err)
 			}
 
-			r, err := broker.groupAssigner.AssignGroup(context.Background(), stream.ParseId(streamId), number)
+			r, err := broker.groupAssigner.AssignGroup(context.Background(), streams.ParseId(streamId), number)
 			if err != nil {
 				// TODO
 				fmt.Printf("assign group [%s:%d]: %s\n", streamId, number, err)

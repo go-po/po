@@ -2,7 +2,7 @@ package broker
 
 import (
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -10,7 +10,7 @@ import (
 func Test_ParseMessageId(t *testing.T) {
 	messageId := ToMessageId(record.Record{
 		Number:      5,
-		Stream:      stream.ParseId("my stream name"),
+		Stream:      streams.ParseId("my stream name"),
 		GroupNumber: 15,
 	})
 

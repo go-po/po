@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/go-po/po"
 	"github.com/go-po/po/internal/store"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -77,7 +77,7 @@ func storeRecord(t *testing.T, db po.Store) {
 
 func readRecords(t *testing.T, db po.Store) {
 
-	fixture := func(t *testing.T, id stream.Id, count int) {
+	fixture := func(t *testing.T, id streams.Id, count int) {
 		tx := beginTx(t, db)
 		for i := 1; i <= count; i++ {
 			_, err := db.StoreRecord(tx, id, int64(i), "text/plain", []byte("readRecords"))
@@ -169,7 +169,7 @@ func readRecords(t *testing.T, db po.Store) {
 }
 
 func assignGroupNumber(t *testing.T, db po.Store) {
-	fixture := func(t *testing.T, id stream.Id, count int) {
+	fixture := func(t *testing.T, id streams.Id, count int) {
 		tx := beginTx(t, db)
 		for i := 1; i <= count; i++ {
 			_, err := db.StoreRecord(tx, id, int64(i), "text/plain", []byte("assignGroupNumber"))

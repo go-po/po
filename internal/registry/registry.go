@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 	"log"
 	"mime"
 )
@@ -43,21 +43,21 @@ func (reg *Registry) Register(initializers ...MessageUnmarshaller) {
 	}
 }
 
-func (reg *Registry) ToMessage(r record.Record) (stream.Message, error) {
+func (reg *Registry) ToMessage(r record.Record) (streams.Message, error) {
 	_, params, err := mime.ParseMediaType(r.ContentType)
 	if err != nil {
-		return stream.Message{}, err
+		return streams.Message{}, err
 	}
 
 	typeName, ok := params[paramNameType]
 	if !ok {
-		return stream.Message{}, fmt.Errorf("registry: field '%s' not in '%s'", paramNameType, r.ContentType)
+		return streams.Message{}, fmt.Errorf("registry: field '%s' not in '%s'", paramNameType, r.ContentType)
 	}
 	data, err := reg.Unmarshal(typeName, r.Data)
 	if err != nil {
-		return stream.Message{}, err
+		return streams.Message{}, err
 	}
-	return stream.Message{
+	return streams.Message{
 		Number:      r.Number,
 		Stream:      r.Stream,
 		Data:        data,

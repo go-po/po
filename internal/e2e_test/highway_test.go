@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-po/po"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"strconv"
@@ -47,7 +47,7 @@ func TestHighwayApp(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			// setup the shared values for the test
 			testId := strconv.Itoa(rand.Int())
-			streamId := stream.ParseId("highways:" + testId)
+			streamId := streams.ParseId("highways:" + testId)
 			expected := test.cars * test.apps
 			hwCounters, wg := newHighwayCounter(t, test.subs, test.timeout, expected, streamId)
 
@@ -81,7 +81,7 @@ func TestHighwayApp(t *testing.T) {
 
 type highwayApp struct {
 	id       int
-	streamId stream.Id
+	streamId streams.Id
 	counters highwayCounters
 	test     *highwayTestCase
 	es       *po.Po
@@ -103,7 +103,7 @@ func (app *highwayApp) start(t *testing.T) {
 	}
 
 	// send cars
-	appStream := stream.ParseId("%s-app-%d", app.streamId, app.id)
+	appStream := streams.ParseId("%s-app-%d", app.streamId, app.id)
 	for i := 0; i < app.test.cars; i++ {
 		message := Car{Speed: float64(rand.Int31n(100))}
 		_, err = app.es.Stream(context.Background(), appStream).Append(message)
@@ -140,7 +140,7 @@ func init() {
 	)
 }
 
-func newHighwayCounter(t *testing.T, count int, timeout time.Duration, expected int, id stream.Id) (highwayCounters, *sync.WaitGroup) {
+func newHighwayCounter(t *testing.T, count int, timeout time.Duration, expected int, id streams.Id) (highwayCounters, *sync.WaitGroup) {
 	hw := make(map[string]*CarCounter)
 	timeoutCtx, cancelFn := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancelFn)
@@ -179,7 +179,7 @@ type CarCounter struct {
 	last  int64
 }
 
-func (counter *CarCounter) Handle(ctx context.Context, msg stream.Message) error {
+func (counter *CarCounter) Handle(ctx context.Context, msg streams.Message) error {
 	counter.mu.Lock()
 	defer counter.mu.Unlock()
 
@@ -209,7 +209,7 @@ type CarProjection struct {
 	Count int               `json:"count"`
 }
 
-func (projection *CarProjection) Handle(ctx context.Context, msg stream.Message) error {
+func (projection *CarProjection) Handle(ctx context.Context, msg streams.Message) error {
 	switch car := msg.Data.(type) {
 	case Car:
 		projection.Cars[msg.Number] = car.Speed

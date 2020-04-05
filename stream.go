@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 	"sync"
 )
 
 // Append to a message stream.
 // Messages will be committed immoderately.
 type CommitAppender interface {
-	Append(messages ...stream.Message) (int64, error)
+	Append(messages ...streams.Message) (int64, error)
 }
 
 // Append to a transaction.
@@ -28,7 +28,7 @@ type Executor interface {
 
 type Stream struct {
 	logger Logger
-	ID     stream.Id       // Unique ID of the stream
+	ID     streams.Id      // Unique ID of the stream
 	ctx    context.Context // to use for the operation
 
 	registry Registry
@@ -123,13 +123,13 @@ func (s *Stream) Append(messages ...interface{}) (int64, error) {
 	return s.position, nil
 }
 
-func (s *Stream) Project(projection stream.Handler) error {
+func (s *Stream) Project(projection streams.Handler) error {
 	s.logger.Debugf("po/stream projecting %s", s.ID)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	var position int64 = 0
-	snap, supportsSnapshot := projection.(stream.NamedSnapshot)
+	snap, supportsSnapshot := projection.(streams.NamedSnapshot)
 	if supportsSnapshot {
 		snapshot, err := s.store.ReadSnapshot(s.ctx, s.ID, snap.SnapshotName())
 		if err != nil {
@@ -194,7 +194,7 @@ func (s *Stream) Execute(exec Executor) error {
 		return err
 	}
 
-	if handler, isHandler := exec.(stream.Handler); isHandler {
+	if handler, isHandler := exec.(streams.Handler); isHandler {
 		err := s.Project(handler)
 		if err != nil {
 			return nil

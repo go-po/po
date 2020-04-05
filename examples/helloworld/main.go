@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-po/po"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 	"log"
 	"time"
 )
@@ -14,13 +14,13 @@ func main() {
 	rootCtx := context.Background()
 	es := po.New(po.NewStoreInMemory(), po.NewProtocolChannels())
 
-	id := stream.ParseId("messages")
+	id := streams.ParseId("messages")
 	err := es.Subscribe(rootCtx, "messages handler", id, Subscriber{})
 	if err != nil {
 		log.Fatalf("failed subscribing: %s", err)
 	}
 
-	_, err = es.Stream(context.Background(), stream.ParseId("messages")).
+	_, err = es.Stream(context.Background(), streams.ParseId("messages")).
 		Append(
 			HelloMessage{Greeting: "world"},
 			HelloMessage{Greeting: "my friend"},
@@ -31,7 +31,7 @@ func main() {
 		log.Fatalf("failed appending: %s", err)
 	}
 
-	_, err = es.Stream(context.Background(), stream.ParseId("messages-german")).
+	_, err = es.Stream(context.Background(), streams.ParseId("messages-german")).
 		Append(
 			HelloMessage{Greeting: "Guten Tag"},
 		)
@@ -64,7 +64,7 @@ func init() {
 
 type Subscriber struct{}
 
-func (sub Subscriber) Handle(ctx context.Context, msg stream.Message) error {
+func (sub Subscriber) Handle(ctx context.Context, msg streams.Message) error {
 	switch message := msg.Data.(type) {
 	case HelloMessage:
 		fmt.Printf("[%d/%d] {%s} Greet: %s\n", msg.Number, msg.GroupNumber, msg.Stream, message.Greeting)
@@ -75,4 +75,4 @@ func (sub Subscriber) Handle(ctx context.Context, msg stream.Message) error {
 }
 
 // implements stream.Handler
-var _ stream.Handler = Subscriber{}
+var _ streams.Handler = Subscriber{}

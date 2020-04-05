@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 	"sync"
 	"time"
 )
@@ -15,7 +15,7 @@ func New() *InMemory {
 		mu:          sync.RWMutex{},
 		data:        make(map[string][]record.Record),
 		ptr:         make(map[string]int64),
-		snapshots:   make(map[stream.Id]map[string]record.Snapshot),
+		snapshots:   make(map[streams.Id]map[string]record.Snapshot),
 		entityIndex: make(map[string]int64),
 		groupIndex:  make(map[string]int64),
 	}
@@ -25,7 +25,7 @@ type InMemory struct {
 	mu          sync.RWMutex               // guards the data
 	data        map[string][]record.Record // records by stream group id
 	ptr         map[string]int64           // subscriber positions
-	snapshots   map[stream.Id]map[string]record.Snapshot
+	snapshots   map[streams.Id]map[string]record.Snapshot
 	entityIndex map[string]int64
 	groupIndex  map[string]int64
 }
@@ -36,7 +36,7 @@ var emptySnapshot = record.Snapshot{
 	ContentType: "application/json",
 }
 
-func (mem *InMemory) ReadSnapshot(ctx context.Context, id stream.Id, snapshotId string) (record.Snapshot, error) {
+func (mem *InMemory) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error) {
 	streamSnaps, found := mem.snapshots[id]
 	if !found {
 		return emptySnapshot, nil
@@ -51,7 +51,7 @@ func (mem *InMemory) ReadSnapshot(ctx context.Context, id stream.Id, snapshotId 
 
 }
 
-func (mem *InMemory) UpdateSnapshot(ctx context.Context, id stream.Id, snapshotId string, snapshot record.Snapshot) error {
+func (mem *InMemory) UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string, snapshot record.Snapshot) error {
 	if _, found := mem.snapshots[id]; !found {
 		mem.snapshots[id] = make(map[string]record.Snapshot)
 	}
@@ -59,7 +59,7 @@ func (mem *InMemory) UpdateSnapshot(ctx context.Context, id stream.Id, snapshotI
 	return nil
 }
 
-func (mem *InMemory) GetStreamPosition(ctx context.Context, id stream.Id) (int64, error) {
+func (mem *InMemory) GetStreamPosition(ctx context.Context, id streams.Id) (int64, error) {
 	mem.mu.Lock()
 	defer mem.mu.Unlock()
 	stream, found := mem.data[id.Group]
@@ -75,7 +75,7 @@ func (mem *InMemory) GetStreamPosition(ctx context.Context, id stream.Id) (int64
 	return position, nil
 }
 
-func (mem *InMemory) AssignGroup(ctx context.Context, id stream.Id, number int64) (record.Record, error) {
+func (mem *InMemory) AssignGroup(ctx context.Context, id streams.Id, number int64) (record.Record, error) {
 	mem.mu.Lock()
 	defer mem.mu.Unlock()
 	groupData, found := mem.data[id.Group]
@@ -101,7 +101,7 @@ func (mem *InMemory) AssignGroup(ctx context.Context, id stream.Id, number int64
 	return record.Record{}, fmt.Errorf("number %d not found in stream %s", number, id.Group)
 }
 
-func (mem *InMemory) ReadRecords(ctx context.Context, id stream.Id, from int64) ([]record.Record, error) {
+func (mem *InMemory) ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error) {
 	mem.mu.RLock()
 	defer mem.mu.RUnlock()
 	data, found := mem.data[id.Group]
@@ -123,7 +123,7 @@ func (mem *InMemory) ReadRecords(ctx context.Context, id stream.Id, from int64) 
 	return result, nil
 }
 
-func (mem *InMemory) GetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
+func (mem *InMemory) GetSubscriberPosition(tx store.Tx, subscriberId string, stream streams.Id) (int64, error) {
 	mem.mu.RLock()
 	defer mem.mu.RUnlock()
 	pos, found := mem.ptr[subscriberId]
@@ -133,7 +133,7 @@ func (mem *InMemory) GetSubscriberPosition(tx store.Tx, subscriberId string, str
 	return 0, nil
 }
 
-func (mem *InMemory) SetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
+func (mem *InMemory) SetSubscriberPosition(tx store.Tx, subscriberId string, stream streams.Id, position int64) error {
 	mem.mu.Lock()
 	defer mem.mu.Unlock()
 	mem.ptr[subscriberId] = position
@@ -147,7 +147,7 @@ func (mem *InMemory) Begin(ctx context.Context) (store.Tx, error) {
 	}, nil
 }
 
-func (mem *InMemory) StoreRecord(tx store.Tx, id stream.Id, number int64, msgType string, data []byte) (record.Record, error) {
+func (mem *InMemory) StoreRecord(tx store.Tx, id streams.Id, number int64, msgType string, data []byte) (record.Record, error) {
 	inTx, ok := tx.(*inMemoryTx)
 	if !ok {
 		return record.Record{}, fmt.Errorf("unknown tx type: %T", tx)
