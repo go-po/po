@@ -8,16 +8,22 @@ import (
 	"sync"
 )
 
+// Append to a message stream.
+// Messages will be committed immoderately.
 type CommitAppender interface {
-	AppendCommit(messages ...stream.Message) error
+	Append(messages ...stream.Message) (int64, error)
 }
-type MessageAppender interface {
+
+// Append to a transaction.
+//Messages will be written to the store on commit
+type TransactionAppender interface {
 	Append(messages ...interface{})
-	Size() (int64, error)
+	Size() int64
+	Commit() error
 }
 
 type Executor interface {
-	Execute(appender MessageAppender) error
+	Execute(appender TransactionAppender) error
 }
 
 type Stream struct {
@@ -98,14 +104,23 @@ func (s *Stream) Size() (int64, error) {
 	return s.position, nil
 }
 
-func (s *Stream) Append(messages ...interface{}) {
+func (s *Stream) append(messages ...interface{}) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.uncommitted = append(s.uncommitted, messages...)
 }
-func (s *Stream) AppendCommit(messages ...interface{}) error {
-	s.Append(messages...)
-	return s.Commit()
+func (s *Stream) Append(messages ...interface{}) (int64, error) {
+	err := s.Begin()
+	if err != nil {
+		return -1, err
+	}
+	s.append(messages...)
+
+	err = s.Commit()
+	if err != nil {
+		return -1, err
+	}
+	return s.position, nil
 }
 
 func (s *Stream) Project(projection stream.Handler) error {
@@ -174,6 +189,11 @@ func (s *Stream) Project(projection stream.Handler) error {
 }
 
 func (s *Stream) Execute(exec Executor) error {
+	err := s.Begin()
+	if err != nil {
+		return err
+	}
+
 	if handler, isHandler := exec.(stream.Handler); isHandler {
 		err := s.Project(handler)
 		if err != nil {
@@ -181,12 +201,14 @@ func (s *Stream) Execute(exec Executor) error {
 		}
 	}
 
-	err := exec.Execute(s)
+	appender := &messageAppender{stream: s}
+
+	err = exec.Execute(appender)
 	if err != nil {
 		return err
 	}
 
-	err = s.Commit()
+	err = appender.Commit()
 	if err != nil {
 		return err
 	}
@@ -206,4 +228,25 @@ func (s *Stream) Begin() error {
 	}
 	s.position = position
 	return nil
+}
+
+// thin wrapper to allow for implementing the correct Appender interface.
+type messageAppender struct {
+	stream *Stream
+}
+
+var _ TransactionAppender = &messageAppender{}
+
+func (appender *messageAppender) Append(messages ...interface{}) {
+	appender.stream.append(messages...)
+}
+
+func (appender *messageAppender) Size() int64 {
+	appender.stream.mu.Lock()
+	defer appender.stream.mu.Unlock()
+	return appender.stream.position
+}
+
+func (appender *messageAppender) Commit() error {
+	return appender.stream.Commit()
 }

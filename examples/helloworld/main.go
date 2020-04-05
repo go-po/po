@@ -14,13 +14,14 @@ func main() {
 	rootCtx := context.Background()
 	es := po.New(po.NewStoreInMemory(), po.NewProtocolChannels())
 
-	err := es.Subscribe(rootCtx, "messages handler", "messages", Subscriber{})
+	id := stream.ParseId("messages")
+	err := es.Subscribe(rootCtx, "messages handler", id, Subscriber{})
 	if err != nil {
 		log.Fatalf("failed subscribing: %s", err)
 	}
 
-	err = es.Stream(context.Background(), stream.ParseId("messages")).
-		AppendCommit(
+	_, err = es.Stream(context.Background(), stream.ParseId("messages")).
+		Append(
 			HelloMessage{Greeting: "world"},
 			HelloMessage{Greeting: "my friend"},
 			HelloMessage{Greeting: "to you as well!"},
@@ -30,8 +31,8 @@ func main() {
 		log.Fatalf("failed appending: %s", err)
 	}
 
-	err = es.Stream(context.Background(), stream.ParseId("messages-german")).
-		AppendCommit(
+	_, err = es.Stream(context.Background(), stream.ParseId("messages-german")).
+		Append(
 			HelloMessage{Greeting: "Guten Tag"},
 		)
 

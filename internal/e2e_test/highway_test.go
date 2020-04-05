@@ -96,7 +96,7 @@ func (app *highwayApp) start(t *testing.T) {
 	app.es = po.New(store, app.test.protocol(app.id))
 
 	for subId, counter := range app.counters {
-		err = app.es.Subscribe(context.Background(), subId, app.streamId.String(), counter)
+		err = app.es.Subscribe(context.Background(), subId, app.streamId, counter)
 		if !assert.NoError(t, err, "setup subscriber [%d].[%s]", app.id, subId) {
 			t.Fail()
 		}
@@ -106,7 +106,7 @@ func (app *highwayApp) start(t *testing.T) {
 	appStream := stream.ParseId("%s-app-%d", app.streamId, app.id)
 	for i := 0; i < app.test.cars; i++ {
 		message := Car{Speed: float64(rand.Int31n(100))}
-		err = app.es.Stream(context.Background(), appStream).AppendCommit(message)
+		_, err = app.es.Stream(context.Background(), appStream).Append(message)
 		if !assert.NoError(t, err, "send car [%d].[%s]", app.id, appStream) {
 			t.Fail()
 		}

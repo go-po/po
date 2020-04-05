@@ -70,8 +70,7 @@ func (po *Po) Project(ctx context.Context, id stream.Id, projection stream.Handl
 	return po.Stream(ctx, id).Project(projection)
 }
 
-func (po *Po) Subscribe(ctx context.Context, subscriptionId, streamId string, subscriber interface{}) error {
-	id := stream.ParseId(streamId)
+func (po *Po) Subscribe(ctx context.Context, subscriptionId string, id stream.Id, subscriber interface{}) error {
 	return po.broker.Register(ctx, subscriptionId, id, subscriber)
 }
 
