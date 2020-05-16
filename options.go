@@ -3,6 +3,7 @@ package po
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/broker/channels"
 	"github.com/go-po/po/internal/broker/rabbitmq"

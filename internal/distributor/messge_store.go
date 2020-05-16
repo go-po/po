@@ -2,6 +2,7 @@ package distributor
 
 import (
 	"context"
+
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/streams"
 )

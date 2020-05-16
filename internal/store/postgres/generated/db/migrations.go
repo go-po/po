@@ -110,6 +110,6 @@ type _bintree_t struct {
 }
 
 var _bintree = &_bintree_t{nil, map[string]*_bintree_t{
-	"1_create_records.down.sql": &_bintree_t{_1_create_records_down_sql, map[string]*_bintree_t{}},
-	"1_create_records.up.sql":   &_bintree_t{_1_create_records_up_sql, map[string]*_bintree_t{}},
+	"1_create_records.down.sql": {_1_create_records_down_sql, map[string]*_bintree_t{}},
+	"1_create_records.up.sql":   {_1_create_records_up_sql, map[string]*_bintree_t{}},
 }}

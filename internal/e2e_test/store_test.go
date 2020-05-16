@@ -2,11 +2,12 @@ package e2e_test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/go-po/po"
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/streams"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestStorePostgres(t *testing.T) {

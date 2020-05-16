@@ -2,9 +2,10 @@ package postgres
 
 import (
 	"database/sql"
+	"testing"
+
 	_ "github.com/lib/pq" // load driver
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestMigrateDatabase(t *testing.T) {

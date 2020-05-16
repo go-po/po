@@ -3,10 +3,11 @@ package mockstore
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/streams"
-	"time"
 )
 
 type MockStore struct {

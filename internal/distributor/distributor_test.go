@@ -3,12 +3,13 @@ package distributor
 import (
 	"context"
 	"encoding/json"
+	"testing"
+	"time"
+
 	"github.com/go-po/po/internal/record"
 	defaultRegistry "github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/streams"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 type TestMessage struct {

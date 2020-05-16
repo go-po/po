@@ -3,10 +3,11 @@ package registry
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/streams"
 	"log"
 	"mime"
+
+	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/streams"
 )
 
 var DefaultRegistry = New()
@@ -94,7 +95,7 @@ func (reg *Registry) Unmarshal(typeName string, b []byte) (interface{}, error) {
 	unmarshal, found := reg.types[typeName]
 	if !found {
 		log.Printf("Known types")
-		for t, _ := range reg.types {
+		for t := range reg.types {
 			log.Printf("%s - %s", typeName, t)
 		}
 		return nil, fmt.Errorf("unknown message type: %s", typeName) // TODO error type

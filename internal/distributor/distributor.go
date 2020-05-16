@@ -3,10 +3,11 @@ package distributor
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/streams"
-	"sync"
 )
 
 type registry interface {

@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/streams"
 )

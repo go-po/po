@@ -3,10 +3,11 @@ package distributor
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/streams"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 var ErrTest = errors.New("test error")

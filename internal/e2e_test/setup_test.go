@@ -2,6 +2,10 @@ package e2e_test
 
 import (
 	"fmt"
+	"math/rand"
+	"strconv"
+	"time"
+
 	"github.com/go-po/po"
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/broker/channels"
@@ -9,9 +13,6 @@ import (
 	"github.com/go-po/po/internal/store/inmemory"
 	"github.com/go-po/po/internal/store/postgres"
 	"github.com/go-po/po/streams"
-	"math/rand"
-	"strconv"
-	"time"
 )
 
 const (

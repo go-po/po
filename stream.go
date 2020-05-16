@@ -3,9 +3,10 @@ package po
 import (
 	"context"
 	"encoding/json"
+	"sync"
+
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/streams"
-	"sync"
 )
 
 // Append to a message stream.
@@ -17,11 +18,15 @@ type CommitAppender interface {
 // Append to a transaction.
 //Messages will be written to the store on commit
 type TransactionAppender interface {
+	// appends tot he stream
 	Append(messages ...interface{})
+	// current size of the stream
 	Size() int64
-	Commit() error
 }
 
+// An Executor can append messages in an transaction.
+// If nil is returned, all messages are appended to the stream.
+// Otherwise all are discareded.
 type Executor interface {
 	Execute(appender TransactionAppender) error
 }
@@ -232,19 +237,27 @@ func (s *Stream) Begin() error {
 
 // thin wrapper to allow for implementing the correct Appender interface.
 type messageAppender struct {
-	stream *Stream
+	stream   *Stream
+	messages []interface{}
+	mu       sync.Mutex
 }
 
 var _ TransactionAppender = &messageAppender{}
 
 func (appender *messageAppender) Append(messages ...interface{}) {
-	appender.stream.append(messages...)
+	appender.mu.Lock()
+	defer appender.mu.Unlock()
+	appender.messages = append(appender.messages, messages...)
 }
 
 func (appender *messageAppender) Size() int64 {
+	appender.mu.Lock()
+	defer appender.mu.Unlock()
+
 	appender.stream.mu.Lock()
 	defer appender.stream.mu.Unlock()
-	return appender.stream.position
+
+	return appender.stream.position + int64(len(appender.messages))
 }
 
 func (appender *messageAppender) Commit() error {

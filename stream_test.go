@@ -3,13 +3,14 @@ package po
 import (
 	"context"
 	"encoding/json"
+	"testing"
+
 	"github.com/go-po/po/internal/broker/mockbroker"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/internal/store/mockstore"
 	"github.com/go-po/po/streams"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestStream_Append(t *testing.T) {

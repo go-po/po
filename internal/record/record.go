@@ -1,8 +1,9 @@
 package record
 
 import (
-	"github.com/go-po/po/streams"
 	"time"
+
+	"github.com/go-po/po/streams"
 )
 
 // Internal data structure to pass between

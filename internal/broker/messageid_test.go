@@ -1,10 +1,11 @@
 package broker
 
 import (
+	"testing"
+
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/streams"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func Test_ParseMessageId(t *testing.T) {

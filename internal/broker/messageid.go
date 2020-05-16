@@ -2,9 +2,10 @@ package broker
 
 import (
 	"fmt"
-	"github.com/go-po/po/internal/record"
 	"strconv"
 	"strings"
+
+	"github.com/go-po/po/internal/record"
 )
 
 func stripFirstDigit(s string) (int64, string, error) {

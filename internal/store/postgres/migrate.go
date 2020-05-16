@@ -3,6 +3,7 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/lib/pq" // required
 

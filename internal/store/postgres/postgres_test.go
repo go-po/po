@@ -2,13 +2,14 @@ package postgres
 
 import (
 	"context"
-	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/streams"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/streams"
+	"github.com/stretchr/testify/assert"
 )
 
 const databaseUrl = "postgres://po:po@localhost:5431/po?sslmode=disable"

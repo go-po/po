@@ -3,9 +3,10 @@ package broker
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/streams"
-	"sync"
 )
 
 type RecordAck func() (record.Record, func() error)

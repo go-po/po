@@ -2,11 +2,12 @@ package rabbitmq
 
 import (
 	"context"
+	"time"
+
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/streams"
 	"github.com/streadway/amqp"
-	"time"
 )
 
 func newPipe(cfg Config, id streams.Id) (*RabbitPipe, error) {

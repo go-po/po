@@ -1,9 +1,10 @@
 package rabbitmq
 
 import (
+	"strings"
+
 	"github.com/go-po/po/streams"
 	"github.com/streadway/amqp"
-	"strings"
 )
 
 func connect(cfg Config) (*amqp.Channel, error) {

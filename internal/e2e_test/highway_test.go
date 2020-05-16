@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-po/po"
-	"github.com/go-po/po/streams"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/go-po/po"
+	"github.com/go-po/po/streams"
+	"github.com/stretchr/testify/assert"
 )
 
 type highwayTestCase struct {

@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-po/po"
-	"github.com/go-po/po/streams"
 	"log"
 	"time"
+
+	"github.com/go-po/po"
+	"github.com/go-po/po/streams"
 )
 
 func main() {

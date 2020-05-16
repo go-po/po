@@ -3,11 +3,12 @@ package inmemory
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/streams"
-	"sync"
-	"time"
 )
 
 func New() *InMemory {
