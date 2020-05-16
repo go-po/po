@@ -3,10 +3,11 @@ package registry
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/stream"
 	"log"
 	"mime"
+
+	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/streams"
 )
 
 var DefaultRegistry = New()
@@ -43,21 +44,21 @@ func (reg *Registry) Register(initializers ...MessageUnmarshaller) {
 	}
 }
 
-func (reg *Registry) ToMessage(r record.Record) (stream.Message, error) {
+func (reg *Registry) ToMessage(r record.Record) (streams.Message, error) {
 	_, params, err := mime.ParseMediaType(r.ContentType)
 	if err != nil {
-		return stream.Message{}, err
+		return streams.Message{}, err
 	}
 
 	typeName, ok := params[paramNameType]
 	if !ok {
-		return stream.Message{}, fmt.Errorf("registry: field '%s' not in '%s'", paramNameType, r.ContentType)
+		return streams.Message{}, fmt.Errorf("registry: field '%s' not in '%s'", paramNameType, r.ContentType)
 	}
 	data, err := reg.Unmarshal(typeName, r.Data)
 	if err != nil {
-		return stream.Message{}, err
+		return streams.Message{}, err
 	}
-	return stream.Message{
+	return streams.Message{
 		Number:      r.Number,
 		Stream:      r.Stream,
 		Data:        data,
@@ -94,7 +95,7 @@ func (reg *Registry) Unmarshal(typeName string, b []byte) (interface{}, error) {
 	unmarshal, found := reg.types[typeName]
 	if !found {
 		log.Printf("Known types")
-		for t, _ := range reg.types {
+		for t := range reg.types {
 			log.Printf("%s - %s", typeName, t)
 		}
 		return nil, fmt.Errorf("unknown message type: %s", typeName) // TODO error type

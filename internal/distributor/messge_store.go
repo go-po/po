@@ -2,11 +2,12 @@ package distributor
 
 import (
 	"context"
+
 	"github.com/go-po/po/internal/store"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 )
 
-func newMsgStore(store Store, registry registry, stream stream.Id, subscriberId string) *msgStore {
+func newMsgStore(store Store, registry registry, stream streams.Id, subscriberId string) *msgStore {
 	return &msgStore{
 		store:        store,
 		stream:       stream,
@@ -17,7 +18,7 @@ func newMsgStore(store Store, registry registry, stream stream.Id, subscriberId 
 
 type msgStore struct {
 	store        Store
-	stream       stream.Id
+	stream       streams.Id
 	subscriberId string
 	registry     registry
 }
@@ -34,12 +35,12 @@ func (facade *msgStore) SetPosition(tx store.Tx, position int64) error {
 	return facade.store.SetSubscriberPosition(tx, facade.subscriberId, facade.stream, position)
 }
 
-func (facade *msgStore) ReadMessages(ctx context.Context, from int64) ([]stream.Message, error) {
+func (facade *msgStore) ReadMessages(ctx context.Context, from int64) ([]streams.Message, error) {
 	records, err := facade.store.ReadRecords(ctx, facade.stream, from)
 	if err != nil {
 		return nil, err
 	}
-	var messages []stream.Message
+	var messages []streams.Message
 	for _, r := range records {
 		msg, err := facade.registry.ToMessage(r)
 		if err != nil {

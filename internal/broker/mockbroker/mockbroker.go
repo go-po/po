@@ -2,8 +2,9 @@ package mockbroker
 
 import (
 	"context"
+
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 )
 
 type MockBroker struct {
@@ -11,7 +12,7 @@ type MockBroker struct {
 	Records []record.Record
 }
 
-func (mock *MockBroker) Register(ctx context.Context, subscriberId string, streamId stream.Id, subscriber interface{}) error {
+func (mock *MockBroker) Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber interface{}) error {
 	return mock.Err
 }
 

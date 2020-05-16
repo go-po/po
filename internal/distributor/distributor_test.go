@@ -3,12 +3,13 @@ package distributor
 import (
 	"context"
 	"encoding/json"
-	"github.com/go-po/po/internal/record"
-	defaultRegistry "github.com/go-po/po/internal/registry"
-	"github.com/go-po/po/stream"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/go-po/po/internal/record"
+	defaultRegistry "github.com/go-po/po/internal/registry"
+	"github.com/go-po/po/streams"
+	"github.com/stretchr/testify/assert"
 )
 
 type TestMessage struct {
@@ -41,14 +42,14 @@ func TestDistributor_Distribute(t *testing.T) {
 		}
 	}
 
-	type verifyMessage func(t *testing.T, msg stream.Message)
+	type verifyMessage func(t *testing.T, msg streams.Message)
 	msgNumber := func(expected int64) verifyMessage {
-		return func(t *testing.T, msg stream.Message) {
+		return func(t *testing.T, msg streams.Message) {
 			assert.Equal(t, expected, msg.Number, "message number")
 		}
 	}
 	msgData := func(expected interface{}) verifyMessage {
-		return func(t *testing.T, msg stream.Message) {
+		return func(t *testing.T, msg streams.Message) {
 			assert.Equal(t, expected, msg.Data, "message data content")
 		}
 	}
@@ -90,7 +91,7 @@ func TestDistributor_Distribute(t *testing.T) {
 	}
 	DefaultTestRecord := record.Record{
 		Number:      1,
-		Stream:      stream.ParseId("test stream"),
+		Stream:      streams.ParseId("test stream"),
 		Data:        []byte(`{ "Foo" : "Bar"}`),
 		Group:       "",
 		ContentType: "application/json;type=distributor.TestMessage",
@@ -192,11 +193,11 @@ func TestDistributor_Distribute(t *testing.T) {
 
 type stubHandler struct {
 	name string
-	msgs []stream.Message
+	msgs []streams.Message
 	err  error
 }
 
-func (stub *stubHandler) Handle(ctx context.Context, msg stream.Message) error {
+func (stub *stubHandler) Handle(ctx context.Context, msg streams.Message) error {
 	stub.msgs = append(stub.msgs, msg)
 	return stub.err
 }

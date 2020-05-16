@@ -3,10 +3,11 @@ package distributor
 import (
 	"context"
 	"errors"
-	"github.com/go-po/po/internal/store"
-	"github.com/go-po/po/stream"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/go-po/po/internal/store"
+	"github.com/go-po/po/streams"
+	"github.com/stretchr/testify/assert"
 )
 
 var ErrTest = errors.New("test error")
@@ -48,7 +49,7 @@ func TestRecordingSubscription_Handle(t *testing.T) {
 	tests := []struct {
 		name        string
 		deps        deps
-		msg         stream.Message
+		msg         streams.Message
 		groupStream bool
 		verify      []verify
 	}{
@@ -57,7 +58,7 @@ func TestRecordingSubscription_Handle(t *testing.T) {
 			deps: deps{
 				handler: &stubHandler{err: ErrTest},
 			},
-			msg: stream.Message{Number: 1},
+			msg: streams.Message{Number: 1},
 			verify: all(
 				anErr(ErrTest),
 			),
@@ -67,7 +68,7 @@ func TestRecordingSubscription_Handle(t *testing.T) {
 			deps: deps{
 				store: &stubMsgStore{err: ErrTest},
 			},
-			msg: stream.Message{Number: 1},
+			msg: streams.Message{Number: 1},
 			verify: all(
 				anErr(ErrTest),
 			),
@@ -79,7 +80,7 @@ func TestRecordingSubscription_Handle(t *testing.T) {
 					lastPosition: 0,
 				},
 			},
-			msg:         stream.Message{Number: 1},
+			msg:         streams.Message{Number: 1},
 			groupStream: false,
 			verify: all(
 				noErr(),
@@ -93,7 +94,7 @@ func TestRecordingSubscription_Handle(t *testing.T) {
 					lastPosition: 100,
 				},
 			},
-			msg:         stream.Message{Number: 100},
+			msg:         streams.Message{Number: 100},
 			groupStream: false,
 			verify: all(
 				noErr(),
@@ -105,10 +106,10 @@ func TestRecordingSubscription_Handle(t *testing.T) {
 			deps: deps{
 				store: &stubMsgStore{
 					lastPosition: 1,
-					msg:          []stream.Message{{Number: 1}, {Number: 2}, {Number: 3}},
+					msg:          []streams.Message{{Number: 1}, {Number: 2}, {Number: 3}},
 				},
 			},
-			msg:         stream.Message{Number: 3},
+			msg:         streams.Message{Number: 3},
 			groupStream: false,
 			verify: all(
 				noErr(),
@@ -147,7 +148,7 @@ type stubMsgStore struct {
 	err          error
 	lastPosition int64
 	position     int64
-	msg          []stream.Message
+	msg          []streams.Message
 }
 
 func (stub *stubMsgStore) Begin(ctx context.Context) (store.Tx, error) {
@@ -163,7 +164,7 @@ func (stub *stubMsgStore) SetPosition(tx store.Tx, position int64) error {
 	return stub.err
 }
 
-func (stub *stubMsgStore) ReadMessages(ctx context.Context, from int64) ([]stream.Message, error) {
+func (stub *stubMsgStore) ReadMessages(ctx context.Context, from int64) ([]streams.Message, error) {
 	return stub.msg[from:], stub.err
 }
 

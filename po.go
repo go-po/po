@@ -2,37 +2,38 @@ package po
 
 import (
 	"context"
+
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/internal/store"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 )
 
 type Store interface {
-	ReadRecords(ctx context.Context, id stream.Id, from int64) ([]record.Record, error)
-	AssignGroup(ctx context.Context, id stream.Id, number int64) (record.Record, error)
+	ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error)
+	AssignGroup(ctx context.Context, id streams.Id, number int64) (record.Record, error)
 
 	Begin(ctx context.Context) (store.Tx, error)
-	StoreRecord(tx store.Tx, id stream.Id, number int64, contentType string, data []byte) (record.Record, error)
+	StoreRecord(tx store.Tx, id streams.Id, number int64, contentType string, data []byte) (record.Record, error)
 
-	ReadSnapshot(ctx context.Context, id stream.Id, snapshotId string) (record.Snapshot, error)
-	UpdateSnapshot(ctx context.Context, id stream.Id, snapshotId string, snapshot record.Snapshot) error
+	ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error)
+	UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string, snapshot record.Snapshot) error
 
-	GetSubscriberPosition(tx store.Tx, subscriberId string, id stream.Id) (int64, error)
-	SetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error
-	GetStreamPosition(ctx context.Context, id stream.Id) (int64, error)
+	GetSubscriberPosition(tx store.Tx, subscriberId string, id streams.Id) (int64, error)
+	SetSubscriberPosition(tx store.Tx, subscriberId string, stream streams.Id, position int64) error
+	GetStreamPosition(ctx context.Context, id streams.Id) (int64, error)
 }
 
 type Broker interface {
 	Notify(ctx context.Context, records ...record.Record) error
-	Register(ctx context.Context, subscriberId string, streamId stream.Id, subscriber interface{}) error
+	Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber interface{}) error
 }
 
 type Registry interface {
 	Unmarshal(typeName string, b []byte) (interface{}, error)
 	Marshal(msg interface{}) ([]byte, string, error)
-	ToMessage(r record.Record) (stream.Message, error)
+	ToMessage(r record.Record) (streams.Message, error)
 }
 
 type Logger interface {
@@ -53,24 +54,24 @@ type Po struct {
 	registry Registry
 }
 
-func (po *Po) Stream(ctx context.Context, streamId string) *Stream {
+func (po *Po) Stream(ctx context.Context, id streams.Id) *Stream {
 	return &Stream{
 		logger:   po.logger,
-		ID:       stream.ParseId(streamId),
+		ID:       id,
 		ctx:      ctx,
-		store:    po.store,
-		broker:   po.broker,
 		registry: po.registry,
+		broker:   po.broker,
+		store:    po.store,
+		position: -1,
 	}
 }
 
 // convenience method to load a stream and project it
-func (po *Po) Project(ctx context.Context, streamId string, projection stream.Handler) error {
-	return po.Stream(ctx, streamId).Project(projection)
+func (po *Po) Project(ctx context.Context, id streams.Id, projection streams.Handler) error {
+	return po.Stream(ctx, id).Project(projection)
 }
 
-func (po *Po) Subscribe(ctx context.Context, subscriptionId, streamId string, subscriber interface{}) error {
-	id := stream.ParseId(streamId)
+func (po *Po) Subscribe(ctx context.Context, subscriptionId string, id streams.Id, subscriber interface{}) error {
 	return po.broker.Register(ctx, subscriptionId, id, subscriber)
 }
 

@@ -2,9 +2,10 @@ package channels
 
 import (
 	"context"
+
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 )
 
 func New() *Channels {
@@ -14,7 +15,7 @@ func New() *Channels {
 type Channels struct {
 }
 
-func (ch *Channels) Register(ctx context.Context, id stream.Id) (broker.ProtocolPipes, error) {
+func (ch *Channels) Register(ctx context.Context, id streams.Id) (broker.ProtocolPipes, error) {
 	pipe := &ChannelPipes{
 		ctx:          context.Background(),
 		assignNotify: make(chan string),

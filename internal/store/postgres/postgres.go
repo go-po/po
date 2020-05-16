@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/internal/store/postgres/generated/db"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 	"github.com/lib/pq"
 )
 
@@ -37,7 +38,7 @@ type PGStore struct {
 	db   *db.Queries
 }
 
-func (store *PGStore) ReadSnapshot(ctx context.Context, id stream.Id, snapshotId string) (record.Snapshot, error) {
+func (store *PGStore) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error) {
 	position, err := store.db.GetSnapshotPosition(ctx, db.GetSnapshotPositionParams{
 		Stream:   id.String(),
 		Listener: snapshotId,
@@ -59,7 +60,7 @@ func (store *PGStore) ReadSnapshot(ctx context.Context, id stream.Id, snapshotId
 	}, nil
 }
 
-func (store *PGStore) UpdateSnapshot(ctx context.Context, id stream.Id, snapshotId string, snapshot record.Snapshot) error {
+func (store *PGStore) UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string, snapshot record.Snapshot) error {
 	err := store.db.SetSubscriberPosition(ctx, db.SetSubscriberPositionParams{
 		Stream:      id.String(),
 		Listener:    snapshotId,
@@ -73,7 +74,7 @@ func (store *PGStore) UpdateSnapshot(ctx context.Context, id stream.Id, snapshot
 	return nil
 }
 
-func (store *PGStore) GetStreamPosition(ctx context.Context, id stream.Id) (int64, error) {
+func (store *PGStore) GetStreamPosition(ctx context.Context, id streams.Id) (int64, error) {
 	position, err := store.db.GetStreamPosition(ctx, id.String())
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -84,7 +85,7 @@ func (store *PGStore) GetStreamPosition(ctx context.Context, id stream.Id) (int6
 	return position, nil
 }
 
-func (store *PGStore) ReadRecords(ctx context.Context, id stream.Id, from int64) ([]record.Record, error) {
+func (store *PGStore) ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error) {
 	var records []record.Record
 	var poMsgs []db.PoMsg
 	var err error
@@ -112,7 +113,7 @@ func (store *PGStore) ReadRecords(ctx context.Context, id stream.Id, from int64)
 	return records, nil
 }
 
-func (store *PGStore) GetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error) {
+func (store *PGStore) GetSubscriberPosition(tx store.Tx, subscriberId string, stream streams.Id) (int64, error) {
 	t, ok := tx.(*pgTx)
 	if !ok {
 		return 0, ErrUnknownTx{tx}
@@ -130,7 +131,7 @@ func (store *PGStore) GetSubscriberPosition(tx store.Tx, subscriberId string, st
 	return position.No, nil
 }
 
-func (store *PGStore) SetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error {
+func (store *PGStore) SetSubscriberPosition(tx store.Tx, subscriberId string, stream streams.Id, position int64) error {
 	t, ok := tx.(*pgTx)
 	if !ok {
 		return ErrUnknownTx{tx}
@@ -167,7 +168,7 @@ func (store *PGStore) Begin(ctx context.Context) (store.Tx, error) {
 	return store.begin(ctx)
 }
 
-func (store *PGStore) StoreRecord(tx store.Tx, id stream.Id, number int64, contentType string, data []byte) (record.Record, error) {
+func (store *PGStore) StoreRecord(tx store.Tx, id streams.Id, number int64, contentType string, data []byte) (record.Record, error) {
 	t, ok := tx.(*pgTx)
 	if !ok {
 		return record.Record{}, ErrUnknownTx{tx}
@@ -220,7 +221,7 @@ func (store *PGStore) StoreRecord(tx store.Tx, id stream.Id, number int64, conte
 	return toRecord(msg), nil
 }
 
-func (store *PGStore) AssignGroup(ctx context.Context, id stream.Id, number int64) (record.Record, error) {
+func (store *PGStore) AssignGroup(ctx context.Context, id streams.Id, number int64) (record.Record, error) {
 	tx, err := store.begin(ctx)
 	if err != nil {
 		return record.Record{}, err
@@ -290,7 +291,7 @@ func toRecord(msg db.PoMsg) record.Record {
 	}
 	return record.Record{
 		Number:      msg.No,
-		Stream:      stream.ParseId(msg.Stream),
+		Stream:      streams.ParseId(msg.Stream),
 		Data:        msg.Data,
 		Group:       msg.Grp,
 		GroupNumber: grpNo,

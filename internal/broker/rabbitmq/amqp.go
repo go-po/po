@@ -1,9 +1,10 @@
 package rabbitmq
 
 import (
-	"github.com/go-po/po/stream"
-	"github.com/streadway/amqp"
 	"strings"
+
+	"github.com/go-po/po/streams"
+	"github.com/streadway/amqp"
 )
 
 func connect(cfg Config) (*amqp.Channel, error) {
@@ -31,7 +32,7 @@ func routingKey(exchange, flow, group string) string {
 	return strings.Join([]string{exchange, flow, group}, ".")
 }
 
-func newAssignChannel(cfg Config, id stream.Id) (*amqpChan, error) {
+func newAssignChannel(cfg Config, id streams.Id) (*amqpChan, error) {
 	channel, err := connect(cfg)
 	if err != nil {
 		return nil, err
@@ -81,7 +82,7 @@ func newAssignChannel(cfg Config, id stream.Id) (*amqpChan, error) {
 	}, nil
 }
 
-func newStreamChannel(cfg Config, id stream.Id) (*amqpChan, error) {
+func newStreamChannel(cfg Config, id streams.Id) (*amqpChan, error) {
 
 	channel, err := connect(cfg)
 	if err != nil {

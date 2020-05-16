@@ -2,16 +2,17 @@ package distributor
 
 import (
 	"context"
-	"github.com/go-po/po/stream"
+
+	"github.com/go-po/po/streams"
 )
 
 type recordingSubscription struct {
 	groupStream bool
-	handler     stream.Handler
+	handler     streams.Handler
 	store       messageStore
 }
 
-func (s *recordingSubscription) Handle(ctx context.Context, msg stream.Message) error {
+func (s *recordingSubscription) Handle(ctx context.Context, msg streams.Message) error {
 	tx, err := s.store.Begin(ctx)
 	if err != nil {
 		return err
@@ -63,7 +64,7 @@ func (s *recordingSubscription) handlePrev(ctx context.Context, last int64) (int
 	return last, nil
 }
 
-func (s *recordingSubscription) messagePosition(msg stream.Message) int64 {
+func (s *recordingSubscription) messagePosition(msg streams.Message) int64 {
 	if s.groupStream {
 		return msg.GroupNumber
 	}

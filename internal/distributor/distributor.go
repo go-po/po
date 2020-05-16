@@ -3,19 +3,20 @@ package distributor
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
-	"github.com/go-po/po/stream"
-	"sync"
+	"github.com/go-po/po/streams"
 )
 
 type registry interface {
-	ToMessage(r record.Record) (stream.Message, error)
+	ToMessage(r record.Record) (streams.Message, error)
 }
 
 func New(registry registry, store Store) *distributor {
 	return &distributor{
-		subs:     make(map[string][]stream.Handler),
+		subs:     make(map[string][]streams.Handler),
 		registry: registry,
 		store:    store,
 	}
@@ -24,15 +25,15 @@ func New(registry registry, store Store) *distributor {
 type distributor struct {
 	registry registry
 	mu       sync.Mutex // guards below maps
-	subs     map[string][]stream.Handler
+	subs     map[string][]streams.Handler
 	store    Store
 }
 
 type Store interface {
 	Begin(ctx context.Context) (store.Tx, error)
-	GetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id) (int64, error)
-	SetSubscriberPosition(tx store.Tx, subscriberId string, stream stream.Id, position int64) error
-	ReadRecords(ctx context.Context, id stream.Id, from int64) ([]record.Record, error)
+	GetSubscriberPosition(tx store.Tx, subscriberId string, stream streams.Id) (int64, error)
+	SetSubscriberPosition(tx store.Tx, subscriberId string, stream streams.Id, position int64) error
+	ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error)
 }
 
 // package facade for hiding record/message translations
@@ -41,10 +42,10 @@ type messageStore interface {
 	Begin(ctx context.Context) (store.Tx, error)
 	GetLastPosition(tx store.Tx) (int64, error)
 	SetPosition(tx store.Tx, position int64) error
-	ReadMessages(ctx context.Context, from int64) ([]stream.Message, error)
+	ReadMessages(ctx context.Context, from int64) ([]streams.Message, error)
 }
 
-func (dist *distributor) Register(ctx context.Context, subscriberId string, stream stream.Id, subscriber interface{}) error {
+func (dist *distributor) Register(ctx context.Context, subscriberId string, stream streams.Id, subscriber interface{}) error {
 	dist.mu.Lock()
 	defer dist.mu.Unlock()
 	handler, err := wrapSubscriber(subscriber)
@@ -83,9 +84,9 @@ func (dist *distributor) Distribute(ctx context.Context, record record.Record) (
 	return true, nil
 }
 
-func wrapSubscriber(subscriber interface{}) (stream.Handler, error) {
+func wrapSubscriber(subscriber interface{}) (streams.Handler, error) {
 	switch h := subscriber.(type) {
-	case stream.Handler:
+	case streams.Handler:
 		return h, nil
 	default:
 		return nil, fmt.Errorf("no way to handle")

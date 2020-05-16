@@ -2,9 +2,10 @@ package rabbitmq
 
 import (
 	"context"
+
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 	"github.com/streadway/amqp"
 )
 
@@ -22,7 +23,7 @@ type Protocol struct {
 	cfg Config
 }
 
-func (proto *Protocol) Register(ctx context.Context, id stream.Id) (broker.ProtocolPipes, error) {
+func (proto *Protocol) Register(ctx context.Context, id streams.Id) (broker.ProtocolPipes, error) {
 	return newPipe(proto.cfg, id)
 }
 
@@ -44,7 +45,7 @@ func parseMessageIdAck(msg amqp.Delivery) broker.MessageIdAck {
 func parseRecordAck(msg amqp.Delivery) broker.RecordAck {
 	return func() (record.Record, func() error) {
 		streamId, number, groupNumber, _ := broker.ParseMessageId(msg.MessageId)
-		id := stream.ParseId(streamId)
+		id := streams.ParseId(streamId)
 		rec := record.Record{
 			Number:      number,
 			Stream:      id,

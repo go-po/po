@@ -2,13 +2,14 @@ package postgres
 
 import (
 	"context"
-	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/stream"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/streams"
+	"github.com/stretchr/testify/assert"
 )
 
 const databaseUrl = "postgres://po:po@localhost:5431/po?sslmode=disable"
@@ -184,7 +185,7 @@ func TestPGStore_StoreRecord(t *testing.T) {
 			// to not have collisions with multiple runs of the test
 			prefix := strconv.FormatInt(rand.Int63(), 10)
 			for _, call := range test.calls {
-				id := stream.ParseId(prefix + call.id)
+				id := streams.ParseId(prefix + call.id)
 				r, err := store.StoreRecord(tx, id, call.number, "text/plain", []byte("data: "+call.id))
 				for _, v := range call.verify {
 					v(t, r, err)

@@ -2,14 +2,15 @@ package rabbitmq
 
 import (
 	"context"
+	"time"
+
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/stream"
+	"github.com/go-po/po/streams"
 	"github.com/streadway/amqp"
-	"time"
 )
 
-func newPipe(cfg Config, id stream.Id) (*RabbitPipe, error) {
+func newPipe(cfg Config, id streams.Id) (*RabbitPipe, error) {
 	assignAmqp, err := newAssignChannel(cfg, id)
 	if err != nil {
 		return nil, err
@@ -148,7 +149,7 @@ func (pipe *RabbitPipe) publishAssign(msgId string) error {
 	if err != nil {
 		return err
 	}
-	id := stream.ParseId(streamId)
+	id := streams.ParseId(streamId)
 	return pipe.assignPublishChannel.Publish(pipe.cfg.Exchange,
 		routingKey(pipe.cfg.Exchange, "assign", id.Group), // routing key,
 		false, // mandatory

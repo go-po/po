@@ -1,7 +1,8 @@
-package stream
+package streams
 
 import (
 	"database/sql/driver"
+	"fmt"
 	"strings"
 )
 
@@ -14,7 +15,8 @@ func (id Id) Value() (driver.Value, error) {
 	return id.String(), nil
 }
 
-func ParseId(streamId string) Id {
+func ParseId(format string, args ...interface{}) Id {
+	streamId := fmt.Sprintf(format, args...)
 	i := strings.Index(streamId, "-")
 	if i < 0 {
 		return Id{
@@ -37,4 +39,12 @@ func (id Id) String() string {
 
 func (id Id) HasEntity() bool {
 	return strings.TrimSpace(id.Entity) != ""
+}
+
+// convenience method to construct an entity id from another
+func (id Id) WithEntity(format string, args ...interface{}) Id {
+	return Id{
+		Group:  id.Group,
+		Entity: fmt.Sprintf(format, args...),
+	}
 }
