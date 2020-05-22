@@ -261,5 +261,9 @@ func (appender *messageAppender) Size() int64 {
 }
 
 func (appender *messageAppender) Commit() error {
+	appender.mu.Lock()
+	defer appender.mu.Unlock()
+
+	appender.stream.append(appender.messages...)
 	return appender.stream.Commit()
 }
