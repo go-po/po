@@ -75,6 +75,11 @@ func (po *Po) Subscribe(ctx context.Context, subscriptionId string, id streams.I
 	return po.broker.Register(ctx, subscriptionId, id, subscriber)
 }
 
+func (po *Po) Execute(ctx context.Context, id streams.Id, exec Executor) error {
+	stream := po.Stream(ctx, id)
+	return stream.Execute(exec)
+}
+
 func RegisterMessages(initializers ...registry.MessageUnmarshaller) {
 	registry.Register(initializers...)
 }
