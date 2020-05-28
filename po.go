@@ -80,10 +80,8 @@ func (po *Po) Execute(ctx context.Context, id streams.Id, exec Executor) error {
 	return stream.Execute(exec)
 }
 
-func (po *Po) Append(ctx context.Context, id streams.Id, messages ...interface{}) error {
-	stream := po.Stream(ctx, id)
-	_, err := stream.Append(messages...)
-	return err
+func (po *Po) Append(ctx context.Context, id streams.Id, messages ...interface{}) (int64, error) {
+	return po.Stream(ctx, id).Append(messages...)
 }
 
 func RegisterMessages(initializers ...registry.MessageUnmarshaller) {
