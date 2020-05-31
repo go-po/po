@@ -1,6 +1,10 @@
 package binary
 
-import "context"
+import (
+	"context"
+
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 type Logger interface {
 	Debugf(template string, args ...interface{})
@@ -45,15 +49,17 @@ func LogInfof(logger Logger, format string, args ...interface{}) ClientTrace {
 	})
 }
 
-func NewBuilder(logger Logger) *Builder {
+func NewBuilder(logger Logger, metrics prometheus.Registerer) *Builder {
 	return &Builder{
-		logger: logger,
+		logger:  logger,
+		metrics: metrics,
 	}
 }
 
 type Builder struct {
-	logger Logger
-	traces []ClientTrace
+	logger  Logger
+	metrics prometheus.Registerer
+	traces  []ClientTrace
 }
 
 func (builder *Builder) Build() ClientTrace {
@@ -67,5 +73,14 @@ func (builder *Builder) LogDebugf(format string, args ...interface{}) *Builder {
 
 func (builder *Builder) LogInfof(format string, args ...interface{}) *Builder {
 	builder.traces = append(builder.traces, LogInfof(builder.logger, format, args...))
+	return builder
+}
+
+func (builder *Builder) MetricCounter(counter *prometheus.CounterVec) *Builder {
+	builder.metrics.MustRegister(counter)
+	builder.traces = append(builder.traces, ClientTraceFunc(func(ctx context.Context, a, b string) func() {
+		counter.WithLabelValues(a, b).Inc()
+		return func() {}
+	}))
 	return builder
 }

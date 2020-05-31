@@ -11,6 +11,7 @@ import (
 	"github.com/go-po/po/internal/store/postgres/generated/db"
 	"github.com/go-po/po/streams"
 	"github.com/lib/pq"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var emptyJson = []byte("{}")
@@ -32,9 +33,12 @@ func New(conn *sql.DB, builder *observer.Builder) (*PGStore, error) {
 		conn: conn,
 		db:   db.New(conn),
 		observer: pgObserver{
-			ReadSnapshot: builder.Unary().
-				LogDebugf("store/postgres read snapshot: %s").
-				Metrics().
+			ReadSnapshot: builder.Binary().
+				LogDebugf("store/postgres read snapshot %s from group %s").
+				MetricCounter(prometheus.NewCounterVec(prometheus.CounterOpts{
+					Name: "po_store_snapshots_read_counter",
+					Help: "Number of times a snapshot is read",
+				}, []string{"snapshot", "group"})).
 				Build(),
 			UpdateSnapshot: builder.Nullary().
 				LogDebugf("store/postgres update snapshot").
@@ -50,7 +54,7 @@ type PGStore struct {
 }
 
 func (store *PGStore) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error) {
-	done := store.observer.ReadSnapshot.Observe(ctx, id.String())
+	done := store.observer.ReadSnapshot.Observe(ctx, snapshotId, id.Group)
 	defer done()
 
 	position, err := store.db.GetSnapshotPosition(ctx, db.GetSnapshotPositionParams{

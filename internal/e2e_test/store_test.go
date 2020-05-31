@@ -35,7 +35,7 @@ type StoreTestCase func(t *testing.T, db po.Store)
 
 func runStoreTestCase(t *testing.T, builder StoreBuilder, testName string, testCase StoreTestCase) {
 	t.Run(testName, func(t *testing.T) {
-		db, err := builder(observer.New(logger.WrapLogger(t)))
+		db, err := builder(observer.New(logger.WrapLogger(t), observer.NewPromStub()))
 		if !assert.NoError(t, err, "failed building store") {
 			t.FailNow()
 		}

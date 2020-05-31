@@ -62,7 +62,7 @@ func TestHighwayApp(t *testing.T) {
 					streamId: streamId,
 					counters: hwCounters,
 					test:     test,
-					obs:      observer.New(logger.WrapLogger(t)),
+					obs:      observer.New(logger.WrapLogger(t), observer.NewPromStub()),
 				}
 				apps = append(apps, app)
 				go app.start(t)

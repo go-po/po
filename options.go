@@ -33,7 +33,7 @@ func New(store Store, protocol broker.Protocol) *Po {
 		protocol,
 		registry.DefaultRegistry,
 		logger,
-		observer.New(logger),
+		observer.New(logger, observer.NewPromStub()),
 	)
 }
 
@@ -50,7 +50,7 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 		}
 	}
 
-	builder := observer.New(options.logger)
+	builder := observer.New(options.logger, observer.NewPromStub())
 
 	if options.store == nil {
 		return nil, fmt.Errorf("po: no store provided")
