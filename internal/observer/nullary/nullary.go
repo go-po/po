@@ -2,6 +2,7 @@ package nullary
 
 import (
 	"context"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -81,6 +82,17 @@ func (builder *Builder) MetricCounter(counter prometheus.Counter) *Builder {
 	builder.traces = append(builder.traces, ClientTraceFunc(func(ctx context.Context) func() {
 		counter.Inc()
 		return func() {}
+	}))
+	return builder
+}
+
+func (builder *Builder) Histogram(histogram prometheus.Histogram) *Builder {
+	builder.metrics.MustRegister(histogram)
+	builder.traces = append(builder.traces, ClientTraceFunc(func(ctx context.Context) func() {
+		start := time.Now()
+		return func() {
+			histogram.Observe(float64(time.Since(start).Milliseconds()))
+		}
 	}))
 	return builder
 }

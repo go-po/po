@@ -2,6 +2,7 @@ package binary
 
 import (
 	"context"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -81,6 +82,26 @@ func (builder *Builder) MetricCounter(counter *prometheus.CounterVec) *Builder {
 	builder.traces = append(builder.traces, ClientTraceFunc(func(ctx context.Context, a, b string) func() {
 		counter.WithLabelValues(a, b).Inc()
 		return func() {}
+	}))
+	return builder
+}
+
+func (builder *Builder) MetricCounterVec(counter *prometheus.CounterVec) *Builder {
+	builder.metrics.MustRegister(counter)
+	builder.traces = append(builder.traces, ClientTraceFunc(func(ctx context.Context, a, b string) func() {
+		counter.WithLabelValues(a, b).Inc()
+		return func() {}
+	}))
+	return builder
+}
+
+func (builder *Builder) HistogramVec(histogram *prometheus.HistogramVec) *Builder {
+	builder.metrics.MustRegister(histogram)
+	builder.traces = append(builder.traces, ClientTraceFunc(func(ctx context.Context, a, b string) func() {
+		start := time.Now()
+		return func() {
+			histogram.WithLabelValues(a, b).Observe(float64(time.Since(start).Milliseconds()))
+		}
 	}))
 	return builder
 }

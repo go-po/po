@@ -2,6 +2,7 @@ package unary
 
 import (
 	"context"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -75,11 +76,22 @@ func (builder *Builder) LogInfof(format string, args ...interface{}) *Builder {
 	return builder
 }
 
-func (builder *Builder) MetricCounter(counter *prometheus.CounterVec) *Builder {
+func (builder *Builder) MetricCounterVec(counter *prometheus.CounterVec) *Builder {
 	builder.metrics.MustRegister(counter)
 	builder.traces = append(builder.traces, ClientTraceFunc(func(ctx context.Context, a string) func() {
 		counter.WithLabelValues(a).Inc()
 		return func() {}
+	}))
+	return builder
+}
+
+func (builder *Builder) HistogramVec(histogram *prometheus.HistogramVec) *Builder {
+	builder.metrics.MustRegister(histogram)
+	builder.traces = append(builder.traces, ClientTraceFunc(func(ctx context.Context, a string) func() {
+		start := time.Now()
+		return func() {
+			histogram.WithLabelValues(a).Observe(float64(time.Since(start).Milliseconds()))
+		}
 	}))
 	return builder
 }
