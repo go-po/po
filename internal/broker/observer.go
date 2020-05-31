@@ -1,18 +1,12 @@
 package broker
 
 import (
-	"github.com/go-po/po/internal/observer"
-	"github.com/go-po/po/internal/observer/unary"
+	"context"
+
+	"github.com/go-po/po/streams"
 )
 
-type ProtocolObserver struct {
-	Register unary.ClientTrace
-}
-
-func DefaultProtocolObserver(builder *observer.Builder) ProtocolObserver {
-	return ProtocolObserver{}
-}
-
-func StubProtocolObserver() ProtocolObserver {
-	return ProtocolObserver{}
+type Observer interface {
+	Register(ctx context.Context, id streams.Id, subscriberId string) func()
+	Notify(ctx context.Context, count int64) func()
 }

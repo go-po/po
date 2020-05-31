@@ -13,7 +13,6 @@ type Config struct {
 	AmqpUrl  string
 	Exchange string
 	Id       string
-	observer broker.ProtocolObserver
 }
 
 func New(cfg Config) *Protocol {
@@ -25,9 +24,6 @@ type Protocol struct {
 }
 
 func (proto *Protocol) Register(ctx context.Context, id streams.Id) (broker.ProtocolPipes, error) {
-	done := proto.cfg.observer.Register.Observe(ctx, id.String())
-	defer done()
-
 	return newPipe(proto.cfg, id)
 }
 
