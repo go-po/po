@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/go-po/po/internal/broker"
+	"github.com/go-po/po/internal/observer"
+	"github.com/go-po/po/internal/observer/nullary"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/internal/store"
@@ -47,7 +49,14 @@ type Distributor interface {
 	broker.Distributor
 }
 
+type poObserver struct {
+	Stream  nullary.CT
+	Project nullary.CT
+}
+
 type Po struct {
+	obs      poObserver
+	builder  *observer.Builder
 	logger   Logger
 	store    Store
 	broker   Broker
@@ -55,7 +64,13 @@ type Po struct {
 }
 
 func (po *Po) Stream(ctx context.Context, id streams.Id) *Stream {
+	done := po.obs.Stream.Observe(ctx)
+	defer done()
+
 	return &Stream{
+		obs: streamObserver{
+			Project: po.builder.Nullary().Build(),
+		},
 		logger:   po.logger,
 		ID:       id,
 		ctx:      ctx,
@@ -68,6 +83,8 @@ func (po *Po) Stream(ctx context.Context, id streams.Id) *Stream {
 
 // convenience method to load a stream and project it
 func (po *Po) Project(ctx context.Context, id streams.Id, projection streams.Handler) error {
+	done := po.obs.Project.Observe(ctx)
+	defer done()
 	return po.Stream(ctx, id).Project(projection)
 }
 

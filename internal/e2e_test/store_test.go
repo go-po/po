@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/go-po/po"
+	"github.com/go-po/po/internal/logger"
+	"github.com/go-po/po/internal/observer"
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/streams"
 	"github.com/stretchr/testify/assert"
@@ -33,7 +35,7 @@ type StoreTestCase func(t *testing.T, db po.Store)
 
 func runStoreTestCase(t *testing.T, builder StoreBuilder, testName string, testCase StoreTestCase) {
 	t.Run(testName, func(t *testing.T) {
-		db, err := builder()
+		db, err := builder(observer.New(logger.WrapLogger(t)))
 		if !assert.NoError(t, err, "failed building store") {
 			t.FailNow()
 		}

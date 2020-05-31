@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"sync"
 
+	"github.com/go-po/po/internal/observer/nullary"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/streams"
 )
@@ -31,8 +32,13 @@ type Executor interface {
 	Execute(appender TransactionAppender) error
 }
 
+type streamObserver struct {
+	Project nullary.CT
+}
+
 type Stream struct {
 	logger Logger
+	obs    streamObserver
 	ID     streams.Id      // Unique ID of the stream
 	ctx    context.Context // to use for the operation
 
@@ -129,7 +135,9 @@ func (s *Stream) Append(messages ...interface{}) (int64, error) {
 }
 
 func (s *Stream) Project(projection streams.Handler) error {
-	s.logger.Debugf("po/stream projecting %s", s.ID)
+	done := s.obs.Project.Observe(s.ctx)
+	defer done()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

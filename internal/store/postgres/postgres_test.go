@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-po/po/internal/observer"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/streams"
 	"github.com/stretchr/testify/assert"
@@ -16,7 +17,7 @@ const databaseUrl = "postgres://po:po@localhost:5431/po?sslmode=disable"
 
 func connect(t *testing.T) *PGStore {
 	t.Helper()
-	store, err := NewFromUrl(databaseUrl)
+	store, err := NewFromUrl(databaseUrl, observer.NewStub())
 	if !assert.NoError(t, err, "connecting") {
 		t.FailNow()
 	}

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/go-po/po/internal/observer"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/internal/store/postgres/generated/db"
@@ -14,15 +15,15 @@ import (
 
 var emptyJson = []byte("{}")
 
-func NewFromUrl(databaseUrl string) (*PGStore, error) {
+func NewFromUrl(databaseUrl string, builder *observer.Builder) (*PGStore, error) {
 	db, err := sql.Open("postgres", databaseUrl)
 	if err != nil {
 		return nil, err
 	}
-	return New(db)
+	return New(db, builder)
 }
 
-func New(conn *sql.DB) (*PGStore, error) {
+func New(conn *sql.DB, builder *observer.Builder) (*PGStore, error) {
 	err := migrateDatabase(conn)
 	if err != nil {
 		return nil, err
@@ -30,15 +31,28 @@ func New(conn *sql.DB) (*PGStore, error) {
 	return &PGStore{
 		conn: conn,
 		db:   db.New(conn),
+		observer: pgObserver{
+			ReadSnapshot: builder.Unary().
+				LogDebugf("store/postgres read snapshot: %s").
+				Metrics().
+				Build(),
+			UpdateSnapshot: builder.Nullary().
+				LogDebugf("store/postgres update snapshot").
+				Build(),
+		},
 	}, nil
 }
 
 type PGStore struct {
-	conn *sql.DB
-	db   *db.Queries
+	conn     *sql.DB
+	db       *db.Queries
+	observer pgObserver
 }
 
 func (store *PGStore) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error) {
+	done := store.observer.ReadSnapshot.Observe(ctx, id.String())
+	defer done()
+
 	position, err := store.db.GetSnapshotPosition(ctx, db.GetSnapshotPositionParams{
 		Stream:   id.String(),
 		Listener: snapshotId,
@@ -61,6 +75,9 @@ func (store *PGStore) ReadSnapshot(ctx context.Context, id streams.Id, snapshotI
 }
 
 func (store *PGStore) UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string, snapshot record.Snapshot) error {
+	done := store.observer.UpdateSnapshot.Observe(ctx)
+	defer done()
+
 	err := store.db.SetSubscriberPosition(ctx, db.SetSubscriberPositionParams{
 		Stream:      id.String(),
 		Listener:    snapshotId,

@@ -10,6 +10,7 @@ import (
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/broker/channels"
 	"github.com/go-po/po/internal/broker/rabbitmq"
+	"github.com/go-po/po/internal/observer"
 	"github.com/go-po/po/internal/store/inmemory"
 	"github.com/go-po/po/internal/store/postgres"
 	"github.com/go-po/po/streams"
@@ -20,16 +21,16 @@ const (
 	rabbitmqUrl = "amqp://po:po@localhost:5671/"
 )
 
-type StoreBuilder func() (po.Store, error)
+type StoreBuilder func(obs *observer.Builder) (po.Store, error)
 
 func pg() StoreBuilder {
-	return func() (po.Store, error) {
-		return postgres.NewFromUrl(postgresUrl)
+	return func(obs *observer.Builder) (po.Store, error) {
+		return postgres.NewFromUrl(postgresUrl, obs)
 	}
 }
 
 func inmem() StoreBuilder {
-	return func() (store po.Store, err error) {
+	return func(obs *observer.Builder) (store po.Store, err error) {
 		return inmemory.New(), nil
 	}
 }
