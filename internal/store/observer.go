@@ -1,61 +1,100 @@
 package store
 
 import (
+	"context"
+
 	"github.com/go-po/po/internal/observer"
 	"github.com/go-po/po/internal/observer/binary"
 	"github.com/go-po/po/internal/observer/unary"
+	"github.com/go-po/po/streams"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type Observer struct {
-	// a=snapshot, b=group
-	ReadSnapshot binary.ClientTrace
-	// a=snapshot, b=group
-	UpdateSnapshot binary.ClientTrace
-	// a=group, b=stream
-	GetStreamPosition binary.ClientTrace
-	// a=group, b=stream
-	ReadRecords binary.ClientTrace
-	// a=group, b=subscriberId
-	GetSubscriberPosition binary.ClientTrace
-	// a=group, b=subscriberId
-	SetSubscriberPosition binary.ClientTrace
-	// a=group
-	StoreRecord unary.ClientTrace
-	// a=group
-	AssignGroup unary.ClientTrace
+type Observer interface {
+	ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) func()
+	UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string) func()
+	GetStreamPosition(ctx context.Context, id streams.Id) func()
+	ReadRecords(ctx context.Context, id streams.Id) func()
+	GetSubscriberPosition(ctx context.Context, id streams.Id, subscriberId string) func()
+	SetSubscriberPosition(ctx context.Context, id streams.Id, subscriberId string) func()
+	StoreRecord(ctx context.Context, id streams.Id) func()
+	AssignGroup(ctx context.Context, id streams.Id) func()
 }
 
-func DefaultObserver(builder *observer.Builder, name string) Observer {
-	return Observer{
-		ReadSnapshot: builder.Binary().
+func DefaultObserver(builder *observer.Builder, name string) *obs {
+	return &obs{
+		readSnapshot: builder.Binary().
 			LogDebugf("%s read snapshot %s from group %s", name).
 			MetricCounter(prometheus.NewCounterVec(prometheus.CounterOpts{
 				Name: "po_store_snapshots_read_counter",
 				Help: "Number of times a snapshot is read",
 			}, []string{"snapshot", "group"})).
 			Build(),
-		UpdateSnapshot: builder.Binary().
-			LogDebugf("%s update snapshot %s from group %s", name).
-			Build(),
-		GetStreamPosition:     builder.Binary().LogDebugf("%s get stream position %s", name).Build(),
-		ReadRecords:           builder.Binary().LogDebugf("%s read records %s %s", name).Build(),
-		GetSubscriberPosition: builder.Binary().LogDebugf("%s get sub pos from group with sub %s", name).Build(),
-		SetSubscriberPosition: builder.Binary().LogDebugf("%s set sub pos on group %s with sub %s", name).Build(),
-		StoreRecord:           builder.Unary().LogDebugf("%s store record in group %s", name).Build(),
-		AssignGroup:           builder.Unary().LogDebugf("%s assign group to %s", name).Build(),
+		updateSnapshot:        binary.Noop(),
+		getStreamPosition:     binary.Noop(),
+		readRecords:           binary.Noop(),
+		getSubscriberPosition: binary.Noop(),
+		setSubscriberPosition: binary.Noop(),
+		storeRecord:           unary.Noop(),
+		assignGroup:           builder.Unary().LogDebugf("%s assign group to %s", name).Build(),
+	}
+
+}
+
+func StubObserver() *obs {
+	return &obs{
+		readSnapshot:          binary.Noop(),
+		updateSnapshot:        binary.Noop(),
+		getStreamPosition:     binary.Noop(),
+		readRecords:           binary.Noop(),
+		getSubscriberPosition: binary.Noop(),
+		setSubscriberPosition: binary.Noop(),
+		storeRecord:           unary.Noop(),
+		assignGroup:           unary.Noop(),
 	}
 }
 
-func StubObserver() Observer {
-	return Observer{
-		ReadSnapshot:          binary.Noop(),
-		UpdateSnapshot:        binary.Noop(),
-		GetStreamPosition:     binary.Noop(),
-		ReadRecords:           binary.Noop(),
-		GetSubscriberPosition: binary.Noop(),
-		SetSubscriberPosition: binary.Noop(),
-		StoreRecord:           unary.Noop(),
-		AssignGroup:           unary.Noop(),
-	}
+var _ Observer = &obs{}
+
+type obs struct {
+	readSnapshot          binary.ClientTrace
+	updateSnapshot        binary.ClientTrace
+	getStreamPosition     binary.ClientTrace
+	readRecords           binary.ClientTrace
+	getSubscriberPosition binary.ClientTrace
+	setSubscriberPosition binary.ClientTrace
+	storeRecord           unary.ClientTrace
+	assignGroup           unary.ClientTrace
+}
+
+func (o *obs) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) func() {
+	return o.readSnapshot.Observe(ctx, id.Group, snapshotId)
+}
+
+func (o *obs) UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string) func() {
+	return o.updateSnapshot.Observe(ctx, id.Group, snapshotId)
+}
+
+func (o *obs) GetStreamPosition(ctx context.Context, id streams.Id) func() {
+	return o.getStreamPosition.Observe(ctx, id.Group, id.String())
+}
+
+func (o *obs) ReadRecords(ctx context.Context, id streams.Id) func() {
+	return o.readRecords.Observe(ctx, id.Group, id.String())
+}
+
+func (o *obs) GetSubscriberPosition(ctx context.Context, id streams.Id, subscriberId string) func() {
+	return o.getSubscriberPosition.Observe(ctx, id.Group, subscriberId)
+}
+
+func (o *obs) SetSubscriberPosition(ctx context.Context, id streams.Id, subscriberId string) func() {
+	return o.setSubscriberPosition.Observe(ctx, id.Group, subscriberId)
+}
+
+func (o *obs) StoreRecord(ctx context.Context, id streams.Id) func() {
+	return o.storeRecord.Observe(ctx, id.Group)
+}
+
+func (o *obs) AssignGroup(ctx context.Context, id streams.Id) func() {
+	return o.assignGroup.Observe(ctx, id.Group)
 }

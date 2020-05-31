@@ -41,7 +41,7 @@ type PGStore struct {
 }
 
 func (store *PGStore) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error) {
-	done := store.observer.ReadSnapshot.Observe(ctx, snapshotId, id.Group)
+	done := store.observer.ReadSnapshot(ctx, id, snapshotId)
 	defer done()
 
 	position, err := store.db.GetSnapshotPosition(ctx, db.GetSnapshotPositionParams{
@@ -66,7 +66,7 @@ func (store *PGStore) ReadSnapshot(ctx context.Context, id streams.Id, snapshotI
 }
 
 func (store *PGStore) UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string, snapshot record.Snapshot) error {
-	done := store.observer.UpdateSnapshot.Observe(ctx, snapshotId, id.Group)
+	done := store.observer.UpdateSnapshot(ctx, id, snapshotId)
 	defer done()
 
 	err := store.db.SetSubscriberPosition(ctx, db.SetSubscriberPositionParams{
@@ -83,7 +83,7 @@ func (store *PGStore) UpdateSnapshot(ctx context.Context, id streams.Id, snapsho
 }
 
 func (store *PGStore) GetStreamPosition(ctx context.Context, id streams.Id) (int64, error) {
-	done := store.observer.GetStreamPosition.Observe(ctx, id.Group, id.String())
+	done := store.observer.GetStreamPosition(ctx, id)
 	defer done()
 
 	position, err := store.db.GetStreamPosition(ctx, id.String())
@@ -97,7 +97,7 @@ func (store *PGStore) GetStreamPosition(ctx context.Context, id streams.Id) (int
 }
 
 func (store *PGStore) ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error) {
-	done := store.observer.ReadRecords.Observe(ctx, id.Group, id.String())
+	done := store.observer.ReadRecords(ctx, id)
 	defer done()
 
 	var records []record.Record
@@ -133,7 +133,7 @@ func (store *PGStore) GetSubscriberPosition(tx store.Tx, subscriberId string, st
 		return 0, ErrUnknownTx{tx}
 	}
 
-	done := store.observer.GetSubscriberPosition.Observe(t.ctx, stream.Group, subscriberId)
+	done := store.observer.GetSubscriberPosition(t.ctx, stream, subscriberId)
 	defer done()
 
 	position, err := t.db.GetSubscriberPosition(t.ctx, db.GetSubscriberPositionParams{
@@ -155,7 +155,7 @@ func (store *PGStore) SetSubscriberPosition(tx store.Tx, subscriberId string, st
 		return ErrUnknownTx{tx}
 	}
 
-	done := store.observer.SetSubscriberPosition.Observe(t.ctx, stream.Group, subscriberId)
+	done := store.observer.SetSubscriberPosition(t.ctx, stream, subscriberId)
 	defer done()
 
 	err := t.db.SetSubscriberPosition(t.ctx, db.SetSubscriberPositionParams{
@@ -195,7 +195,7 @@ func (store *PGStore) StoreRecord(tx store.Tx, id streams.Id, number int64, cont
 		return record.Record{}, ErrUnknownTx{tx}
 	}
 
-	done := store.observer.StoreRecord.Observe(t.ctx, id.Group)
+	done := store.observer.StoreRecord(t.ctx, id)
 	defer done()
 
 	next, err := t.db.GetNextIndex(t.ctx, db.GetNextIndexParams{
@@ -246,7 +246,7 @@ func (store *PGStore) StoreRecord(tx store.Tx, id streams.Id, number int64, cont
 }
 
 func (store *PGStore) AssignGroup(ctx context.Context, id streams.Id, number int64) (record.Record, error) {
-	done := store.observer.AssignGroup.Observe(ctx, id.Group)
+	done := store.observer.AssignGroup(ctx, id)
 	defer done()
 
 	tx, err := store.begin(ctx)
