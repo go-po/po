@@ -5,52 +5,39 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/go-po/po/internal/observer"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/internal/store/postgres/generated/db"
 	"github.com/go-po/po/streams"
 	"github.com/lib/pq"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 var emptyJson = []byte("{}")
 
-func NewFromUrl(databaseUrl string, builder *observer.Builder) (*PGStore, error) {
+func NewFromUrl(databaseUrl string, observer store.Observer) (*PGStore, error) {
 	db, err := sql.Open("postgres", databaseUrl)
 	if err != nil {
 		return nil, err
 	}
-	return New(db, builder)
+	return New(db, observer)
 }
 
-func New(conn *sql.DB, builder *observer.Builder) (*PGStore, error) {
+func New(conn *sql.DB, observer store.Observer) (*PGStore, error) {
 	err := migrateDatabase(conn)
 	if err != nil {
 		return nil, err
 	}
 	return &PGStore{
-		conn: conn,
-		db:   db.New(conn),
-		observer: pgObserver{
-			ReadSnapshot: builder.Binary().
-				LogDebugf("store/postgres read snapshot %s from group %s").
-				MetricCounter(prometheus.NewCounterVec(prometheus.CounterOpts{
-					Name: "po_store_snapshots_read_counter",
-					Help: "Number of times a snapshot is read",
-				}, []string{"snapshot", "group"})).
-				Build(),
-			UpdateSnapshot: builder.Nullary().
-				LogDebugf("store/postgres update snapshot").
-				Build(),
-		},
+		conn:     conn,
+		db:       db.New(conn),
+		observer: observer,
 	}, nil
 }
 
 type PGStore struct {
 	conn     *sql.DB
 	db       *db.Queries
-	observer pgObserver
+	observer store.Observer
 }
 
 func (store *PGStore) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error) {
@@ -79,7 +66,7 @@ func (store *PGStore) ReadSnapshot(ctx context.Context, id streams.Id, snapshotI
 }
 
 func (store *PGStore) UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string, snapshot record.Snapshot) error {
-	done := store.observer.UpdateSnapshot.Observe(ctx)
+	done := store.observer.UpdateSnapshot.Observe(ctx, snapshotId, id.Group)
 	defer done()
 
 	err := store.db.SetSubscriberPosition(ctx, db.SetSubscriberPositionParams{
@@ -96,6 +83,9 @@ func (store *PGStore) UpdateSnapshot(ctx context.Context, id streams.Id, snapsho
 }
 
 func (store *PGStore) GetStreamPosition(ctx context.Context, id streams.Id) (int64, error) {
+	done := store.observer.GetStreamPosition.Observe(ctx, id.Group, id.String())
+	defer done()
+
 	position, err := store.db.GetStreamPosition(ctx, id.String())
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -107,6 +97,9 @@ func (store *PGStore) GetStreamPosition(ctx context.Context, id streams.Id) (int
 }
 
 func (store *PGStore) ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error) {
+	done := store.observer.ReadRecords.Observe(ctx, id.Group, id.String())
+	defer done()
+
 	var records []record.Record
 	var poMsgs []db.PoMsg
 	var err error
@@ -139,6 +132,10 @@ func (store *PGStore) GetSubscriberPosition(tx store.Tx, subscriberId string, st
 	if !ok {
 		return 0, ErrUnknownTx{tx}
 	}
+
+	done := store.observer.GetSubscriberPosition.Observe(t.ctx, stream.Group, subscriberId)
+	defer done()
+
 	position, err := t.db.GetSubscriberPosition(t.ctx, db.GetSubscriberPositionParams{
 		Stream:   stream.String(),
 		Listener: subscriberId,
@@ -157,6 +154,9 @@ func (store *PGStore) SetSubscriberPosition(tx store.Tx, subscriberId string, st
 	if !ok {
 		return ErrUnknownTx{tx}
 	}
+
+	done := store.observer.SetSubscriberPosition.Observe(t.ctx, stream.Group, subscriberId)
+	defer done()
 
 	err := t.db.SetSubscriberPosition(t.ctx, db.SetSubscriberPositionParams{
 		Stream:      stream.String(),
@@ -194,6 +194,9 @@ func (store *PGStore) StoreRecord(tx store.Tx, id streams.Id, number int64, cont
 	if !ok {
 		return record.Record{}, ErrUnknownTx{tx}
 	}
+
+	done := store.observer.StoreRecord.Observe(t.ctx, id.Group)
+	defer done()
 
 	next, err := t.db.GetNextIndex(t.ctx, db.GetNextIndexParams{
 		Stream: id.String(),
@@ -243,6 +246,9 @@ func (store *PGStore) StoreRecord(tx store.Tx, id streams.Id, number int64, cont
 }
 
 func (store *PGStore) AssignGroup(ctx context.Context, id streams.Id, number int64) (record.Record, error) {
+	done := store.observer.AssignGroup.Observe(ctx, id.Group)
+	defer done()
+
 	tx, err := store.begin(ctx)
 	if err != nil {
 		return record.Record{}, err

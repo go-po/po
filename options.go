@@ -11,6 +11,7 @@ import (
 	"github.com/go-po/po/internal/logger"
 	"github.com/go-po/po/internal/observer"
 	"github.com/go-po/po/internal/registry"
+	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/internal/store/inmemory"
 	"github.com/go-po/po/internal/store/postgres"
 )
@@ -134,7 +135,7 @@ func WithRegistry(registry Registry) Option {
 func WithStorePostgresUrl(connectionUrl string) Option {
 	return func(opt *Options) (err error) {
 		opt.store = func(obs *observer.Builder) (Store, error) {
-			return NewStorePostgresUrl(connectionUrl, obs)
+			return NewStorePostgresUrl(connectionUrl, store.DefaultObserver(obs, "store/postgres"))
 		}
 		return
 	}
@@ -173,12 +174,12 @@ func NewProtocolChannels() *channels.Channels {
 	return channels.New()
 }
 
-func NewStorePostgresUrl(connectionUrl string, obs *observer.Builder) (*postgres.PGStore, error) {
+func NewStorePostgresUrl(connectionUrl string, obs store.Observer) (*postgres.PGStore, error) {
 	return postgres.NewFromUrl(connectionUrl, obs)
 }
 
 func NewStorePostgresDB(db *sql.DB, obs *observer.Builder) (*postgres.PGStore, error) {
-	return postgres.New(db, obs)
+	return postgres.New(db, store.DefaultObserver(obs, "store/postgres"))
 }
 
 func NewProtocolRabbitMQ(url, exchange, id string) *rabbitmq.Protocol {

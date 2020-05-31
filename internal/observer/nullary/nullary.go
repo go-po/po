@@ -32,6 +32,14 @@ func Combine(traces ...ClientTrace) ClientTrace {
 	})
 }
 
+func Noop() ClientTrace {
+	return ClientTraceFunc(func(ctx context.Context) func() {
+		return func() {
+
+		}
+	})
+}
+
 func LogDebugf(logger Logger, format string, args ...interface{}) ClientTrace {
 	return ClientTraceFunc(func(ctx context.Context) func() {
 		logger.Debugf(format, args)

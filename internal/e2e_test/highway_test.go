@@ -93,7 +93,7 @@ type highwayApp struct {
 }
 
 func (app *highwayApp) start(t *testing.T) {
-	store, err := app.test.store(app.obs)
+	store, err := app.test.store()
 	if !assert.NoError(t, err, "setup store") {
 		t.Fail()
 	}
