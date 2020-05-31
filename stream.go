@@ -33,7 +33,7 @@ type Executor interface {
 }
 
 type streamObserver struct {
-	Project nullary.CT
+	Project nullary.ClientTrace
 }
 
 type Stream struct {

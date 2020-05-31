@@ -11,25 +11,25 @@ type Logger interface {
 	Errf(err error, template string, args ...interface{})
 }
 
-type CT interface {
+type ClientTrace interface {
 	Observe(ctx context.Context, a string) func()
 }
 
-type CTFunc func(ctx context.Context, a string) func()
+type ClientTraceFunc func(ctx context.Context, a string) func()
 
-func (fn CTFunc) Observe(ctx context.Context, a string) func() {
+func (fn ClientTraceFunc) Observe(ctx context.Context, a string) func() {
 	return fn(ctx, a)
 }
-func Combine(traces ...CT) CT {
-	return CTFunc(func(ctx context.Context, a string) func() {
+func Combine(traces ...ClientTrace) ClientTrace {
+	return ClientTraceFunc(func(ctx context.Context, a string) func() {
 		return func() {
 
 		}
 	})
 }
 
-func LogDebugf(logger Logger, format string, args ...interface{}) CT {
-	return CTFunc(func(ctx context.Context, a string) func() {
+func LogDebugf(logger Logger, format string, args ...interface{}) ClientTrace {
+	return ClientTraceFunc(func(ctx context.Context, a string) func() {
 		logger.Debugf(format, append(args, a))
 		return func() {
 
@@ -37,8 +37,8 @@ func LogDebugf(logger Logger, format string, args ...interface{}) CT {
 	})
 }
 
-func LogInfof(logger Logger, format string, args ...interface{}) CT {
-	return CTFunc(func(ctx context.Context, a string) func() {
+func LogInfof(logger Logger, format string, args ...interface{}) ClientTrace {
+	return ClientTraceFunc(func(ctx context.Context, a string) func() {
 		logger.Infof(format, append(args, a))
 		return func() {
 
@@ -54,10 +54,10 @@ func NewBuilder(logger Logger) *Builder {
 
 type Builder struct {
 	logger Logger
-	traces []CT
+	traces []ClientTrace
 }
 
-func (builder *Builder) Build() CT {
+func (builder *Builder) Build() ClientTrace {
 	return Combine(builder.traces...)
 }
 

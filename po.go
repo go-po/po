@@ -50,8 +50,8 @@ type Distributor interface {
 }
 
 type poObserver struct {
-	Stream  nullary.CT
-	Project nullary.CT
+	Stream  nullary.ClientTrace
+	Project nullary.ClientTrace
 }
 
 type Po struct {

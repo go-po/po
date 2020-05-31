@@ -6,6 +6,6 @@ import (
 )
 
 type pgObserver struct {
-	ReadSnapshot   unary.CT
-	UpdateSnapshot nullary.CT
+	ReadSnapshot   unary.ClientTrace
+	UpdateSnapshot nullary.ClientTrace
 }

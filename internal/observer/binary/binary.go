@@ -1,8 +1,6 @@
-package nullary
+package binary
 
-import (
-	"context"
-)
+import "context"
 
 type Logger interface {
 	Debugf(template string, args ...interface{})
@@ -12,17 +10,17 @@ type Logger interface {
 }
 
 type ClientTrace interface {
-	Observe(ctx context.Context) func()
+	Observe(ctx context.Context, a, b string) func()
 }
 
-type ClientTraceFunc func(ctx context.Context) func()
+type ClientTraceFunc func(ctx context.Context, a, b string) func()
 
-func (fn ClientTraceFunc) Observe(ctx context.Context) func() {
-	return fn(ctx)
+func (fn ClientTraceFunc) Observe(ctx context.Context, a, b string) func() {
+	return fn(ctx, a, b)
 }
 
 func Combine(traces ...ClientTrace) ClientTrace {
-	return ClientTraceFunc(func(ctx context.Context) func() {
+	return ClientTraceFunc(func(ctx context.Context, a, b string) func() {
 		return func() {
 
 		}
@@ -30,7 +28,7 @@ func Combine(traces ...ClientTrace) ClientTrace {
 }
 
 func LogDebugf(logger Logger, format string, args ...interface{}) ClientTrace {
-	return ClientTraceFunc(func(ctx context.Context) func() {
+	return ClientTraceFunc(func(ctx context.Context, a, b string) func() {
 		logger.Debugf(format, args)
 		return func() {
 
@@ -39,7 +37,7 @@ func LogDebugf(logger Logger, format string, args ...interface{}) ClientTrace {
 }
 
 func LogInfof(logger Logger, format string, args ...interface{}) ClientTrace {
-	return ClientTraceFunc(func(ctx context.Context) func() {
+	return ClientTraceFunc(func(ctx context.Context, a, b string) func() {
 		logger.Infof(format, append(args))
 		return func() {
 
