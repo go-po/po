@@ -23,37 +23,38 @@ type ClientTraceFunc func(ctx context.Context, a string) func()
 func (fn ClientTraceFunc) Observe(ctx context.Context, a string) func() {
 	return fn(ctx, a)
 }
+
 func Combine(traces ...ClientTrace) ClientTrace {
 	return ClientTraceFunc(func(ctx context.Context, a string) func() {
+		var doneFns []func()
+		for _, trace := range traces {
+			doneFns = append(doneFns, trace.Observe(ctx, a))
+		}
 		return func() {
-
+			for _, done := range doneFns {
+				done()
+			}
 		}
 	})
 }
 
 func Noop() ClientTrace {
 	return ClientTraceFunc(func(ctx context.Context, a string) func() {
-		return func() {
-
-		}
+		return func() {}
 	})
 }
 
 func LogDebugf(logger Logger, format string, args ...interface{}) ClientTrace {
 	return ClientTraceFunc(func(ctx context.Context, a string) func() {
 		logger.Debugf(format, append(args, a))
-		return func() {
-
-		}
+		return func() {}
 	})
 }
 
 func LogInfof(logger Logger, format string, args ...interface{}) ClientTrace {
 	return ClientTraceFunc(func(ctx context.Context, a string) func() {
 		logger.Infof(format, append(args, a))
-		return func() {
-
-		}
+		return func() {}
 	})
 }
 

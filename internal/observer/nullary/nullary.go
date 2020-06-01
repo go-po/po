@@ -26,8 +26,14 @@ func (fn ClientTraceFunc) Observe(ctx context.Context) func() {
 
 func Combine(traces ...ClientTrace) ClientTrace {
 	return ClientTraceFunc(func(ctx context.Context) func() {
+		var doneFns []func()
+		for _, trace := range traces {
+			doneFns = append(doneFns, trace.Observe(ctx))
+		}
 		return func() {
-
+			for _, done := range doneFns {
+				done()
+			}
 		}
 	})
 }
@@ -58,6 +64,15 @@ func LogInfof(logger Logger, format string, args ...interface{}) ClientTrace {
 	})
 }
 
+func LogErrorf(logger Logger, format string, args ...interface{}) ClientTrace {
+	return ClientTraceFunc(func(ctx context.Context) func() {
+		logger.Errorf(format, append(args))
+		return func() {
+
+		}
+	})
+}
+
 func NewBuilder(logger Logger, metrics prometheus.Registerer) *Builder {
 	return &Builder{
 		logger:  logger,
@@ -82,6 +97,11 @@ func (builder *Builder) LogDebugf(format string, args ...interface{}) *Builder {
 
 func (builder *Builder) LogInfof(format string, args ...interface{}) *Builder {
 	builder.traces = append(builder.traces, LogInfof(builder.logger, format, args...))
+	return builder
+}
+
+func (builder *Builder) LogErrorf(format string, args ...interface{}) *Builder {
+	builder.traces = append(builder.traces, LogErrorf(builder.logger, format, args...))
 	return builder
 }
 

@@ -26,8 +26,14 @@ func (fn ClientTraceFunc) Observe(ctx context.Context, a, b string) func() {
 
 func Combine(traces ...ClientTrace) ClientTrace {
 	return ClientTraceFunc(func(ctx context.Context, a, b string) func() {
+		var doneFns []func()
+		for _, trace := range traces {
+			doneFns = append(doneFns, trace.Observe(ctx, a, b))
+		}
 		return func() {
-
+			for _, done := range doneFns {
+				done()
+			}
 		}
 	})
 }
