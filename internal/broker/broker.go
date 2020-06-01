@@ -28,13 +28,14 @@ type Protocol interface {
 	Register(ctx context.Context, id streams.Id) (ProtocolPipes, error)
 }
 
-func New(protocol Protocol, distributor Distributor, groupAssigner GroupAssigner) *Broker {
+func New(protocol Protocol, distributor Distributor, groupAssigner GroupAssigner, observer Observer) *Broker {
 	return &Broker{
 		protocol:      protocol,
 		distributor:   distributor,
 		groupAssigner: groupAssigner,
 		mu:            sync.RWMutex{},
 		pipes:         make(map[string]ProtocolPipes),
+		observer:      observer,
 	}
 }
 
@@ -44,20 +45,33 @@ type Broker struct {
 	groupAssigner GroupAssigner
 	mu            sync.RWMutex             // protects the pipes
 	pipes         map[string]ProtocolPipes // group id to the pipes
+	observer      Observer
 }
 
 func (broker *Broker) Notify(ctx context.Context, records ...record.Record) error {
 	broker.mu.RLock()
 	defer broker.mu.RUnlock()
 	for _, r := range records {
-		pipe, found := broker.pipes[r.Group]
-		if !found {
-			return fmt.Errorf("internal/broker group not subscribed: %s", r.Group)
+		err := broker.notifyRecord(ctx, r)
+		if err != nil {
+			return err
 		}
-		pipe.AssignNotify() <- ToMessageId(r)
 	}
 	return nil
 }
+
+func (broker *Broker) notifyRecord(ctx context.Context, r record.Record) error {
+	done := broker.observer.AssignNotify(ctx, r.Stream)
+	defer done()
+
+	pipe, found := broker.pipes[r.Group]
+	if !found {
+		return fmt.Errorf("internal/broker group not subscribed: %s", r.Group)
+	}
+	pipe.AssignNotify() <- ToMessageId(r)
+	return nil
+}
+
 func (broker *Broker) Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber interface{}) error {
 
 	err := broker.distributor.Register(ctx, subscriberId, streamId, subscriber)
@@ -91,25 +105,38 @@ func (broker *Broker) flowAssign(pipe ProtocolPipes) {
 		case <-pipe.Ctx().Done():
 			break
 		case msgIdAck := <-pipe.Assign():
-			msgId, ack := msgIdAck()
-			streamId, number, _, err := ParseMessageId(msgId)
-			if err != nil {
-				// TODO
-				fmt.Printf("assign parse id: %s\n", err)
-			}
-
-			r, err := broker.groupAssigner.AssignGroup(context.Background(), streams.ParseId(streamId), number)
-			if err != nil {
-				// TODO
-				fmt.Printf("assign group [%s:%d]: %s\n", streamId, number, err)
-				continue
-			}
-
-			pipe.StreamNotify() <- r
-
-			_ = ack()
+			broker.onAssignMessage(pipe, msgIdAck)
 		}
 	}
+}
+
+func (broker *Broker) onAssignMessage(pipe ProtocolPipes, msgIdAck MessageIdAck) {
+	// TODO Add Start Span here
+	ctx := context.Background()
+	msgId, ack := msgIdAck()
+	streamId, number, _, err := ParseMessageId(msgId)
+	if err != nil {
+		done := broker.observer.AssignErrorParseId(ctx, err)
+		defer done()
+	}
+
+	id := streams.ParseId(streamId)
+
+	done := broker.observer.AssignNotifyReceived(ctx, id)
+	defer done()
+
+	r, err := broker.groupAssigner.AssignGroup(ctx, id, number)
+	if err != nil {
+		done := broker.observer.AssignErrorGroupNumber(ctx, id, err)
+		defer done()
+		return
+	}
+
+	streamDone := broker.observer.StreamNotify(ctx, id)
+	defer streamDone()
+	pipe.StreamNotify() <- r
+
+	_ = ack()
 }
 
 func (broker *Broker) flowStream(pipe ProtocolPipes) {
@@ -118,13 +145,22 @@ func (broker *Broker) flowStream(pipe ProtocolPipes) {
 		case <-pipe.Ctx().Done():
 			break
 		case recordAck := <-pipe.Stream():
-			r, ack := recordAck()
-			_, err := broker.distributor.Distribute(context.Background(), r)
-			if err != nil {
-				// TODO
-				fmt.Printf("stream distribute: %s\n", err)
-			}
-			_ = ack()
+			broker.onStreamMessage(recordAck)
 		}
 	}
+}
+
+func (broker *Broker) onStreamMessage(recordAck RecordAck) {
+	// TODO Add Start Span here
+	ctx := context.Background()
+
+	r, ack := recordAck()
+	done := broker.observer.StreamNotifyReceived(ctx, r.Stream)
+	defer done()
+
+	_, err := broker.distributor.Distribute(ctx, r)
+	if err != nil {
+		broker.observer.StreamErrorDistribute(ctx, r.Stream, err)
+	}
+	_ = ack()
 }

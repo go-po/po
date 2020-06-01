@@ -86,6 +86,7 @@ func newPo(store Store, protocol broker.Protocol, registry Registry, logger Logg
 			protocol,
 			distributor.New(registry, store),
 			store,
+			broker.NewDefaultObserver(builder),
 		),
 		registry: registry,
 	}
