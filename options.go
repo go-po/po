@@ -14,6 +14,7 @@ import (
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/internal/store/inmemory"
 	"github.com/go-po/po/internal/store/postgres"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type storeBuilder func(obs *observer.Builder) (Store, error)
@@ -23,6 +24,7 @@ type Options struct {
 	protocol broker.Protocol
 	registry Registry
 	logger   Logger
+	prom     prometheus.Registerer
 }
 
 type Option func(opt *Options) error
@@ -42,6 +44,7 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 	options := &Options{
 		registry: registry.DefaultRegistry,
 		logger:   &logger.NoopLogger{},
+		prom:     observer.NewPromStub(),
 	}
 
 	for _, opt := range opts {
@@ -51,7 +54,7 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 		}
 	}
 
-	builder := observer.New(options.logger, observer.NewPromStub())
+	builder := observer.New(options.logger, options.prom)
 
 	if options.store == nil {
 		return nil, fmt.Errorf("po: no store provided")
@@ -93,6 +96,13 @@ func newPo(store Store, protocol broker.Protocol, registry Registry, logger Logg
 }
 
 // Available options
+
+func WithPrometheus(prom prometheus.Registerer) Option {
+	return func(opt *Options) error {
+		opt.prom = prom
+		return nil
+	}
+}
 
 func WithLogger(logger Logger) Option {
 	return func(opt *Options) error {
