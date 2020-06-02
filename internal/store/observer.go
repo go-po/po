@@ -36,7 +36,7 @@ func DefaultObserver(builder *observer.Builder, name string) *obs {
 		getSubscriberPosition: binary.Noop(),
 		setSubscriberPosition: binary.Noop(),
 		storeRecord:           unary.Noop(),
-		assignGroup:           builder.Unary().LogDebugf("%s assign group to %s", name).Build(),
+		assignGroup:           builder.Unary().LogDebugf("po/store assign group to %s").Build(),
 	}
 
 }

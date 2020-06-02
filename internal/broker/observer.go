@@ -13,40 +13,40 @@ import (
 func NewDefaultObserver(builder *observer.Builder) *obs {
 	return &obs{
 		register: builder.Binary().
-			LogInfof("broker registered stream %s to %s").
+			LogInfof("po/broker registered stream %s to %s").
 			Build(),
 		streamNotify: builder.Unary().
 			MetricCounterVec(prometheus.NewCounterVec(prometheus.CounterOpts{
-				Name: "po_notify_stream_counter",
+				Name: "po_broker_notify_stream_counter",
 				Help: "number of messages send for a stream",
 			}, []string{"group"})).
 			Build(),
 		streamNotifyReceived: builder.Unary().
 			MetricCounterVec(prometheus.NewCounterVec(prometheus.CounterOpts{
-				Name: "po_notify_stream_received_counter",
+				Name: "po_broker_notify_stream_received_counter",
 				Help: "number of messages received for a stream",
 			}, []string{"group"})).
 			Build(),
 		streamErrorDistribute: builder.Binary().
-			LogInfof("broker stream distribute to %s: %s").
+			LogInfof("po/broker stream distribute to %s: %s").
 			Build(),
 		assignNotify: builder.Unary().
 			MetricCounterVec(prometheus.NewCounterVec(prometheus.CounterOpts{
-				Name: "po_notify_assign_counter",
+				Name: "po_broker_notify_assign_counter",
 				Help: "number of messages send for a group number assignment",
 			}, []string{"group"})).
 			Build(),
 		assignNotifyReceived: builder.Unary().
 			MetricCounterVec(prometheus.NewCounterVec(prometheus.CounterOpts{
-				Name: "po_notify_assign_received_counter",
+				Name: "po_broker_notify_assign_received_counter",
 				Help: "number of messages received for a group number assignment",
 			}, []string{"group"})).
 			Build(),
 		assignErrorParseId: builder.Unary().
-			LogInfof("broker assign parse id: %s").
+			LogInfof("po/broker assign parse id: %s").
 			Build(),
 		assignErrorGroupNumber: builder.Binary().
-			LogInfof("broker assign group number to %s: %s").
+			LogInfof("po/broker assign group number to %s: %s").
 			Build(),
 	}
 }
