@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/go-po/po"
+	"github.com/go-po/po/internal/logger"
+	"github.com/go-po/po/internal/observer"
 	"github.com/go-po/po/streams"
 	"github.com/stretchr/testify/assert"
 )
@@ -60,6 +62,7 @@ func TestHighwayApp(t *testing.T) {
 					streamId: streamId,
 					counters: hwCounters,
 					test:     test,
+					obs:      observer.New(logger.WrapLogger(t), observer.NewPromStub()),
 				}
 				apps = append(apps, app)
 				go app.start(t)
@@ -86,6 +89,7 @@ type highwayApp struct {
 	counters highwayCounters
 	test     *highwayTestCase
 	es       *po.Po
+	obs      *observer.Builder
 }
 
 func (app *highwayApp) start(t *testing.T) {

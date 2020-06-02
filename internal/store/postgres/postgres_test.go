@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/streams"
 	"github.com/stretchr/testify/assert"
 )
@@ -16,11 +17,11 @@ const databaseUrl = "postgres://po:po@localhost:5431/po?sslmode=disable"
 
 func connect(t *testing.T) *PGStore {
 	t.Helper()
-	store, err := NewFromUrl(databaseUrl)
+	s, err := NewFromUrl(databaseUrl, store.StubObserver())
 	if !assert.NoError(t, err, "connecting") {
 		t.FailNow()
 	}
-	return store
+	return s
 }
 
 func TestPGStore_StoreRecord(t *testing.T) {
@@ -177,8 +178,8 @@ func TestPGStore_StoreRecord(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			store := connect(t)
-			tx, err := store.Begin(context.Background())
+			s := connect(t)
+			tx, err := s.Begin(context.Background())
 			if !assert.NoError(t, err, "begin tx") {
 				t.FailNow()
 			}
@@ -186,7 +187,7 @@ func TestPGStore_StoreRecord(t *testing.T) {
 			prefix := strconv.FormatInt(rand.Int63(), 10)
 			for _, call := range test.calls {
 				id := streams.ParseId(prefix + call.id)
-				r, err := store.StoreRecord(tx, id, call.number, "text/plain", []byte("data: "+call.id))
+				r, err := s.StoreRecord(tx, id, call.number, "text/plain", []byte("data: "+call.id))
 				for _, v := range call.verify {
 					v(t, r, err)
 				}
