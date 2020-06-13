@@ -49,6 +49,32 @@ type Distributor interface {
 	broker.Distributor
 }
 
+// Implemented by commands.
+// Contract is that the CommandHandler is hydrated with all
+// messages on the stream is applied to. Thereafter the Execute
+// method is called, allowing the CommandHandler to append
+// messages within a transaction.
+// Returning an error will cause a rollback.
+// Otherwise all are discarded.
+type CommandHandler interface {
+	// Hydrates a stream
+	Handle(ctx context.Context, msg streams.Message) error
+	// Applies the command
+	Execute(appender TransactionAppender) error
+}
+
+type Handler interface {
+	// Receives messages from a stream
+	Handle(ctx context.Context, msg streams.Message) error
+}
+
+// Utility for functional style handlers
+type HandlerFunc func(ctx context.Context, msg streams.Message) error
+
+func (fn HandlerFunc) Handle(ctx context.Context, msg streams.Message) error {
+	return fn(ctx, msg)
+}
+
 type poObserver struct {
 	Stream  nullary.ClientTrace
 	Project nullary.ClientTrace
@@ -82,17 +108,17 @@ func (po *Po) Stream(ctx context.Context, id streams.Id) *Stream {
 }
 
 // convenience method to load a stream and project it
-func (po *Po) Project(ctx context.Context, id streams.Id, projection streams.Handler) error {
+func (po *Po) Project(ctx context.Context, id streams.Id, projection Handler) error {
 	done := po.obs.Project.Observe(ctx)
 	defer done()
 	return po.Stream(ctx, id).Project(projection)
 }
 
-func (po *Po) Subscribe(ctx context.Context, subscriptionId string, id streams.Id, subscriber interface{}) error {
+func (po *Po) Subscribe(ctx context.Context, subscriptionId string, id streams.Id, subscriber Handler) error {
 	return po.broker.Register(ctx, subscriptionId, id, subscriber)
 }
 
-func (po *Po) Execute(ctx context.Context, id streams.Id, exec Executor) error {
+func (po *Po) Execute(ctx context.Context, id streams.Id, exec CommandHandler) error {
 	stream := po.Stream(ctx, id)
 	return stream.Execute(exec)
 }

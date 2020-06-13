@@ -25,13 +25,6 @@ type TransactionAppender interface {
 	Size() int64
 }
 
-// An Executor can append messages in an transaction.
-// If nil is returned, all messages are appended to the stream.
-// Otherwise all are discareded.
-type Executor interface {
-	Execute(appender TransactionAppender) error
-}
-
 type streamObserver struct {
 	Project nullary.ClientTrace
 }
@@ -134,7 +127,7 @@ func (s *Stream) Append(messages ...interface{}) (int64, error) {
 	return s.position, nil
 }
 
-func (s *Stream) Project(projection streams.Handler) error {
+func (s *Stream) Project(projection Handler) error {
 	done := s.obs.Project.Observe(s.ctx)
 	defer done()
 
@@ -201,22 +194,20 @@ func (s *Stream) Project(projection streams.Handler) error {
 	return nil
 }
 
-func (s *Stream) Execute(exec Executor) error {
+func (s *Stream) Execute(handler CommandHandler) error {
 	err := s.Begin()
 	if err != nil {
 		return err
 	}
 
-	if handler, isHandler := exec.(streams.Handler); isHandler {
-		err := s.Project(handler)
-		if err != nil {
-			return nil
-		}
+	err = s.Project(handler)
+	if err != nil {
+		return nil
 	}
 
 	appender := &messageAppender{stream: s}
 
-	err = exec.Execute(appender)
+	err = handler.Execute(appender)
 	if err != nil {
 		return err
 	}
