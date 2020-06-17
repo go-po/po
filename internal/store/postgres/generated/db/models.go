@@ -9,6 +9,7 @@ import (
 
 // contains messages
 type PoMsg struct {
+	ID          int64         `json:"id"`
 	Created     time.Time     `json:"created"`
 	Updated     time.Time     `json:"updated"`
 	Stream      string        `json:"stream"`

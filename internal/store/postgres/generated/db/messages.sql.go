@@ -9,7 +9,7 @@ import (
 )
 
 const getRecordByStream = `-- name: GetRecordByStream :one
-SELECT created, updated, stream, no, grp, grp_no, content_type, data
+SELECT id, created, updated, stream, no, grp, grp_no, content_type, data
 FROM po_msgs
 WHERE stream = $1
   AND no = $2
@@ -24,6 +24,7 @@ func (q *Queries) GetRecordByStream(ctx context.Context, arg GetRecordByStreamPa
 	row := q.db.QueryRowContext(ctx, getRecordByStream, arg.Stream, arg.No)
 	var i PoMsg
 	err := row.Scan(
+		&i.ID,
 		&i.Created,
 		&i.Updated,
 		&i.Stream,
@@ -37,7 +38,7 @@ func (q *Queries) GetRecordByStream(ctx context.Context, arg GetRecordByStreamPa
 }
 
 const getRecords = `-- name: GetRecords :many
-select created, updated, stream, no, grp, grp_no, content_type, data
+select id, created, updated, stream, no, grp, grp_no, content_type, data
 from po_msgs
 `
 
@@ -51,6 +52,7 @@ func (q *Queries) GetRecords(ctx context.Context) ([]PoMsg, error) {
 	for rows.Next() {
 		var i PoMsg
 		if err := rows.Scan(
+			&i.ID,
 			&i.Created,
 			&i.Updated,
 			&i.Stream,
@@ -74,7 +76,7 @@ func (q *Queries) GetRecords(ctx context.Context) ([]PoMsg, error) {
 }
 
 const getRecordsByGroup = `-- name: GetRecordsByGroup :many
-SELECT created, updated, stream, no, grp, grp_no, content_type, data
+SELECT id, created, updated, stream, no, grp, grp_no, content_type, data
 FROM po_msgs
 WHERE grp = $1
   AND grp_no IS NOT NULL
@@ -97,6 +99,7 @@ func (q *Queries) GetRecordsByGroup(ctx context.Context, arg GetRecordsByGroupPa
 	for rows.Next() {
 		var i PoMsg
 		if err := rows.Scan(
+			&i.ID,
 			&i.Created,
 			&i.Updated,
 			&i.Stream,
@@ -120,7 +123,7 @@ func (q *Queries) GetRecordsByGroup(ctx context.Context, arg GetRecordsByGroupPa
 }
 
 const getRecordsByStream = `-- name: GetRecordsByStream :many
-SELECT created, updated, stream, no, grp, grp_no, content_type, data
+SELECT id, created, updated, stream, no, grp, grp_no, content_type, data
 FROM po_msgs
 WHERE stream = $1
   AND no > $2
@@ -142,6 +145,7 @@ func (q *Queries) GetRecordsByStream(ctx context.Context, arg GetRecordsByStream
 	for rows.Next() {
 		var i PoMsg
 		if err := rows.Scan(
+			&i.ID,
 			&i.Created,
 			&i.Updated,
 			&i.Stream,
@@ -208,7 +212,7 @@ SET grp_no  = $1,
 WHERE stream = $2
   AND no = $3
   AND grp_no IS NULL
-RETURNING created, updated, stream, no, grp, grp_no, content_type, data
+RETURNING id, created, updated, stream, no, grp, grp_no, content_type, data
 `
 
 type SetGroupNumberParams struct {
@@ -221,6 +225,7 @@ func (q *Queries) SetGroupNumber(ctx context.Context, arg SetGroupNumberParams) 
 	row := q.db.QueryRowContext(ctx, setGroupNumber, arg.GrpNo, arg.Stream, arg.No)
 	var i PoMsg
 	err := row.Scan(
+		&i.ID,
 		&i.Created,
 		&i.Updated,
 		&i.Stream,

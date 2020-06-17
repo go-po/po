@@ -1,7 +1,7 @@
 -- initial schema for the messages
 CREATE TABLE IF NOT EXISTS po_msgs
 (
-
+    id           bigserial                              NOT NULL,
     created      timestamp WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated      timestamp WITH TIME ZONE DEFAULT NOW() NOT NULL,
     stream       VARCHAR                                NOT NULL,
