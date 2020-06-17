@@ -64,7 +64,7 @@ func NewStubObserver() *obs {
 	}
 }
 
-type Observer interface {
+type GroupNumberObserver interface {
 	Register(ctx context.Context, id streams.Id, subscriberId string) func()
 
 	AssignNotify(ctx context.Context, id streams.Id) func()
@@ -77,7 +77,7 @@ type Observer interface {
 	StreamErrorDistribute(ctx context.Context, id streams.Id, err error) func()
 }
 
-var _ Observer = &obs{}
+var _ GroupNumberObserver = &obs{}
 
 type obs struct {
 	register binary.ClientTrace

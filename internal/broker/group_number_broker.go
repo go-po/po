@@ -28,7 +28,7 @@ type Protocol interface {
 	Register(ctx context.Context, id streams.Id) (ProtocolPipes, error)
 }
 
-func NewGroupNumberBroker(protocol Protocol, distributor Distributor, groupAssigner GroupAssigner, observer Observer) *GroupNumberBroker {
+func NewGroupNumberBroker(protocol Protocol, distributor Distributor, groupAssigner GroupAssigner, observer GroupNumberObserver) *GroupNumberBroker {
 	return &GroupNumberBroker{
 		protocol:      protocol,
 		distributor:   distributor,
@@ -45,7 +45,7 @@ type GroupNumberBroker struct {
 	groupAssigner GroupAssigner
 	mu            sync.RWMutex             // protects the pipes
 	pipes         map[string]ProtocolPipes // group id to the pipes
-	observer      Observer
+	observer      GroupNumberObserver
 }
 
 func (broker *GroupNumberBroker) Notify(ctx context.Context, records ...record.Record) error {
