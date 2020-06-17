@@ -28,8 +28,8 @@ type Protocol interface {
 	Register(ctx context.Context, id streams.Id) (ProtocolPipes, error)
 }
 
-func New(protocol Protocol, distributor Distributor, groupAssigner GroupAssigner, observer Observer) *Broker {
-	return &Broker{
+func NewGroupNumberBroker(protocol Protocol, distributor Distributor, groupAssigner GroupAssigner, observer Observer) *GroupNumberBroker {
+	return &GroupNumberBroker{
 		protocol:      protocol,
 		distributor:   distributor,
 		groupAssigner: groupAssigner,
@@ -39,7 +39,7 @@ func New(protocol Protocol, distributor Distributor, groupAssigner GroupAssigner
 	}
 }
 
-type Broker struct {
+type GroupNumberBroker struct {
 	protocol      Protocol
 	distributor   Distributor
 	groupAssigner GroupAssigner
@@ -48,7 +48,7 @@ type Broker struct {
 	observer      Observer
 }
 
-func (broker *Broker) Notify(ctx context.Context, records ...record.Record) error {
+func (broker *GroupNumberBroker) Notify(ctx context.Context, records ...record.Record) error {
 	broker.mu.RLock()
 	defer broker.mu.RUnlock()
 	for _, r := range records {
@@ -60,7 +60,7 @@ func (broker *Broker) Notify(ctx context.Context, records ...record.Record) erro
 	return nil
 }
 
-func (broker *Broker) notifyRecord(ctx context.Context, r record.Record) error {
+func (broker *GroupNumberBroker) notifyRecord(ctx context.Context, r record.Record) error {
 	done := broker.observer.AssignNotify(ctx, r.Stream)
 	defer done()
 
@@ -72,7 +72,7 @@ func (broker *Broker) notifyRecord(ctx context.Context, r record.Record) error {
 	return nil
 }
 
-func (broker *Broker) Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber interface{}) error {
+func (broker *GroupNumberBroker) Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber interface{}) error {
 
 	err := broker.distributor.Register(ctx, subscriberId, streamId, subscriber)
 	if err != nil {
@@ -99,7 +99,7 @@ func (broker *Broker) Register(ctx context.Context, subscriberId string, streamI
 	return nil
 }
 
-func (broker *Broker) flowAssign(pipe ProtocolPipes) {
+func (broker *GroupNumberBroker) flowAssign(pipe ProtocolPipes) {
 	for {
 		select {
 		case <-pipe.Ctx().Done():
@@ -110,7 +110,7 @@ func (broker *Broker) flowAssign(pipe ProtocolPipes) {
 	}
 }
 
-func (broker *Broker) onAssignMessage(pipe ProtocolPipes, msgIdAck MessageIdAck) {
+func (broker *GroupNumberBroker) onAssignMessage(pipe ProtocolPipes, msgIdAck MessageIdAck) {
 	// TODO Add Start Span here
 	ctx := context.Background()
 	msgId, ack := msgIdAck()
@@ -139,7 +139,7 @@ func (broker *Broker) onAssignMessage(pipe ProtocolPipes, msgIdAck MessageIdAck)
 	_ = ack()
 }
 
-func (broker *Broker) flowStream(pipe ProtocolPipes) {
+func (broker *GroupNumberBroker) flowStream(pipe ProtocolPipes) {
 	for {
 		select {
 		case <-pipe.Ctx().Done():
@@ -150,7 +150,7 @@ func (broker *Broker) flowStream(pipe ProtocolPipes) {
 	}
 }
 
-func (broker *Broker) onStreamMessage(recordAck RecordAck) {
+func (broker *GroupNumberBroker) onStreamMessage(recordAck RecordAck) {
 	// TODO Add Start Span here
 	ctx := context.Background()
 
