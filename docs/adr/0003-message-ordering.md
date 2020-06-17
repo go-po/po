@@ -6,6 +6,8 @@ Date: 2020-02-25
 
 Accepted
 
+Replaced by [5. Eventual Consistency on Message Ordering](0005-eventual-consistency-on-message-ordering.md)
+
 ## Context
 
 When working with message streams, it is important which ordering are used.
