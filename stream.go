@@ -113,6 +113,7 @@ func (s *Stream) append(messages ...interface{}) {
 	defer s.mu.Unlock()
 	s.uncommitted = append(s.uncommitted, messages...)
 }
+
 func (s *Stream) Append(messages ...interface{}) (int64, error) {
 	err := s.Begin()
 	if err != nil {

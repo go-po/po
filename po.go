@@ -80,6 +80,12 @@ type poObserver struct {
 	Project nullary.ClientTrace
 }
 
+type messageStream interface {
+	Project(projection Handler) error
+	Execute(exec CommandHandler) error
+	Append(messages ...interface{}) (int64, error)
+}
+
 type Po struct {
 	obs      poObserver
 	builder  *observer.Builder
