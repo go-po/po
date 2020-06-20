@@ -11,24 +11,28 @@ import (
 var _ messageStream = &OptimisticLockingStream{}
 
 type optimisticStore interface {
-	WriteRecord(ctx context.Context, id streams.Id, contentType string, b []byte) (int64, error)
-	WriteRecordAt(ctx context.Context, id streams.Id, contentType string, b []byte, position int64) error
+	WriteRecords(ctx context.Context, id streams.Id, data ...record.Data) (int64, error)
+	WriteRecordsFrom(ctx context.Context, id streams.Id, position int64, data ...record.Data) error
 
 	ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error)
 	snapshotStore
 }
 
-type appenderFunc func(ctx context.Context, id streams.Id, position int64, message interface{}) (int64, error)
+type appenderFunc func(ctx context.Context, id streams.Id, position int64, messages ...interface{}) (int64, error)
 type projectorFunc func(ctx context.Context, id streams.Id, lockPosition int64, projection Handler) (int64, error)
+type executorFunc func(ctx context.Context, id streams.Id, lockPosition int64, cmd CommandHandler) (int64, error)
 
 func NewOptimisticLockingStream(ctx context.Context, streamId streams.Id, store optimisticStore, registry Registry) *OptimisticLockingStream {
+	projector := newProjectorFunc(store, newSnapshots(store), registry)
+	appender := newAppenderFunc(store, registry)
 	return &OptimisticLockingStream{
 		Id:           streamId,
 		ctx:          ctx,
 		store:        store,
 		registry:     registry,
-		projector:    newProjectorFunc(store, newSnapshots(store), registry),
-		appender:     newAppenderFunc(store, registry),
+		projector:    projector,
+		appender:     appender,
+		executor:     newExecutorFunc(projector, appender, 3),
 		mu:           sync.RWMutex{},
 		lockPosition: -1,
 	}
@@ -46,6 +50,7 @@ type OptimisticLockingStream struct {
 	store     optimisticStore
 	registry  Registry
 	projector projectorFunc
+	executor  executorFunc
 	appender  appenderFunc
 
 	mu           sync.RWMutex // protects the fields below
@@ -85,7 +90,13 @@ func (stream *OptimisticLockingStream) Project(projection Handler) error {
 }
 
 func (stream *OptimisticLockingStream) Execute(exec CommandHandler) error {
-	panic("implement me")
+	// TODO add observability
+	stream.mu.Lock()
+	defer stream.mu.Unlock()
+
+	position, err := stream.executor(stream.ctx, stream.Id, stream.lockPosition, exec)
+	stream.lockPosition = position
+	return err
 }
 
 func newProjectorFunc(store optimisticStore, snap Snapshots, registry Registry) projectorFunc {
@@ -147,22 +158,62 @@ func newProjectorFunc(store optimisticStore, snap Snapshots, registry Registry) 
 }
 
 func newAppenderFunc(store optimisticStore, registry Registry) appenderFunc {
-	return func(ctx context.Context, id streams.Id, position int64, message interface{}) (int64, error) {
-		b, contentType, err := registry.Marshal(message)
-		if err != nil {
-			return -1, err
+	return func(ctx context.Context, id streams.Id, position int64, messages ...interface{}) (int64, error) {
+		var data []record.Data
+		for _, msg := range messages {
+			b, contentType, err := registry.Marshal(msg)
+			if err != nil {
+				return -1, err
+			}
+			data = append(data, record.Data{
+				ContentType: contentType,
+				Data:        b,
+			})
 		}
 
 		if position < 0 {
 			// this append have not seen the lockPosition yet,
 			// so have to get it from the store when performing the first write
-			return store.WriteRecord(ctx, id, contentType, b)
+			return store.WriteRecords(ctx, id, data...)
 		}
 
-		err = store.WriteRecordAt(ctx, id, contentType, b, position+1)
+		err := store.WriteRecordsFrom(ctx, id, position, data...)
 		if err != nil {
 			return -1, err
 		}
-		return position + 1, nil
+
+		return position + int64(len(messages)), nil
 	}
+}
+
+func newExecutorFunc(projector projectorFunc, appender appenderFunc, retryCount int) executorFunc {
+	return func(ctx context.Context, id streams.Id, lockPosition int64, cmd CommandHandler) (int64, error) {
+		position, err := projector(ctx, id, lockPosition, cmd)
+		if err != nil {
+			return lockPosition, err
+		}
+		tx := &optimisticAppender{position: position}
+		err = cmd.Execute(tx)
+		if err != nil {
+			return position, err
+		}
+		position, err = appender(ctx, id, position, tx.messages)
+		if err != nil {
+			return position, err
+		}
+		return -1, nil
+	}
+}
+
+type optimisticAppender struct {
+	messages []interface{}
+	position int64
+}
+
+func (appender *optimisticAppender) Append(messages ...interface{}) {
+	appender.messages = append(appender.messages, messages...)
+}
+
+func (appender *optimisticAppender) Size() int64 {
+	return appender.position
 }

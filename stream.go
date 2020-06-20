@@ -19,7 +19,7 @@ type CommitAppender interface {
 // Append to a transaction.
 //Messages will be written to the store on commit
 type TransactionAppender interface {
-	// appends tot he stream
+	// appends to the stream
 	Append(messages ...interface{})
 	// current size of the stream
 	Size() int64

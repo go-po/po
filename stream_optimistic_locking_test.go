@@ -56,37 +56,43 @@ func (stub *stubStore) incCount() {
 	stub.messageCount = stub.messageCount + 1
 }
 
-func (stub *stubStore) WriteRecord(ctx context.Context, id streams.Id, contentType string, b []byte) (int64, error) {
-	stub.incCount()
-	stub.records = append(stub.records, record.Record{
-		Stream:      id,
-		Number:      stub.messageCount,
-		GroupNumber: stub.messageCount,
-		Data:        b,
-		Group:       id.Group,
-		ContentType: contentType,
-		Time:        time.Now(),
-	})
+func (stub *stubStore) WriteRecords(ctx context.Context, id streams.Id, datas ...record.Data) (int64, error) {
+	for _, data := range datas {
+		stub.incCount()
+		stub.records = append(stub.records, record.Record{
+			Stream:      id,
+			Number:      stub.messageCount,
+			GroupNumber: stub.messageCount,
+			Data:        data.Data,
+			Group:       id.Group,
+			ContentType: data.ContentType,
+			Time:        time.Now(),
+		})
+	}
+
 	return stub.messageCount, nil
 }
 
-func (stub *stubStore) WriteRecordAt(ctx context.Context, id streams.Id, contentType string, b []byte, position int64) error {
-	if position != (stub.messageCount + 1) {
+func (stub *stubStore) WriteRecordsFrom(ctx context.Context, id streams.Id, position int64, datas ...record.Data) error {
+	if position != stub.messageCount {
 		return store.WriteConflictError{
 			StreamId: id,
 			Position: position,
 		}
 	}
-	stub.incCount()
-	stub.records = append(stub.records, record.Record{
-		Stream:      id,
-		Number:      stub.messageCount,
-		GroupNumber: stub.messageCount,
-		Data:        b,
-		Group:       id.Group,
-		ContentType: contentType,
-		Time:        time.Now(),
-	})
+	for _, data := range datas {
+		stub.incCount()
+		stub.records = append(stub.records, record.Record{
+			Stream:      id,
+			Number:      stub.messageCount,
+			GroupNumber: stub.messageCount,
+			Data:        data.Data,
+			Group:       id.Group,
+			ContentType: data.ContentType,
+			Time:        time.Now(),
+		})
+	}
+
 	return nil
 }
 

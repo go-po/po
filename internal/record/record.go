@@ -23,3 +23,8 @@ type Snapshot struct {
 	Position    int64
 	ContentType string
 }
+
+type Data struct {
+	ContentType string
+	Data        []byte
+}
