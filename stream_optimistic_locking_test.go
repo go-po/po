@@ -205,17 +205,8 @@ func TestOptimisticLockingStream_Project(t *testing.T) {
 
 func TestOptimisticLockingStream_Append(t *testing.T) {
 	// setup
-	newTestFixture := func(lockPosition int64, messageCount int64) (*OptimisticLockingStream, *stubStore) {
-		store := &stubStore{messageCount: messageCount}
-		stream := NewOptimisticLockingStream(
-			context.Background(),
-			streams.ParseId("teststream-1"),
-			store,
-			testRegistry,
-		)
-		stream.lockPosition = lockPosition
-		return stream, store
-	}
+	ctx := context.Background()
+	streamId := streams.ParseId("teststream-1")
 	type verify func(t *testing.T, n int64, err error, store *stubStore)
 	verifyAll := func(t *testing.T, n int64, err error, store *stubStore, assertions ...verify) {
 		t.Helper()
@@ -243,36 +234,40 @@ func TestOptimisticLockingStream_Append(t *testing.T) {
 
 	t.Run("fresh stream", func(t *testing.T) {
 		// setup
-		stream, store := newTestFixture(-1, 0)
+		store := &stubStore{messageCount: 0}
+		sut := newAppenderFunc(store, testRegistry)
 		// execute
-		n, err := stream.Append(Msg{Name: "Append Test"})
+		n, err := sut(ctx, streamId, -1, Msg{Name: "Append Test"})
 		// verify
 		verifyAll(t, n, err, store, noErr(), num(1))
 	})
 
 	t.Run("existing stream", func(t *testing.T) {
 		// setup
-		stream, store := newTestFixture(-1, 3)
+		store := &stubStore{messageCount: 3}
+		sut := newAppenderFunc(store, testRegistry)
 		// execute
-		n, err := stream.Append(Msg{Name: "Append Test"})
+		n, err := sut(ctx, streamId, -1, Msg{Name: "Append Test"})
 		// verify
 		verifyAll(t, n, err, store, noErr(), num(4))
 	})
 
 	t.Run("locked stream", func(t *testing.T) {
 		// setup
-		stream, store := newTestFixture(3, 3)
+		store := &stubStore{messageCount: 3}
+		sut := newAppenderFunc(store, testRegistry)
 		// execute
-		n, err := stream.Append(Msg{Name: "Append Test"})
+		n, err := sut(ctx, streamId, 3, Msg{Name: "Append Test"})
 		// verify
 		verifyAll(t, n, err, store, noErr(), num(4))
 	})
 
 	t.Run("locked stream with conflict", func(t *testing.T) {
 		// setup
-		stream, store := newTestFixture(3, 5)
+		store := &stubStore{messageCount: 5}
+		sut := newAppenderFunc(store, testRegistry)
 		// execute
-		n, err := stream.Append(Msg{Name: "Append Test"})
+		n, err := sut(ctx, streamId, 3, Msg{Name: "Append Test"})
 		// verify
 		verifyAll(t, n, err, store, errWriteConflict())
 	})
