@@ -39,10 +39,18 @@ func (stub *stubAppenderStore) incCount() {
 	stub.messageCount = stub.messageCount + 1
 }
 
-func (stub *stubAppenderStore) WriteRecords(ctx context.Context, id streams.Id, datas ...record.Data) (int64, error) {
+type stubNotifier struct {
+}
+
+func (stubNotifier) Notify(ctx context.Context, records ...record.Record) error {
+	return nil
+}
+
+func (stub *stubAppenderStore) WriteRecords(ctx context.Context, id streams.Id, datas ...record.Data) ([]record.Record, error) {
+	var written []record.Record
 	for _, data := range datas {
 		stub.incCount()
-		stub.records = append(stub.records, record.Record{
+		written = append(written, record.Record{
 			Stream:      id,
 			Number:      stub.messageCount,
 			GroupNumber: stub.messageCount,
@@ -52,31 +60,19 @@ func (stub *stubAppenderStore) WriteRecords(ctx context.Context, id streams.Id, 
 			Time:        time.Now(),
 		})
 	}
+	stub.records = append(stub.records, written...)
 
-	return stub.messageCount, nil
+	return stub.records, nil
 }
 
-func (stub *stubAppenderStore) WriteRecordsFrom(ctx context.Context, id streams.Id, position int64, datas ...record.Data) error {
+func (stub *stubAppenderStore) WriteRecordsFrom(ctx context.Context, id streams.Id, position int64, datas ...record.Data) ([]record.Record, error) {
 	if position != stub.messageCount {
-		return store.WriteConflictError{
+		return nil, store.WriteConflictError{
 			StreamId: id,
 			Position: position,
 		}
 	}
-	for _, data := range datas {
-		stub.incCount()
-		stub.records = append(stub.records, record.Record{
-			Stream:      id,
-			Number:      stub.messageCount,
-			GroupNumber: stub.messageCount,
-			Data:        data.Data,
-			Group:       id.Group,
-			ContentType: data.ContentType,
-			Time:        time.Now(),
-		})
-	}
-
-	return nil
+	return stub.WriteRecords(ctx, id, datas...)
 }
 
 func TestOptimisticLockingStream_Append(t *testing.T) {
@@ -111,7 +107,7 @@ func TestOptimisticLockingStream_Append(t *testing.T) {
 	t.Run("fresh stream", func(t *testing.T) {
 		// setup
 		store := &stubAppenderStore{messageCount: 0}
-		sut := newAppenderFunc(store, testRegistry)
+		sut := newAppenderFunc(store, stubNotifier{}, testRegistry)
 		// execute
 		n, err := sut(ctx, streamId, -1, Msg{Name: "Append Test"})
 		// verify
@@ -121,7 +117,7 @@ func TestOptimisticLockingStream_Append(t *testing.T) {
 	t.Run("existing stream", func(t *testing.T) {
 		// setup
 		store := &stubAppenderStore{messageCount: 3}
-		sut := newAppenderFunc(store, testRegistry)
+		sut := newAppenderFunc(store, stubNotifier{}, testRegistry)
 		// execute
 		n, err := sut(ctx, streamId, -1, Msg{Name: "Append Test"})
 		// verify
@@ -131,7 +127,7 @@ func TestOptimisticLockingStream_Append(t *testing.T) {
 	t.Run("locked stream", func(t *testing.T) {
 		// setup
 		store := &stubAppenderStore{messageCount: 3}
-		sut := newAppenderFunc(store, testRegistry)
+		sut := newAppenderFunc(store, stubNotifier{}, testRegistry)
 		// execute
 		n, err := sut(ctx, streamId, 3, Msg{Name: "Append Test"})
 		// verify
@@ -141,7 +137,7 @@ func TestOptimisticLockingStream_Append(t *testing.T) {
 	t.Run("locked stream with conflict", func(t *testing.T) {
 		// setup
 		store := &stubAppenderStore{messageCount: 5}
-		sut := newAppenderFunc(store, testRegistry)
+		sut := newAppenderFunc(store, stubNotifier{}, testRegistry)
 		// execute
 		n, err := sut(ctx, streamId, 3, Msg{Name: "Append Test"})
 		// verify

@@ -2,6 +2,7 @@ package po
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/streams"
@@ -18,12 +19,19 @@ func (fn appenderFunc) Append(ctx context.Context, id streams.Id, position int64
 }
 
 type appenderStore interface {
-	WriteRecords(ctx context.Context, id streams.Id, data ...record.Data) (int64, error)
-	WriteRecordsFrom(ctx context.Context, id streams.Id, position int64, data ...record.Data) error
+	WriteRecords(ctx context.Context, id streams.Id, data ...record.Data) ([]record.Record, error)
+	WriteRecordsFrom(ctx context.Context, id streams.Id, position int64, data ...record.Data) ([]record.Record, error)
 }
 
-func newAppenderFunc(store appenderStore, registry Registry) appenderFunc {
+type notifier interface {
+	Notify(ctx context.Context, records ...record.Record) error
+}
+
+func newAppenderFunc(store appenderStore, notify notifier, registry Registry) appenderFunc {
 	return func(ctx context.Context, id streams.Id, position int64, messages ...interface{}) (int64, error) {
+		if len(messages) == 0 {
+			return position, nil
+		}
 		var data []record.Data
 		for _, msg := range messages {
 			b, contentType, err := registry.Marshal(msg)
@@ -36,17 +44,29 @@ func newAppenderFunc(store appenderStore, registry Registry) appenderFunc {
 			})
 		}
 
+		var written []record.Record
+		var err error
 		if position < 0 {
 			// this append have not seen the lockPosition yet,
 			// so have to get it from the store when performing the first write
-			return store.WriteRecords(ctx, id, data...)
+			written, err = store.WriteRecords(ctx, id, data...)
+		} else {
+			written, err = store.WriteRecordsFrom(ctx, id, position, data...)
 		}
 
-		err := store.WriteRecordsFrom(ctx, id, position, data...)
 		if err != nil {
 			return -1, err
 		}
 
-		return position + int64(len(messages)), nil
+		fmt.Printf("Notify: %v\n", written)
+
+		for _, r := range written {
+			// find max
+			if r.Number > position {
+				position = r.Number
+			}
+		}
+		err = notify.Notify(ctx, written...)
+		return position, err
 	}
 }

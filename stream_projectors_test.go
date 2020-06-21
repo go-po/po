@@ -17,7 +17,7 @@ func TestOptimisticLockingStream_Project(t *testing.T) {
 	// setup
 	newTestFixture := func(messageCount int64) projector {
 		store := &stubAppenderStore{messageCount: 0}
-		appender := newAppenderFunc(store, testRegistry)
+		appender := newAppenderFunc(store, stubNotifier{}, testRegistry)
 		var i int64
 		for i = 0; i < messageCount; i++ {
 			_, err := appender(ctx, streamId, i, Msg{Name: fmt.Sprintf("Message %d", i)})
