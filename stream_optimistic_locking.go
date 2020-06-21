@@ -15,20 +15,19 @@ type optimisticStore interface {
 	snapshotStore
 }
 
-type executorFunc func(ctx context.Context, id streams.Id, lockPosition int64, cmd CommandHandler) (int64, error)
-
 func NewOptimisticLockingStream(ctx context.Context, streamId streams.Id, store optimisticStore, registry Registry) *OptimisticLockingStream {
 	projector := newProjectorFunc(store, registry)
 	snapshotter := newSnapshots(store, projector)
 	appender := newAppenderFunc(store, registry)
+	executioner := newRetryExecutor(3, newExecutor(projector, appender))
 	return &OptimisticLockingStream{
-		Id:           streamId,
-		ctx:          ctx,
-		store:        store,
-		registry:     registry,
-		projector:    snapshotter,
-		appender:     appender,
-		executor:     newExecutorFunc(projector, appender, 3),
+		Id:  streamId,
+		ctx: ctx,
+
+		projector: snapshotter,
+		appender:  appender,
+		executor:  executioner,
+
 		mu:           sync.RWMutex{},
 		lockPosition: -1,
 	}
@@ -39,8 +38,6 @@ func NewOptimisticLockingStream(ctx context.Context, streamId streams.Id, store 
 type OptimisticLockingStream struct {
 	Id        streams.Id
 	ctx       context.Context // to use for the operation
-	store     optimisticStore
-	registry  Registry
 	projector projector
 	executor  executorFunc
 	appender  appenderFunc
@@ -89,36 +86,4 @@ func (stream *OptimisticLockingStream) Execute(exec CommandHandler) error {
 	position, err := stream.executor(stream.ctx, stream.Id, stream.lockPosition, exec)
 	stream.lockPosition = position
 	return err
-}
-
-func newExecutorFunc(projector projectorFunc, appender appenderFunc, retryCount int) executorFunc {
-	return func(ctx context.Context, id streams.Id, lockPosition int64, cmd CommandHandler) (int64, error) {
-		position, err := projector(ctx, id, lockPosition, cmd)
-		if err != nil {
-			return lockPosition, err
-		}
-		tx := &optimisticAppender{position: position}
-		err = cmd.Execute(tx)
-		if err != nil {
-			return position, err
-		}
-		position, err = appender(ctx, id, position, tx.messages)
-		if err != nil {
-			return position, err
-		}
-		return -1, nil
-	}
-}
-
-type optimisticAppender struct {
-	messages []interface{}
-	position int64
-}
-
-func (appender *optimisticAppender) Append(messages ...interface{}) {
-	appender.messages = append(appender.messages, messages...)
-}
-
-func (appender *optimisticAppender) Size() int64 {
-	return appender.position
 }
