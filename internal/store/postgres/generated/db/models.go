@@ -9,15 +9,14 @@ import (
 
 // contains messages
 type PoMsg struct {
-	ID          int64         `json:"id"`
-	Created     time.Time     `json:"created"`
-	Updated     time.Time     `json:"updated"`
-	Stream      string        `json:"stream"`
-	No          int64         `json:"no"`
-	Grp         string        `json:"grp"`
-	GrpNo       sql.NullInt64 `json:"grp_no"`
-	ContentType string        `json:"content_type"`
-	Data        []byte        `json:"data"`
+	ID            int64          `json:"id"`
+	Created       time.Time      `json:"created"`
+	Stream        string         `json:"stream"`
+	No            int64          `json:"no"`
+	Grp           string         `json:"grp"`
+	ContentType   string         `json:"content_type"`
+	Data          []byte         `json:"data"`
+	CorrelationID sql.NullString `json:"correlation_id"`
 }
 
 // contains the next number assigned to a stream

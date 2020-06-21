@@ -1,15 +1,15 @@
 -- initial schema for the messages
 CREATE TABLE IF NOT EXISTS po_msgs
 (
-    id           bigserial                              NOT NULL,
-    created      timestamp WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    updated      timestamp WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    stream       VARCHAR                                NOT NULL,
-    no           BIGINT                   DEFAULT 0     NOT NULL,
-    grp          varchar                                NOT NULL, -- group in Go
-    grp_no       BIGINT                                 NULL,
-    content_type varchar                                NOT NULL,
-    data         bytea                                  NOT NULL
+    id             bigserial                              NOT NULL,
+    created        timestamp WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    stream         VARCHAR                                NOT NULL,
+    no             BIGINT                   DEFAULT 0     NOT NULL,
+    grp            varchar                                NOT NULL, -- group in Go
+    content_type   varchar                                NOT NULL,
+    data           bytea                                  NOT NULL,
+    correlation_id varchar                                NULL,
+    PRIMARY KEY (id)
 );
 
 comment on table po_msgs is 'contains messages';
@@ -17,7 +17,6 @@ comment on table po_msgs is 'contains messages';
 CREATE INDEX IF NOT EXISTS po_msgs_stream_index ON po_msgs (stream);
 CREATE INDEX IF NOT EXISTS po_msgs_grp_index ON po_msgs (grp);
 CREATE UNIQUE INDEX IF NOT EXISTS po_msgs_stream_number_uindex ON po_msgs (stream, no);
-CREATE UNIQUE INDEX IF NOT EXISTS po_msgs_grp_grp_number_uindex ON po_msgs (grp, grp_no);
 
 CREATE TABLE IF NOT EXISTS po_msg_index
 (

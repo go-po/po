@@ -9,7 +9,7 @@ import (
 )
 
 const getRecordByStream = `-- name: GetRecordByStream :one
-SELECT id, created, updated, stream, no, grp, grp_no, content_type, data
+SELECT id, created, stream, no, grp, content_type, data, correlation_id
 FROM po_msgs
 WHERE stream = $1
   AND no = $2
@@ -26,19 +26,18 @@ func (q *Queries) GetRecordByStream(ctx context.Context, arg GetRecordByStreamPa
 	err := row.Scan(
 		&i.ID,
 		&i.Created,
-		&i.Updated,
 		&i.Stream,
 		&i.No,
 		&i.Grp,
-		&i.GrpNo,
 		&i.ContentType,
 		&i.Data,
+		&i.CorrelationID,
 	)
 	return i, err
 }
 
 const getRecords = `-- name: GetRecords :many
-select id, created, updated, stream, no, grp, grp_no, content_type, data
+select id, created, stream, no, grp, content_type, data, correlation_id
 from po_msgs
 `
 
@@ -54,60 +53,12 @@ func (q *Queries) GetRecords(ctx context.Context) ([]PoMsg, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.Created,
-			&i.Updated,
 			&i.Stream,
 			&i.No,
 			&i.Grp,
-			&i.GrpNo,
 			&i.ContentType,
 			&i.Data,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getRecordsByGroup = `-- name: GetRecordsByGroup :many
-SELECT id, created, updated, stream, no, grp, grp_no, content_type, data
-FROM po_msgs
-WHERE grp = $1
-  AND grp_no IS NOT NULL
-  AND grp_no > $2
-ORDER BY grp_no
-`
-
-type GetRecordsByGroupParams struct {
-	Grp   string        `json:"grp"`
-	GrpNo sql.NullInt64 `json:"grp_no"`
-}
-
-func (q *Queries) GetRecordsByGroup(ctx context.Context, arg GetRecordsByGroupParams) ([]PoMsg, error) {
-	rows, err := q.db.QueryContext(ctx, getRecordsByGroup, arg.Grp, arg.GrpNo)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PoMsg
-	for rows.Next() {
-		var i PoMsg
-		if err := rows.Scan(
-			&i.ID,
-			&i.Created,
-			&i.Updated,
-			&i.Stream,
-			&i.No,
-			&i.Grp,
-			&i.GrpNo,
-			&i.ContentType,
-			&i.Data,
+			&i.CorrelationID,
 		); err != nil {
 			return nil, err
 		}
@@ -123,7 +74,7 @@ func (q *Queries) GetRecordsByGroup(ctx context.Context, arg GetRecordsByGroupPa
 }
 
 const getRecordsByStream = `-- name: GetRecordsByStream :many
-SELECT id, created, updated, stream, no, grp, grp_no, content_type, data
+SELECT id, created, stream, no, grp, content_type, data, correlation_id
 FROM po_msgs
 WHERE stream = $1
   AND no > $2
@@ -147,13 +98,12 @@ func (q *Queries) GetRecordsByStream(ctx context.Context, arg GetRecordsByStream
 		if err := rows.Scan(
 			&i.ID,
 			&i.Created,
-			&i.Updated,
 			&i.Stream,
 			&i.No,
 			&i.Grp,
-			&i.GrpNo,
 			&i.ContentType,
 			&i.Data,
+			&i.CorrelationID,
 		); err != nil {
 			return nil, err
 		}
@@ -169,7 +119,7 @@ func (q *Queries) GetRecordsByStream(ctx context.Context, arg GetRecordsByStream
 }
 
 const getStreamPosition = `-- name: GetStreamPosition :one
-SELECT GREATEST(MAX(no), 0)::bigint
+SELECT GREATEST(MAX(no), -1)::bigint
 FROM po_msgs
 WHERE stream = $1
 `
@@ -205,35 +155,40 @@ func (q *Queries) Insert(ctx context.Context, arg InsertParams) error {
 	return err
 }
 
-const setGroupNumber = `-- name: SetGroupNumber :one
-UPDATE po_msgs
-SET grp_no  = $1,
-    updated = NOW()
-WHERE stream = $2
-  AND no = $3
-  AND grp_no IS NULL
-RETURNING id, created, updated, stream, no, grp, grp_no, content_type, data
+const storeRecord = `-- name: StoreRecord :one
+INSERT INTO po_msgs (stream, no, grp, content_type, data, correlation_id)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, created, stream, no, grp, content_type, data, correlation_id
 `
 
-type SetGroupNumberParams struct {
-	GrpNo  sql.NullInt64 `json:"grp_no"`
-	Stream string        `json:"stream"`
-	No     int64         `json:"no"`
+type StoreRecordParams struct {
+	Stream        string         `json:"stream"`
+	No            int64          `json:"no"`
+	Grp           string         `json:"grp"`
+	ContentType   string         `json:"content_type"`
+	Data          []byte         `json:"data"`
+	CorrelationID sql.NullString `json:"correlation_id"`
 }
 
-func (q *Queries) SetGroupNumber(ctx context.Context, arg SetGroupNumberParams) (PoMsg, error) {
-	row := q.db.QueryRowContext(ctx, setGroupNumber, arg.GrpNo, arg.Stream, arg.No)
+func (q *Queries) StoreRecord(ctx context.Context, arg StoreRecordParams) (PoMsg, error) {
+	row := q.db.QueryRowContext(ctx, storeRecord,
+		arg.Stream,
+		arg.No,
+		arg.Grp,
+		arg.ContentType,
+		arg.Data,
+		arg.CorrelationID,
+	)
 	var i PoMsg
 	err := row.Scan(
 		&i.ID,
 		&i.Created,
-		&i.Updated,
 		&i.Stream,
 		&i.No,
 		&i.Grp,
-		&i.GrpNo,
 		&i.ContentType,
 		&i.Data,
+		&i.CorrelationID,
 	)
 	return i, err
 }

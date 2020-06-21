@@ -8,21 +8,9 @@ import (
 	"time"
 
 	"github.com/go-po/po/internal/record"
-	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/streams"
 	"github.com/stretchr/testify/assert"
 )
-
-const databaseUrl = "postgres://po:po@localhost:5431/po?sslmode=disable"
-
-func connect(t *testing.T) *PGStore {
-	t.Helper()
-	s, err := NewFromUrl(databaseUrl, store.StubObserver())
-	if !assert.NoError(t, err, "connecting") {
-		t.FailNow()
-	}
-	return s
-}
 
 func TestPGStore_StoreRecord(t *testing.T) {
 	if testing.Short() {

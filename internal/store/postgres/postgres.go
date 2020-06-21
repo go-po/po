@@ -9,7 +9,6 @@ import (
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/internal/store/postgres/generated/db"
 	"github.com/go-po/po/streams"
-	"github.com/lib/pq"
 )
 
 var emptyJson = []byte("{}")
@@ -41,133 +40,26 @@ type PGStore struct {
 }
 
 func (store *PGStore) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error) {
-	done := store.observer.ReadSnapshot(ctx, id, snapshotId)
-	defer done()
-
-	position, err := store.db.GetSnapshotPosition(ctx, db.GetSnapshotPositionParams{
-		Stream:   id.String(),
-		Listener: snapshotId,
-	})
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return record.Snapshot{
-				Data:        emptyJson,
-				Position:    0,
-				ContentType: "application/json",
-			}, nil
-		}
-		return record.Snapshot{}, err
-	}
-	return record.Snapshot{
-		Data:        position.Data,
-		Position:    position.No,
-		ContentType: position.ContentType,
-	}, nil
+	return record.Snapshot{}, nil
 }
 
 func (store *PGStore) UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string, snapshot record.Snapshot) error {
-	done := store.observer.UpdateSnapshot(ctx, id, snapshotId)
-	defer done()
-
-	err := store.db.SetSubscriberPosition(ctx, db.SetSubscriberPositionParams{
-		Stream:      id.String(),
-		Listener:    snapshotId,
-		No:          snapshot.Position,
-		ContentType: snapshot.ContentType,
-		Data:        snapshot.Data,
-	})
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
 func (store *PGStore) GetStreamPosition(ctx context.Context, id streams.Id) (int64, error) {
-	done := store.observer.GetStreamPosition(ctx, id)
-	defer done()
-
-	position, err := store.db.GetStreamPosition(ctx, id.String())
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return 0, nil
-		}
-		return 0, err
-	}
-	return position, nil
+	return 0, nil
 }
 
 func (store *PGStore) ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error) {
-	done := store.observer.ReadRecords(ctx, id)
-	defer done()
-
-	var records []record.Record
-	var poMsgs []db.PoMsg
-	var err error
-
-	if id.HasEntity() {
-		poMsgs, err = store.db.GetRecordsByStream(ctx, db.GetRecordsByStreamParams{
-			Stream: id.String(),
-			No:     from,
-		})
-	} else {
-		poMsgs, err = store.db.GetRecordsByGroup(ctx, db.GetRecordsByGroupParams{
-			Grp: id.Group,
-			GrpNo: sql.NullInt64{
-				Int64: from,
-				Valid: true,
-			},
-		})
-	}
-	if err != nil {
-		return nil, err
-	}
-	for _, msg := range poMsgs {
-		records = append(records, toRecord(msg))
-	}
-	return records, nil
+	return nil, nil
 }
 
 func (store *PGStore) GetSubscriberPosition(tx store.Tx, subscriberId string, stream streams.Id) (int64, error) {
-	t, ok := tx.(*pgTx)
-	if !ok {
-		return 0, ErrUnknownTx{tx}
-	}
-
-	done := store.observer.GetSubscriberPosition(t.ctx, stream, subscriberId)
-	defer done()
-
-	position, err := t.db.GetSubscriberPosition(t.ctx, db.GetSubscriberPositionParams{
-		Stream:   stream.String(),
-		Listener: subscriberId,
-	})
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return 0, nil
-		}
-		return 0, err
-	}
-	return position.No, nil
+	return 0, nil
 }
 
 func (store *PGStore) SetSubscriberPosition(tx store.Tx, subscriberId string, stream streams.Id, position int64) error {
-	t, ok := tx.(*pgTx)
-	if !ok {
-		return ErrUnknownTx{tx}
-	}
-
-	done := store.observer.SetSubscriberPosition(t.ctx, stream, subscriberId)
-	defer done()
-
-	err := t.db.SetSubscriberPosition(t.ctx, db.SetSubscriberPositionParams{
-		Stream:      stream.String(),
-		Listener:    subscriberId,
-		No:          position,
-		ContentType: "text/plain",
-		Data:        []byte(""),
-	})
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -246,55 +138,7 @@ func (store *PGStore) StoreRecord(tx store.Tx, id streams.Id, number int64, cont
 }
 
 func (store *PGStore) AssignGroup(ctx context.Context, id streams.Id, number int64) (record.Record, error) {
-	done := store.observer.AssignGroup(ctx, id)
-	defer done()
-
-	tx, err := store.begin(ctx)
-	if err != nil {
-		return record.Record{}, err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	next, nextIndexErr := tx.db.GetNextIndex(tx.ctx, db.GetNextIndexParams{
-		Stream: id.Group,
-		Grp:    true,
-	})
-	if nextIndexErr != nil {
-		if nextIndexErr == sql.ErrNoRows {
-			next = 1
-		} else if pqErr, ok := nextIndexErr.(*pq.Error); ok {
-			fmt.Printf("PQ: %#v\n", pqErr)
-		} else {
-			return record.Record{}, fmt.Errorf("get next index: %T %s", nextIndexErr, nextIndexErr)
-		}
-	}
-
-	err = tx.db.SetNextIndex(ctx, db.SetNextIndexParams{
-		Next:   next + 1,
-		Stream: id.Group,
-		Grp:    true,
-	})
-	if err != nil {
-		return record.Record{}, err
-	}
-
-	msg, err := tx.db.SetGroupNumber(tx.ctx, db.SetGroupNumberParams{
-		GrpNo: sql.NullInt64{
-			Int64: next,
-			Valid: true,
-		},
-		Stream: id.String(),
-		No:     number,
-	})
-	if err != nil {
-		return record.Record{}, fmt.Errorf("write group [%s:%d]: %w", id, number, err)
-	}
-	err = tx.Commit()
-	if err != nil {
-		return record.Record{}, err
-	}
-
-	return toRecord(msg), nil
+	return record.Record{}, nil
 }
 
 type pgTx struct {
@@ -313,9 +157,7 @@ func (t *pgTx) Rollback() error {
 
 func toRecord(msg db.PoMsg) record.Record {
 	var grpNo int64 = 0
-	if msg.GrpNo.Valid {
-		grpNo = msg.GrpNo.Int64
-	}
+
 	return record.Record{
 		Number:      msg.No,
 		Stream:      streams.ParseId(msg.Stream),

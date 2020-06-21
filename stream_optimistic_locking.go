@@ -9,13 +9,13 @@ import (
 
 var _ messageStream = &OptimisticLockingStream{}
 
-type optimisticStore interface {
+type OStore interface {
 	appenderStore
 	projectorStore
 	snapshotStore
 }
 
-func NewOptimisticLockingStream(ctx context.Context, streamId streams.Id, store optimisticStore, broker Broker, registry Registry) *OptimisticLockingStream {
+func NewOptimisticLockingStream(ctx context.Context, streamId streams.Id, store OStore, broker Broker, registry Registry) *OptimisticLockingStream {
 	projector := newProjectorFunc(store, registry)
 	snapshotter := newSnapshots(store, projector)
 	appender := newAppenderFunc(store, broker, registry)

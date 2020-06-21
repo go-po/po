@@ -2,11 +2,27 @@ package po
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/streams"
 )
+
+type Msg struct {
+	Name string
+}
+
+var testRegistry = registry.New()
+
+func init() {
+	testRegistry.Register(func(b []byte) (interface{}, error) {
+		msg := Msg{}
+		err := json.Unmarshal(b, &msg)
+		return msg, err
+	})
+}
 
 type appender interface {
 	Append(ctx context.Context, id streams.Id, position int64, messages ...interface{}) (int64, error)
