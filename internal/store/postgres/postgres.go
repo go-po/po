@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
@@ -82,59 +81,7 @@ func (store *PGStore) Begin(ctx context.Context) (store.Tx, error) {
 }
 
 func (store *PGStore) StoreRecord(tx store.Tx, id streams.Id, number int64, contentType string, data []byte) (record.Record, error) {
-	t, ok := tx.(*pgTx)
-	if !ok {
-		return record.Record{}, ErrUnknownTx{tx}
-	}
-
-	done := store.observer.StoreRecord(t.ctx, id)
-	defer done()
-
-	next, err := t.db.GetNextIndex(t.ctx, db.GetNextIndexParams{
-		Stream: id.String(),
-		Grp:    false,
-	})
-	if err != nil {
-		if err == sql.ErrNoRows {
-			next = 1
-		} else {
-			return record.Record{}, fmt.Errorf("get next index: %s", err)
-		}
-	}
-
-	if next != number {
-		return record.Record{}, fmt.Errorf("number out of order: number=%d next=%d", number, next)
-	}
-
-	err = t.db.Insert(t.ctx, db.InsertParams{
-		Stream:      id.String(),
-		No:          next,
-		ContentType: contentType,
-		Data:        data,
-		Grp:         id.Group,
-	})
-	if err != nil {
-		return record.Record{}, fmt.Errorf("insert: %s", err)
-	}
-
-	err = t.db.SetNextIndex(t.ctx, db.SetNextIndexParams{
-		Stream: id.String(),
-		Grp:    false,
-		Next:   next + 1,
-	})
-	if err != nil {
-		return record.Record{}, fmt.Errorf("set next index: %s", err)
-	}
-
-	msg, err := t.db.GetRecordByStream(t.ctx, db.GetRecordByStreamParams{
-		Stream: id.String(),
-		No:     next,
-	})
-	if err != nil {
-		return record.Record{}, fmt.Errorf("get record: %s", err)
-	}
-
-	return toRecord(msg), nil
+	return record.Record{}, nil
 }
 
 func (store *PGStore) AssignGroup(ctx context.Context, id streams.Id, number int64) (record.Record, error) {

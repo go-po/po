@@ -8,116 +8,6 @@ import (
 	"database/sql"
 )
 
-const getRecordByStream = `-- name: GetRecordByStream :one
-SELECT id, created, stream, no, grp, content_type, data, correlation_id
-FROM po_msgs
-WHERE stream = $1
-  AND no = $2
-`
-
-type GetRecordByStreamParams struct {
-	Stream string `json:"stream"`
-	No     int64  `json:"no"`
-}
-
-func (q *Queries) GetRecordByStream(ctx context.Context, arg GetRecordByStreamParams) (PoMsg, error) {
-	row := q.db.QueryRowContext(ctx, getRecordByStream, arg.Stream, arg.No)
-	var i PoMsg
-	err := row.Scan(
-		&i.ID,
-		&i.Created,
-		&i.Stream,
-		&i.No,
-		&i.Grp,
-		&i.ContentType,
-		&i.Data,
-		&i.CorrelationID,
-	)
-	return i, err
-}
-
-const getRecords = `-- name: GetRecords :many
-select id, created, stream, no, grp, content_type, data, correlation_id
-from po_msgs
-`
-
-func (q *Queries) GetRecords(ctx context.Context) ([]PoMsg, error) {
-	rows, err := q.db.QueryContext(ctx, getRecords)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PoMsg
-	for rows.Next() {
-		var i PoMsg
-		if err := rows.Scan(
-			&i.ID,
-			&i.Created,
-			&i.Stream,
-			&i.No,
-			&i.Grp,
-			&i.ContentType,
-			&i.Data,
-			&i.CorrelationID,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getRecordsByStream = `-- name: GetRecordsByStream :many
-SELECT id, created, stream, no, grp, content_type, data, correlation_id
-FROM po_msgs
-WHERE stream = $1
-  AND no > $2
-ORDER BY no
-`
-
-type GetRecordsByStreamParams struct {
-	Stream string `json:"stream"`
-	No     int64  `json:"no"`
-}
-
-func (q *Queries) GetRecordsByStream(ctx context.Context, arg GetRecordsByStreamParams) ([]PoMsg, error) {
-	rows, err := q.db.QueryContext(ctx, getRecordsByStream, arg.Stream, arg.No)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PoMsg
-	for rows.Next() {
-		var i PoMsg
-		if err := rows.Scan(
-			&i.ID,
-			&i.Created,
-			&i.Stream,
-			&i.No,
-			&i.Grp,
-			&i.ContentType,
-			&i.Data,
-			&i.CorrelationID,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getStreamPosition = `-- name: GetStreamPosition :one
 SELECT GREATEST(MAX(no), -1)::bigint
 FROM po_msgs
@@ -131,28 +21,94 @@ func (q *Queries) GetStreamPosition(ctx context.Context, stream string) (int64, 
 	return column_1, err
 }
 
-const insert = `-- name: Insert :exec
-INSERT INTO po_msgs (stream, no, grp, content_type, data)
-VALUES ($1, $2, $3, $4, $5)
+const readRecordsByGroup = `-- name: ReadRecordsByGroup :many
+SELECT id, created, stream, no, grp, content_type, data, correlation_id
+FROM po_msgs
+WHERE grp = $1
+  AND id > $2
+ORDER BY id ASC
 `
 
-type InsertParams struct {
-	Stream      string `json:"stream"`
-	No          int64  `json:"no"`
-	Grp         string `json:"grp"`
-	ContentType string `json:"content_type"`
-	Data        []byte `json:"data"`
+type ReadRecordsByGroupParams struct {
+	Grp string `json:"grp"`
+	ID  int64  `json:"id"`
 }
 
-func (q *Queries) Insert(ctx context.Context, arg InsertParams) error {
-	_, err := q.db.ExecContext(ctx, insert,
-		arg.Stream,
-		arg.No,
-		arg.Grp,
-		arg.ContentType,
-		arg.Data,
-	)
-	return err
+func (q *Queries) ReadRecordsByGroup(ctx context.Context, arg ReadRecordsByGroupParams) ([]PoMsg, error) {
+	rows, err := q.db.QueryContext(ctx, readRecordsByGroup, arg.Grp, arg.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PoMsg
+	for rows.Next() {
+		var i PoMsg
+		if err := rows.Scan(
+			&i.ID,
+			&i.Created,
+			&i.Stream,
+			&i.No,
+			&i.Grp,
+			&i.ContentType,
+			&i.Data,
+			&i.CorrelationID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const readRecordsByStream = `-- name: ReadRecordsByStream :many
+SELECT id, created, stream, no, grp, content_type, data, correlation_id
+FROM po_msgs
+WHERE stream = $1
+  AND no > $2
+ORDER BY no ASC
+`
+
+type ReadRecordsByStreamParams struct {
+	Stream string `json:"stream"`
+	No     int64  `json:"no"`
+}
+
+func (q *Queries) ReadRecordsByStream(ctx context.Context, arg ReadRecordsByStreamParams) ([]PoMsg, error) {
+	rows, err := q.db.QueryContext(ctx, readRecordsByStream, arg.Stream, arg.No)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PoMsg
+	for rows.Next() {
+		var i PoMsg
+		if err := rows.Scan(
+			&i.ID,
+			&i.Created,
+			&i.Stream,
+			&i.No,
+			&i.Grp,
+			&i.ContentType,
+			&i.Data,
+			&i.CorrelationID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const storeRecord = `-- name: StoreRecord :one

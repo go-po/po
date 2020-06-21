@@ -20,7 +20,10 @@ func init() {
 
 func streamId(entity string) streams.Id {
 	prefix := strconv.FormatInt(rand.Int63(), 10)
-	return streams.ParseId("%s-%s", prefix, entity)
+	if len(entity) > 0 {
+		return streams.ParseId("%s-%s", prefix, entity)
+	}
+	return streams.ParseId(prefix)
 }
 
 func data(c int) []record.Data {

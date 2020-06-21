@@ -27,23 +27,7 @@ func (store *Storage) WriteRecordsFrom(ctx context.Context, id streams.Id, posit
 func (store *Storage) ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error) {
 	done := store.observer.ReadRecords(ctx, id)
 	defer done()
-
-	var records []record.Record
-	var poMsgs []db.PoMsg
-	var err error
-
-	if id.HasEntity() {
-
-	} else {
-
-	}
-	if err != nil {
-		return nil, err
-	}
-	for _, msg := range poMsgs {
-		records = append(records, toRecord(msg))
-	}
-	return records, nil
+	return readRecords(ctx, store.conn, id, from)
 }
 
 func (store *Storage) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error) {
