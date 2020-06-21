@@ -21,3 +21,8 @@ type WriteConflictError struct {
 func (err WriteConflictError) Error() string {
 	return fmt.Sprintf("write conflict on [%s] position %d", err.StreamId, err.Position)
 }
+
+func (err WriteConflictError) Is(target error) bool {
+	_, ok := target.(WriteConflictError)
+	return ok
+}
