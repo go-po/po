@@ -45,7 +45,7 @@ func writeRecords(ctx context.Context, conn *sql.DB, id streams.Id, position int
 	return records, tx.Commit()
 }
 
-func msgToRecord(msg db.PoMsg) record.Record {
+func msgToRecord(msg db.PoMessage) record.Record {
 	return record.Record{
 		Number:      msg.No,
 		Stream:      streams.ParseId(msg.Stream),

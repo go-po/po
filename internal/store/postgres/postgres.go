@@ -10,8 +10,6 @@ import (
 	"github.com/go-po/po/streams"
 )
 
-var emptyJson = []byte("{}")
-
 func NewFromUrl(databaseUrl string, observer store.Observer) (*PGStore, error) {
 	db, err := sql.Open("postgres", databaseUrl)
 	if err != nil {
@@ -102,7 +100,7 @@ func (t *pgTx) Rollback() error {
 	return t.tx.Rollback()
 }
 
-func toRecord(msg db.PoMsg) record.Record {
+func toRecord(msg db.PoMessage) record.Record {
 	var grpNo int64 = 0
 
 	return record.Record{

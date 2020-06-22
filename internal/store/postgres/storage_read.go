@@ -14,7 +14,7 @@ func readRecords(ctx context.Context, conn *sql.DB, id streams.Id, from int64) (
 	dao := db.New(conn)
 
 	var records []record.Record
-	var msgs []db.PoMsg
+	var msgs []db.PoMessage
 	var err error
 
 	if id.HasEntity() {

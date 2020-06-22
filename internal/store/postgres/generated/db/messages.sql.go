@@ -10,7 +10,7 @@ import (
 
 const getStreamPosition = `-- name: GetStreamPosition :one
 SELECT GREATEST(MAX(no), -1)::bigint
-FROM po_msgs
+FROM po_messages
 WHERE stream = $1
 `
 
@@ -23,7 +23,7 @@ func (q *Queries) GetStreamPosition(ctx context.Context, stream string) (int64, 
 
 const readRecordsByGroup = `-- name: ReadRecordsByGroup :many
 SELECT id, created, stream, no, grp, content_type, data, correlation_id
-FROM po_msgs
+FROM po_messages
 WHERE grp = $1
   AND id > $2
 ORDER BY id ASC
@@ -34,15 +34,15 @@ type ReadRecordsByGroupParams struct {
 	ID  int64  `json:"id"`
 }
 
-func (q *Queries) ReadRecordsByGroup(ctx context.Context, arg ReadRecordsByGroupParams) ([]PoMsg, error) {
+func (q *Queries) ReadRecordsByGroup(ctx context.Context, arg ReadRecordsByGroupParams) ([]PoMessage, error) {
 	rows, err := q.db.QueryContext(ctx, readRecordsByGroup, arg.Grp, arg.ID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []PoMsg
+	var items []PoMessage
 	for rows.Next() {
-		var i PoMsg
+		var i PoMessage
 		if err := rows.Scan(
 			&i.ID,
 			&i.Created,
@@ -68,7 +68,7 @@ func (q *Queries) ReadRecordsByGroup(ctx context.Context, arg ReadRecordsByGroup
 
 const readRecordsByStream = `-- name: ReadRecordsByStream :many
 SELECT id, created, stream, no, grp, content_type, data, correlation_id
-FROM po_msgs
+FROM po_messages
 WHERE stream = $1
   AND no > $2
 ORDER BY no ASC
@@ -79,15 +79,15 @@ type ReadRecordsByStreamParams struct {
 	No     int64  `json:"no"`
 }
 
-func (q *Queries) ReadRecordsByStream(ctx context.Context, arg ReadRecordsByStreamParams) ([]PoMsg, error) {
+func (q *Queries) ReadRecordsByStream(ctx context.Context, arg ReadRecordsByStreamParams) ([]PoMessage, error) {
 	rows, err := q.db.QueryContext(ctx, readRecordsByStream, arg.Stream, arg.No)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []PoMsg
+	var items []PoMessage
 	for rows.Next() {
-		var i PoMsg
+		var i PoMessage
 		if err := rows.Scan(
 			&i.ID,
 			&i.Created,
@@ -112,7 +112,7 @@ func (q *Queries) ReadRecordsByStream(ctx context.Context, arg ReadRecordsByStre
 }
 
 const storeRecord = `-- name: StoreRecord :one
-INSERT INTO po_msgs (stream, no, grp, content_type, data, correlation_id)
+INSERT INTO po_messages (stream, no, grp, content_type, data, correlation_id)
 VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, created, stream, no, grp, content_type, data, correlation_id
 `
@@ -126,7 +126,7 @@ type StoreRecordParams struct {
 	CorrelationID sql.NullString `json:"correlation_id"`
 }
 
-func (q *Queries) StoreRecord(ctx context.Context, arg StoreRecordParams) (PoMsg, error) {
+func (q *Queries) StoreRecord(ctx context.Context, arg StoreRecordParams) (PoMessage, error) {
 	row := q.db.QueryRowContext(ctx, storeRecord,
 		arg.Stream,
 		arg.No,
@@ -135,7 +135,7 @@ func (q *Queries) StoreRecord(ctx context.Context, arg StoreRecordParams) (PoMsg
 		arg.Data,
 		arg.CorrelationID,
 	)
-	var i PoMsg
+	var i PoMessage
 	err := row.Scan(
 		&i.ID,
 		&i.Created,

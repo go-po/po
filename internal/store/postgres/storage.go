@@ -33,41 +33,17 @@ func (store *Storage) ReadRecords(ctx context.Context, id streams.Id, from int64
 func (store *Storage) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error) {
 	done := store.observer.ReadSnapshot(ctx, id, snapshotId)
 	defer done()
+	return readSnapshot(ctx, store.conn, id, snapshotId)
 
-	position, err := store.db.GetSnapshotPosition(ctx, db.GetSnapshotPositionParams{
-		Stream:   id.String(),
-		Listener: snapshotId,
-	})
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return record.Snapshot{
-				Data:        emptyJson,
-				Position:    0,
-				ContentType: "application/json",
-			}, nil
-		}
-		return record.Snapshot{}, err
-	}
-	return record.Snapshot{
-		Data:        position.Data,
-		Position:    position.No,
-		ContentType: position.ContentType,
-	}, nil
 }
 
 func (store *Storage) UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string, snapshot record.Snapshot) error {
 	done := store.observer.UpdateSnapshot(ctx, id, snapshotId)
 	defer done()
 
-	err := store.db.SetSubscriberPosition(ctx, db.SetSubscriberPositionParams{
-		Stream:      id.String(),
-		Listener:    snapshotId,
-		No:          snapshot.Position,
-		ContentType: snapshot.ContentType,
-		Data:        snapshot.Data,
-	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return updateSnapshot(ctx, store.conn, id, snapshotId, snapshot)
+}
+
+func (store *Storage) DeleteSnapshot(ctx context.Context, id streams.Id, snapshotId string) error {
+	return deleteSnapshot(ctx, store.conn, id, snapshotId)
 }

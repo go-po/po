@@ -8,7 +8,7 @@ import (
 )
 
 // contains messages
-type PoMsg struct {
+type PoMessage struct {
 	ID            int64          `json:"id"`
 	Created       time.Time      `json:"created"`
 	Stream        string         `json:"stream"`
@@ -19,22 +19,22 @@ type PoMsg struct {
 	CorrelationID sql.NullString `json:"correlation_id"`
 }
 
-// contains the next number assigned to a stream
-type PoMsgIndex struct {
-	Updated time.Time `json:"updated"`
-	Created time.Time `json:"created"`
-	Stream  string    `json:"stream"`
-	Next    int64     `json:"next"`
-	Grp     bool      `json:"grp"`
-}
-
-// position of a stream listener
-type PoPo struct {
-	Updated     time.Time `json:"updated"`
+// snapshot position and data
+type PoSnapshot struct {
 	Created     time.Time `json:"created"`
+	Updated     time.Time `json:"updated"`
 	Stream      string    `json:"stream"`
-	Listener    string    `json:"listener"`
+	SnapshotID  string    `json:"snapshot_id"`
 	No          int64     `json:"no"`
 	Data        []byte    `json:"data"`
 	ContentType string    `json:"content_type"`
+}
+
+// position of a stream subscribers
+type PoSubscription struct {
+	Created      time.Time `json:"created"`
+	Updated      time.Time `json:"updated"`
+	Stream       string    `json:"stream"`
+	SubscriberID string    `json:"subscriber_id"`
+	No           int64     `json:"no"`
 }
