@@ -191,3 +191,21 @@ func (pipe *RabbitPipe) publishStream(r record.Record) error {
 }
 
 var _ broker.ProtocolPipes = &RabbitPipe{}
+
+func P(r record.Record) amqp.Publishing {
+	return amqp.Publishing{
+		Headers:         amqp.Table{},
+		ContentType:     "x-po/message",
+		ContentEncoding: "",
+		DeliveryMode:    amqp.Transient,
+		Priority:        0,
+		CorrelationId:   r.CorrelationId,
+		Expiration:      "",
+		MessageId:       broker.ToMessageId(r),
+		Timestamp:       r.Time,
+		Type:            r.Group,
+		UserId:          "",
+		AppId:           "",
+		Body:            nil,
+	}
+}

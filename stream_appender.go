@@ -3,7 +3,6 @@ package po
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/registry"
@@ -40,7 +39,7 @@ type appenderStore interface {
 }
 
 type notifier interface {
-	Notify(ctx context.Context, records ...record.Record) error
+	Notify(ctx context.Context, positions ...record.Record) error
 }
 
 func newAppenderFunc(store appenderStore, notify notifier, registry Registry) appenderFunc {
@@ -73,8 +72,6 @@ func newAppenderFunc(store appenderStore, notify notifier, registry Registry) ap
 		if err != nil {
 			return -1, err
 		}
-
-		fmt.Printf("Notify: %v\n", written)
 
 		for _, r := range written {
 			// find max

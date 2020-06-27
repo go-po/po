@@ -32,6 +32,11 @@ type Broker interface {
 	Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber interface{}) error
 }
 
+type OBroker interface {
+	Notify(ctx context.Context, positions ...record.Record) error
+	Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber Handler) error
+}
+
 type Registry interface {
 	Unmarshal(typeName string, b []byte) (interface{}, error)
 	Marshal(msg interface{}) ([]byte, string, error)

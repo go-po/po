@@ -15,7 +15,7 @@ type OStore interface {
 	snapshotStore
 }
 
-func NewOptimisticLockingStream(ctx context.Context, streamId streams.Id, store OStore, broker Broker, registry Registry) *OptimisticLockingStream {
+func NewOptimisticLockingStream(ctx context.Context, streamId streams.Id, store OStore, broker OBroker, registry Registry) *OptimisticLockingStream {
 	projector := newProjectorFunc(store, registry)
 	snapshotter := newSnapshots(store, projector)
 	appender := newAppenderFunc(store, broker, registry)
