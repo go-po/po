@@ -26,3 +26,8 @@ func (err WriteConflictError) Is(target error) bool {
 	_, ok := target.(WriteConflictError)
 	return ok
 }
+
+type SubscriptionPosition struct {
+	SubscriptionId string
+	Position       int64
+}
