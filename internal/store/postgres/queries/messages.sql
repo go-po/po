@@ -12,12 +12,14 @@ WHERE stream = $1;
 SELECT *
 FROM po_messages
 WHERE stream = $1
-  AND no > $2
+  AND no >= $2
+  AND no < $3
 ORDER BY no ASC;
 
 -- name: ReadRecordsByGroup :many
 SELECT *
 FROM po_messages
 WHERE grp = $1
-  AND id > $2
+  AND id >= $2
+  AND id < $3
 ORDER BY id ASC;

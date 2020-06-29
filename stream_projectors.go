@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/go-po/po/internal/pager"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/streams"
 )
@@ -19,49 +20,53 @@ func (fn projectorFunc) Project(ctx context.Context, id streams.Id, lockPosition
 }
 
 type projectorStore interface {
-	ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error)
+	ReadRecords(ctx context.Context, id streams.Id, from, to int64) ([]record.Record, error)
 }
 
 func newProjectorFunc(store projectorStore, registry Registry) projectorFunc {
 	return func(ctx context.Context, id streams.Id, lockPosition int64, projection Handler) (int64, error) {
+		err := pager.ToMax(lockPosition, 100, pager.Func(func(from, to int64) (int, error) {
+			records, err := store.ReadRecords(ctx, id, from, to)
+			if err != nil {
+				return 0, err
+			}
+			if len(records) == 0 {
+				// nothing new, bail out
+				return 0, nil
+			}
 
-		records, err := store.ReadRecords(ctx, id, lockPosition)
+			var messages []streams.Message
+			for _, r := range records {
+				message, err := registry.ToMessage(r)
+				if err != nil {
+					return -1, err
+				}
+				messages = append(messages, message)
+			}
+
+			for _, message := range messages {
+				err = projection.Handle(ctx, message)
+				if err != nil {
+					return 0, err
+				}
+			}
+
+			if len(messages) == 0 {
+				return 0, nil
+			}
+
+			message := messages[len(messages)-1]
+			if id.HasEntity() {
+				lockPosition = message.Number
+			} else {
+				lockPosition = message.GroupNumber
+			}
+
+			return len(messages), nil
+		}))
+
 		if err != nil {
 			return -1, err
-		}
-
-		if len(records) == 0 {
-			// nothing new, bail out
-			return lockPosition, nil
-		}
-
-		var messages []streams.Message
-		for _, r := range records {
-			message, err := registry.ToMessage(r)
-			if err != nil {
-				return -1, err
-			}
-			messages = append(messages, message)
-		}
-
-		for _, message := range messages {
-			err = projection.Handle(ctx, message)
-			if err != nil {
-				return -1, err
-			}
-		}
-
-		// store the position as the stream object is now considered active
-		// This to guarantee users of the projection that messages appended
-		// afterwards will be in the order their projection was made.
-		if len(messages) == 0 {
-			return lockPosition, nil
-		}
-		message := messages[len(messages)-1]
-		if id.HasEntity() {
-			lockPosition = message.Number
-		} else {
-			lockPosition = message.GroupNumber
 		}
 
 		return lockPosition, nil

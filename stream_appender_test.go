@@ -19,11 +19,11 @@ type stubAppenderStore struct {
 	snapshot     record.Snapshot
 }
 
-func (stub *stubAppenderStore) ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error) {
+func (stub *stubAppenderStore) ReadRecords(ctx context.Context, id streams.Id, from, to int64) ([]record.Record, error) {
 	if from < 0 {
 		return stub.records, nil
 	}
-	return stub.records[from:], nil
+	return stub.records[from:to], nil
 }
 
 func (stub *stubAppenderStore) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error) {

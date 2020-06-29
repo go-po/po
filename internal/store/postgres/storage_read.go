@@ -9,7 +9,7 @@ import (
 	"github.com/go-po/po/streams"
 )
 
-func readRecords(ctx context.Context, conn *sql.DB, id streams.Id, from int64) ([]record.Record, error) {
+func readRecords(ctx context.Context, conn *sql.DB, id streams.Id, from int64, to int64) ([]record.Record, error) {
 
 	dao := db.New(conn)
 
@@ -21,11 +21,13 @@ func readRecords(ctx context.Context, conn *sql.DB, id streams.Id, from int64) (
 		msgs, err = dao.ReadRecordsByStream(ctx, db.ReadRecordsByStreamParams{
 			Stream: id.String(),
 			No:     from,
+			No_2:   to,
 		})
 	} else {
 		msgs, err = dao.ReadRecordsByGroup(ctx, db.ReadRecordsByGroupParams{
-			Grp: id.String(),
-			ID:  from,
+			Grp:  id.String(),
+			ID:   from,
+			ID_2: to,
 		})
 	}
 

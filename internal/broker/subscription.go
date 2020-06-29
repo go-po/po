@@ -3,6 +3,7 @@ package broker
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/go-po/po/internal/record"
@@ -57,7 +58,7 @@ func (sub *subscription) Handle(ctx context.Context, record record.Record) (bool
 	// TODO Split into using Pagination
 	// This runs the risk of reading many records for
 	// a first subscriber on an old group of streams
-	records, err := sub.store.ReadRecords(ctx, sub.stream, min)
+	records, err := sub.store.ReadRecords(ctx, sub.stream, min, math.MaxInt64)
 	if err != nil {
 		return false, err
 	}

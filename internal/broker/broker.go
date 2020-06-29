@@ -22,7 +22,7 @@ type Registry interface {
 type Store interface {
 	Begin(ctx context.Context) (store.Tx, error)
 	SubscriptionPositionLock(tx store.Tx, id streams.Id, subscriptionIds ...string) ([]store.SubscriptionPosition, error)
-	ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error)
+	ReadRecords(ctx context.Context, id streams.Id, from, to int64) ([]record.Record, error)
 	SetSubscriptionPosition(tx store.Tx, id streams.Id, position store.SubscriptionPosition) error
 }
 

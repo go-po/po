@@ -25,17 +25,19 @@ const readRecordsByGroup = `-- name: ReadRecordsByGroup :many
 SELECT id, created, stream, no, grp, content_type, data, correlation_id
 FROM po_messages
 WHERE grp = $1
-  AND id > $2
+  AND id >= $2
+  AND id < $3
 ORDER BY id ASC
 `
 
 type ReadRecordsByGroupParams struct {
-	Grp string `json:"grp"`
-	ID  int64  `json:"id"`
+	Grp  string `json:"grp"`
+	ID   int64  `json:"id"`
+	ID_2 int64  `json:"id_2"`
 }
 
 func (q *Queries) ReadRecordsByGroup(ctx context.Context, arg ReadRecordsByGroupParams) ([]PoMessage, error) {
-	rows, err := q.db.QueryContext(ctx, readRecordsByGroup, arg.Grp, arg.ID)
+	rows, err := q.db.QueryContext(ctx, readRecordsByGroup, arg.Grp, arg.ID, arg.ID_2)
 	if err != nil {
 		return nil, err
 	}
@@ -70,17 +72,19 @@ const readRecordsByStream = `-- name: ReadRecordsByStream :many
 SELECT id, created, stream, no, grp, content_type, data, correlation_id
 FROM po_messages
 WHERE stream = $1
-  AND no > $2
+  AND no >= $2
+  AND no < $3
 ORDER BY no ASC
 `
 
 type ReadRecordsByStreamParams struct {
 	Stream string `json:"stream"`
 	No     int64  `json:"no"`
+	No_2   int64  `json:"no_2"`
 }
 
 func (q *Queries) ReadRecordsByStream(ctx context.Context, arg ReadRecordsByStreamParams) ([]PoMessage, error) {
-	rows, err := q.db.QueryContext(ctx, readRecordsByStream, arg.Stream, arg.No)
+	rows, err := q.db.QueryContext(ctx, readRecordsByStream, arg.Stream, arg.No, arg.No_2)
 	if err != nil {
 		return nil, err
 	}

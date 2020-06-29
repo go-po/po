@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,7 +17,7 @@ func TestStorage_ReadRecords(t *testing.T) {
 		// setup
 		id := streamId("entity")
 		// execute
-		records, err := readRecords(ctx, conn, id, -1)
+		records, err := readRecords(ctx, conn, id, -1, math.MaxInt64)
 		// verify
 		assert.NoError(t, err)
 		assert.Empty(t, records)
@@ -26,7 +27,7 @@ func TestStorage_ReadRecords(t *testing.T) {
 		// setup
 		id := streamId("")
 		// execute
-		records, err := readRecords(ctx, conn, id, -1)
+		records, err := readRecords(ctx, conn, id, -1, math.MaxInt64)
 		// verify
 		assert.NoError(t, err)
 		assert.Empty(t, records)
@@ -40,12 +41,16 @@ func TestStorage_ReadRecords(t *testing.T) {
 			t.FailNow()
 		}
 		// execute
-		records, err := readRecords(ctx, conn, id, 5)
+		records, err := readRecords(ctx, conn, id, 5, math.MaxInt64)
 		// verify
 		assert.NoError(t, err)
-		if assert.Equal(t, 4, len(records)) {
-			assert.Equal(t, 9, int(records[3].Number))
-			assert.Equal(t, id.String(), records[3].Stream.String())
+		if assert.Equal(t, 5, len(records)) {
+			assert.Equal(t, 5, int(records[0].Number))
+			assert.Equal(t, 6, int(records[1].Number))
+			assert.Equal(t, 7, int(records[2].Number))
+			assert.Equal(t, 8, int(records[3].Number))
+			assert.Equal(t, 9, int(records[4].Number))
+			assert.Equal(t, id.String(), records[0].Stream.String())
 		}
 	})
 
@@ -57,7 +62,11 @@ func TestStorage_ReadRecords(t *testing.T) {
 		var i int64
 		var middle int64
 		for i = 0; i < 5; i++ {
-			r, err := writeRecords(ctx, conn, id1, i, data(1)...)
+			_, err := writeRecords(ctx, conn, id1, i, data(1)...)
+			if !assert.NoError(t, err) {
+				t.FailNow()
+			}
+			r, err := writeRecords(ctx, conn, id2, i, data(1)...)
 			if !assert.NoError(t, err) {
 				t.FailNow()
 			}
@@ -65,13 +74,11 @@ func TestStorage_ReadRecords(t *testing.T) {
 				// middle
 				middle = r[0].GroupNumber
 			}
-			_, err = writeRecords(ctx, conn, id2, i, data(1)...)
-			if !assert.NoError(t, err) {
-				t.FailNow()
-			}
 		}
+
+		t.Logf("MIDDLE: %d", middle)
 		// execute
-		records, err := readRecords(ctx, conn, group, middle)
+		records, err := readRecords(ctx, conn, group, middle, math.MaxInt64)
 		// verify
 		assert.NoError(t, err)
 		if assert.Equal(t, 5, len(records)) {
