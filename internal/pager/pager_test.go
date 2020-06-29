@@ -28,7 +28,51 @@ func (cb *recordingCallback) Page(from, to int64) (int, error) {
 	return 0, nil
 }
 
-func TestSize(t *testing.T) {
+func TestFromTo(t *testing.T) {
+
+	verify := func(t *testing.T, start, to int64, size int, cb *recordingCallback, expected [][2]int64) {
+		t.Helper()
+		err := FromTo(start, to, size, cb)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, cb.calls)
+	}
+
+	t.Run("zero size", func(t *testing.T) {
+		verify(t, 0, 10, 0, callback(), nil)
+	})
+
+	t.Run("one loop", func(t *testing.T) {
+		verify(t, 0, 5, 5,
+			callback(3),
+			[][2]int64{{0, 5}})
+	})
+
+	t.Run("two loops", func(t *testing.T) {
+		verify(t, 0, 10, 5,
+			callback(5, 3),
+			[][2]int64{{0, 5}, {5, 10}})
+	})
+
+	t.Run("reach end", func(t *testing.T) {
+		verify(t, 0, 5, 5,
+			callback(5),
+			[][2]int64{{0, 5}})
+	})
+
+	t.Run("reach end second loop", func(t *testing.T) {
+		verify(t, 0, 10, 5,
+			callback(5, 5),
+			[][2]int64{{0, 5}, {5, 10}})
+	})
+
+	t.Run("beyond end second loop", func(t *testing.T) {
+		verify(t, 0, 8, 5,
+			callback(5, 3),
+			[][2]int64{{0, 5}, {5, 8}})
+	})
+}
+
+func TestBySize(t *testing.T) {
 
 	testNumberOfCalls := func(t *testing.T, start int64, size int, cb *recordingCallback, expected [][2]int64) {
 		t.Helper()

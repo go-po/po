@@ -23,3 +23,25 @@ func BySize(start int64, size int, cb Pager) error {
 	}
 	return BySize(start+int64(done), size, cb)
 }
+
+func FromTo(start int64, to int64, size int, cb Pager) error {
+	if size == 0 || to <= start {
+		return nil
+	}
+
+	end := start + int64(size)
+	if end > to {
+		end = to
+	}
+
+	done, err := cb.Page(start, end)
+	if err != nil {
+		return err
+	}
+
+	if done < size || done == 0 {
+		return nil
+	}
+
+	return FromTo(start+int64(done), to, size, cb)
+}
