@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/go-po/po/internal/pager"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/streams"
 )
@@ -25,7 +24,7 @@ type projectorStore interface {
 
 func newProjectorFunc(store projectorStore, registry Registry) projectorFunc {
 	return func(ctx context.Context, id streams.Id, lockPosition int64, projection Handler) (int64, error) {
-		pager.BySize(0)
+
 		records, err := store.ReadRecords(ctx, id, lockPosition)
 		if err != nil {
 			return -1, err
