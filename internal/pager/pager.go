@@ -1,5 +1,7 @@
 package pager
 
+import "math"
+
 type Pager interface {
 	Page(from, to int64) (int, error)
 }
@@ -44,4 +46,8 @@ func FromTo(start int64, to int64, size int, cb Pager) error {
 	}
 
 	return FromTo(start+int64(done), to, size, cb)
+}
+
+func ToMax(start int64, size int, cb Pager) error {
+	return FromTo(start, math.MaxInt64, size, cb)
 }
