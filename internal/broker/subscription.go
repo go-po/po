@@ -3,9 +3,9 @@ package broker
 import (
 	"context"
 	"fmt"
-	"math"
 	"sync"
 
+	"github.com/go-po/po/internal/pager"
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/streams"
@@ -55,28 +55,38 @@ func (sub *subscription) Handle(ctx context.Context, record record.Record) (bool
 		return false, err
 	}
 
-	// TODO Split into using Pagination
-	// This runs the risk of reading many records for
-	// a first subscriber on an old group of streams
-	records, err := sub.store.ReadRecords(ctx, sub.stream, min, math.MaxInt64)
-	if err != nil {
-		return false, err
+	var to int64 = record.GroupNumber
+	if sub.stream.HasEntity() {
+		to = record.Number
 	}
 
-	// TODO Use Channels instead
-	// Potential performance gain of splitting this into
-	// concurrent channels
-	for _, r := range records {
-		msg, err := sub.registry.ToMessage(r)
-		if err != nil {
-			return false, err
-		}
-		for _, s := range sub.subscriptions {
-			err = s.Handle(ctx, msg)
+	err = pager.FromTo(min, to, 50, pager.Func(
+		func(from, to int64) (int, error) {
+			records, err := sub.store.ReadRecords(ctx, sub.stream, from, to)
 			if err != nil {
-				return true, err
+				return 0, err
 			}
-		}
+
+			// TODO Use Channels instead
+			// Potential performance gain of splitting this into
+			// concurrent channels
+			for _, r := range records {
+				msg, err := sub.registry.ToMessage(r)
+				if err != nil {
+					return 0, err
+				}
+				for _, s := range sub.subscriptions {
+					err = s.Handle(ctx, msg)
+					if err != nil {
+						return 0, err
+					}
+				}
+			}
+			return len(records), nil
+		}))
+
+	if err != nil {
+		return false, err
 	}
 
 	var errs []error

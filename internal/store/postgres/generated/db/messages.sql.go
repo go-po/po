@@ -25,8 +25,8 @@ const readRecordsByGroup = `-- name: ReadRecordsByGroup :many
 SELECT id, created, stream, no, grp, content_type, data, correlation_id
 FROM po_messages
 WHERE grp = $1
-  AND id >= $2
-  AND id < $3
+  AND id > $2
+  AND id <= $3
 ORDER BY id ASC
 `
 
@@ -72,8 +72,8 @@ const readRecordsByStream = `-- name: ReadRecordsByStream :many
 SELECT id, created, stream, no, grp, content_type, data, correlation_id
 FROM po_messages
 WHERE stream = $1
-  AND no >= $2
-  AND no < $3
+  AND no > $2
+  AND no <= $3
 ORDER BY no ASC
 `
 

@@ -41,7 +41,7 @@ func TestStorage_ReadRecords(t *testing.T) {
 			t.FailNow()
 		}
 		// execute
-		records, err := readRecords(ctx, conn, id, 5, math.MaxInt64)
+		records, err := readRecords(ctx, conn, id, 4, math.MaxInt64)
 		// verify
 		assert.NoError(t, err)
 		if assert.Equal(t, 5, len(records)) {
@@ -62,17 +62,17 @@ func TestStorage_ReadRecords(t *testing.T) {
 		var i int64
 		var middle int64
 		for i = 0; i < 5; i++ {
-			_, err := writeRecords(ctx, conn, id1, i, data(1)...)
-			if !assert.NoError(t, err) {
-				t.FailNow()
-			}
-			r, err := writeRecords(ctx, conn, id2, i, data(1)...)
+			r, err := writeRecords(ctx, conn, id1, i, data(1)...)
 			if !assert.NoError(t, err) {
 				t.FailNow()
 			}
 			if i == 2 {
 				// middle
 				middle = r[0].GroupNumber
+			}
+			_, err = writeRecords(ctx, conn, id2, i, data(1)...)
+			if !assert.NoError(t, err) {
+				t.FailNow()
 			}
 		}
 
