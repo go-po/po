@@ -1,15 +1,40 @@
 package postgres
 
 import (
+	"context"
+
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/internal/store/postgres/generated/db"
 	"github.com/go-po/po/streams"
 )
 
-func subscriberPositionLock(conn db.DBTX, id streams.Id, ids ...string) ([]store.SubscriptionPosition, error) {
-	return nil, nil
+func subscriberPositionLock(ctx context.Context, conn db.DBTX, id streams.Id, ids ...string) ([]store.SubscriptionPosition, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	dao := db.New(conn)
+	positions, err := dao.LockSubscriberPosition(ctx, db.LockSubscriberPositionParams{
+		Stream:       id.String(),
+		SubscriberID: ids,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var result []store.SubscriptionPosition
+	for _, pos := range positions {
+		result = append(result, store.SubscriptionPosition{
+			SubscriptionId: pos.SubscriberID,
+			Position:       pos.No,
+		})
+	}
+	return result, nil
 }
 
-func subsriberPositionUpdate(conn db.DBTX, id streams.Id, position store.SubscriptionPosition) error {
-	return nil
+func updateSubscriberPosition(ctx context.Context, conn db.DBTX, id streams.Id, position store.SubscriptionPosition) error {
+	dao := db.New(conn)
+	return dao.SetSubscriberPosition(ctx, db.SetSubscriberPositionParams{
+		No:           position.Position,
+		Stream:       id.String(),
+		SubscriberID: position.SubscriptionId,
+	})
 }

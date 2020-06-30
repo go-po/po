@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store"
@@ -20,12 +21,20 @@ func (store *Storage) Begin(ctx context.Context) (store.Tx, error) {
 	return begin(ctx, store.conn)
 }
 
-func (store *Storage) SubscriptionPositionLock(tx store.Tx, id streams.Id, subscriptionIds ...string) ([]store.SubscriptionPosition, error) {
-	return subscriberPositionLock(tx, id, subscriptionIds...)
+func (store *Storage) SubscriptionPositionLock(storeTx store.Tx, id streams.Id, subscriptionIds ...string) ([]store.SubscriptionPosition, error) {
+	tx, isTx := storeTx.(*storageTx)
+	if !isTx {
+		return nil, fmt.Errorf("wrong tx: %T", storeTx)
+	}
+	return subscriberPositionLock(tx.ctx, tx.tx, id, subscriptionIds...)
 }
 
-func (store *Storage) SetSubscriptionPosition(tx store.Tx, id streams.Id, position store.SubscriptionPosition) error {
-	return subsriberPositionUpdate(tx, id, position)
+func (store *Storage) SetSubscriptionPosition(storeTx store.Tx, id streams.Id, position store.SubscriptionPosition) error {
+	tx, isTx := storeTx.(*storageTx)
+	if !isTx {
+		return fmt.Errorf("wrong tx: %T", storeTx)
+	}
+	return updateSubscriberPosition(tx.ctx, tx.tx, id, position)
 }
 
 func (store *Storage) WriteRecords(ctx context.Context, id streams.Id, data ...record.Data) ([]record.Record, error) {
