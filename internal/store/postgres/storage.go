@@ -16,6 +16,18 @@ type Storage struct {
 	observer store.Observer
 }
 
+func (store *Storage) Begin(ctx context.Context) (store.Tx, error) {
+	return begin(ctx, store.conn)
+}
+
+func (store *Storage) SubscriptionPositionLock(tx store.Tx, id streams.Id, subscriptionIds ...string) ([]store.SubscriptionPosition, error) {
+	return subscriberPositionLock(tx, id, subscriptionIds...)
+}
+
+func (store *Storage) SetSubscriptionPosition(tx store.Tx, id streams.Id, position store.SubscriptionPosition) error {
+	return subsriberPositionUpdate(tx, id, position)
+}
+
 func (store *Storage) WriteRecords(ctx context.Context, id streams.Id, data ...record.Data) ([]record.Record, error) {
 	return writeRecords(ctx, store.conn, id, -1, data...)
 }
