@@ -15,12 +15,12 @@ func callback(replies ...int) *recordingCallback {
 }
 
 type recordingCallback struct {
-	calls   [][2]int64
+	calls   [][3]int64
 	replies []int
 }
 
-func (cb *recordingCallback) Page(from, to int64) (int, error) {
-	cb.calls = append(cb.calls, [2]int64{from, to})
+func (cb *recordingCallback) Page(from, to, limit int64) (int, error) {
+	cb.calls = append(cb.calls, [3]int64{from, to, limit})
 	if len(cb.calls) <= len(cb.replies) {
 		reply := cb.replies[len(cb.calls)-1]
 		return reply, nil
@@ -30,7 +30,7 @@ func (cb *recordingCallback) Page(from, to int64) (int, error) {
 
 func TestFromTo(t *testing.T) {
 
-	verify := func(t *testing.T, start, to int64, size int, cb *recordingCallback, expected [][2]int64) {
+	verify := func(t *testing.T, start, to int64, size int, cb *recordingCallback, expected [][3]int64) {
 		t.Helper()
 		err := FromTo(start, to, size, cb)
 		assert.NoError(t, err)
@@ -44,37 +44,37 @@ func TestFromTo(t *testing.T) {
 	t.Run("one loop", func(t *testing.T) {
 		verify(t, 0, 5, 5,
 			callback(3),
-			[][2]int64{{0, 5}})
+			[][3]int64{{0, 5, 5}})
 	})
 
 	t.Run("two loops", func(t *testing.T) {
 		verify(t, 0, 10, 5,
 			callback(5, 3),
-			[][2]int64{{0, 5}, {5, 10}})
+			[][3]int64{{0, 5, 5}, {5, 10, 5}})
 	})
 
 	t.Run("reach end", func(t *testing.T) {
 		verify(t, 0, 5, 5,
 			callback(5),
-			[][2]int64{{0, 5}})
+			[][3]int64{{0, 5, 5}})
 	})
 
 	t.Run("reach end second loop", func(t *testing.T) {
 		verify(t, 0, 10, 5,
 			callback(5, 5),
-			[][2]int64{{0, 5}, {5, 10}})
+			[][3]int64{{0, 5, 5}, {5, 10, 5}})
 	})
 
 	t.Run("beyond end second loop", func(t *testing.T) {
 		verify(t, 0, 8, 5,
 			callback(5, 3),
-			[][2]int64{{0, 5}, {5, 8}})
+			[][3]int64{{0, 5, 5}, {5, 8, 5}})
 	})
 }
 
 func TestBySize(t *testing.T) {
 
-	testNumberOfCalls := func(t *testing.T, start int64, size int, cb *recordingCallback, expected [][2]int64) {
+	testNumberOfCalls := func(t *testing.T, start int64, size int, cb *recordingCallback, expected [][3]int64) {
 		t.Helper()
 		err := BySize(start, size, cb)
 		// verify
@@ -89,41 +89,41 @@ func TestBySize(t *testing.T) {
 	t.Run("half on first", func(t *testing.T) {
 		testNumberOfCalls(t, 0, 5,
 			callback(3),
-			[][2]int64{{0, 5}},
+			[][3]int64{{0, 5, 5}},
 		)
 	})
 
 	t.Run("full on first", func(t *testing.T) {
 		testNumberOfCalls(t, 0, 5,
 			callback(5, 0),
-			[][2]int64{{0, 5}, {5, 10}},
+			[][3]int64{{0, 5, 5}, {5, 10, 5}},
 		)
 	})
 
 	t.Run("half on second", func(t *testing.T) {
 		testNumberOfCalls(t, 0, 5,
 			callback(5, 3),
-			[][2]int64{{0, 5}, {5, 10}},
+			[][3]int64{{0, 5, 5}, {5, 10, 5}},
 		)
 	})
 
 	t.Run("start further in", func(t *testing.T) {
 		testNumberOfCalls(t, 10, 5,
 			callback(5, 3),
-			[][2]int64{{10, 15}, {15, 20}},
+			[][3]int64{{10, 15, 5}, {15, 20, 5}},
 		)
 	})
 
 	t.Run("many calls", func(t *testing.T) {
 		testNumberOfCalls(t, 0, 5,
 			callback(5, 5, 5, 5, 0),
-			[][2]int64{{0, 5}, {5, 10}, {10, 15}, {15, 20}, {20, 25}},
+			[][3]int64{{0, 5, 5}, {5, 10, 5}, {10, 15, 5}, {15, 20, 5}, {20, 25, 5}},
 		)
 	})
 
 	t.Run("break by error", func(t *testing.T) {
 		err := fmt.Errorf("break")
-		got := BySize(0, 5, Func(func(from, to int64) (int, error) {
+		got := BySize(0, 5, Func(func(from, to, limit int64) (int, error) {
 			return 0, err
 		}))
 		assert.Equal(t, err, got)

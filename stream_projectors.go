@@ -25,7 +25,7 @@ type projectorStore interface {
 
 func newProjectorFunc(store projectorStore, registry Registry) projectorFunc {
 	return func(ctx context.Context, id streams.Id, lockPosition int64, projection Handler) (int64, error) {
-		err := pager.ToMax(lockPosition, 100, pager.Func(func(from, to int64) (int, error) {
+		err := pager.ToMax(lockPosition, 100, pager.Func(func(from, to, limit int64) (int, error) {
 			records, err := store.ReadRecords(ctx, id, from, to)
 			if err != nil {
 				return 0, err

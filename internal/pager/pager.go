@@ -3,20 +3,20 @@ package pager
 import "math"
 
 type Pager interface {
-	Page(from, to int64) (int, error)
+	Page(from, to, limit int64) (int, error)
 }
 
-type Func func(from, to int64) (int, error)
+type Func func(from, to, limit int64) (int, error)
 
-func (fn Func) Page(from, to int64) (int, error) {
-	return fn(from, to)
+func (fn Func) Page(from, to, limit int64) (int, error) {
+	return fn(from, to, limit)
 }
 
 func BySize(start int64, size int, cb Pager) error {
 	if size == 0 {
 		return nil
 	}
-	done, err := cb.Page(start, start+int64(size))
+	done, err := cb.Page(start, start+int64(size), int64(size))
 	if err != nil {
 		return err
 	}
@@ -36,7 +36,7 @@ func FromTo(start int64, to int64, size int, cb Pager) error {
 		end = to
 	}
 
-	done, err := cb.Page(start, end)
+	done, err := cb.Page(start, end, int64(size))
 	if err != nil {
 		return err
 	}
