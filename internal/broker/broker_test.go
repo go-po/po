@@ -2,6 +2,8 @@ package broker
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,14 +13,28 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type mockStore struct {
-	positions []store.SubscriptionPosition
-	records   []record.Record
-	sets      []store.SubscriptionPosition
+func newMockStore(t *testing.T, positions []store.SubscriptionPosition, records []record.Record) *mockStore {
+	return &mockStore{
+		t:         t,
+		positions: positions,
+		sets:      make(map[string]int64),
+		records:   records,
+	}
 }
 
+type mockStore struct {
+	t         *testing.T
+	mu        sync.Mutex
+	positions []store.SubscriptionPosition
+	records   []record.Record
+	sets      map[string]int64
+}
+
+// used to verify it's passed correctly around
+var globalTx store.Tx = &mockBrokerTx{}
+
 func (mock *mockStore) Begin(ctx context.Context) (store.Tx, error) {
-	return &mockBrokerTx{}, nil
+	return globalTx, nil
 }
 
 func (mock *mockStore) SubscriptionPositionLock(tx store.Tx, id streams.Id, subscriptionIds ...string) ([]store.SubscriptionPosition, error) {
@@ -30,12 +46,21 @@ func (mock *mockStore) ReadRecords(ctx context.Context, id streams.Id, from, to,
 }
 
 func (mock *mockStore) SetSubscriptionPosition(tx store.Tx, id streams.Id, position store.SubscriptionPosition) error {
-	mock.sets = append(mock.sets, position)
+	mock.mu.Lock()
+	defer mock.mu.Unlock()
+	assert.Equal(mock.t, globalTx, tx, "wrong tx provided")
+	mock.sets[position.SubscriptionId] = position.Position
 	return nil
 }
 
-type mockRegistry struct {
+func (mock *mockStore) verifyPosition(t *testing.T, subscriberId string, expectedPosition int64) {
+	got, isSet := mock.sets[subscriberId]
+	if assert.True(t, isSet, "subscriber id %s position not set", subscriberId) {
+		assert.Equal(t, expectedPosition, got)
+	}
 }
+
+type mockRegistry struct{}
 
 func (m mockRegistry) ToMessage(r record.Record) (streams.Message, error) {
 	return streams.Message{
@@ -78,9 +103,27 @@ func (mock *mockCountingHandler) Handle(ctx context.Context, msg streams.Message
 	return nil
 }
 
+func newFailingHandler(failAfter int64) *mockFailingHandler {
+	return &mockFailingHandler{failAfter: failAfter}
+}
+
+type mockFailingHandler struct {
+	count     int
+	failAfter int64
+}
+
+func (mock *mockFailingHandler) Handle(ctx context.Context, msg streams.Message) error {
+	mock.count = mock.count + 1
+	if int64(mock.count) > mock.failAfter {
+		return fmt.Errorf("failed at %d", mock.count)
+	}
+	return nil
+}
+
 func TestBroker(t *testing.T) {
 	ctx := context.Background()
 	id := streams.ParseId("broker")
+	registry := &mockRegistry{}
 	emptyHandler := streams.HandlerFunc(func(ctx context.Context, msg streams.Message) error {
 		return nil
 	})
@@ -98,10 +141,17 @@ func TestBroker(t *testing.T) {
 		}
 	}
 
+	Rs := func(id streams.Id, from, to int64) []record.Record {
+		var result []record.Record
+		for i := from; i < to; i++ {
+			result = append(result, R(id, i, i))
+		}
+		return result
+	}
+
 	t.Run("multiple subscriptions", func(t *testing.T) {
 		// setup
-		store := &mockStore{}
-		registry := &mockRegistry{}
+		store := newMockStore(t, nil, nil)
 		protocol := &mockProtocol{publisher: RecordHandlerFunc(func(ctx context.Context, record record.Record) (bool, error) {
 			return true, nil
 		})}
@@ -118,14 +168,8 @@ func TestBroker(t *testing.T) {
 
 	t.Run("notify", func(t *testing.T) {
 		// setup
-		store := &mockStore{
-			positions: nil,
-			records: []record.Record{
-				R(id, 0, 0),
-				R(id, 1, 1),
-			},
-		}
-		registry := &mockRegistry{}
+		store := newMockStore(t, nil, Rs(id, 0, 2))
+
 		protocol := &mockProtocol{publisher: RecordHandlerFunc(func(ctx context.Context, record record.Record) (bool, error) {
 			return true, nil
 		})}
@@ -143,14 +187,10 @@ func TestBroker(t *testing.T) {
 
 	t.Run("notify with position", func(t *testing.T) {
 		// setup
-		store := &mockStore{
-			positions: []store.SubscriptionPosition{{"A", 0}},
-			records: []record.Record{
-				R(id, 0, 0),
-				R(id, 1, 1),
-			},
-		}
-		registry := &mockRegistry{}
+		store := newMockStore(t,
+			[]store.SubscriptionPosition{{"A", 0}},
+			Rs(id, 0, 2),
+		)
 		protocol := &mockProtocol{publisher: RecordHandlerFunc(func(ctx context.Context, record record.Record) (bool, error) {
 			return true, nil
 		})}
@@ -168,25 +208,16 @@ func TestBroker(t *testing.T) {
 
 	t.Run("notify multiples", func(t *testing.T) {
 		// setup
-		store := &mockStore{
-			positions: []store.SubscriptionPosition{
-				{"A", 0},
-				{"B", 2},
-			},
-			records: []record.Record{
-				R(id, 0, 0),
-				R(id, 1, 1),
-				R(id, 2, 2),
-				R(id, 3, 3),
-			},
-		}
-		registry := &mockRegistry{}
+		mockStore := newMockStore(t,
+			[]store.SubscriptionPosition{{"A", 0}, {"B", 2}},
+			Rs(id, 0, 4),
+		)
 		protocol := &mockProtocol{publisher: RecordHandlerFunc(func(ctx context.Context, record record.Record) (bool, error) {
 			return true, nil
 		})}
 		handlerA := newCountingHandler()
 		handlerB := newCountingHandler()
-		broker := New(store, registry, protocol)
+		broker := New(mockStore, registry, protocol)
 		_ = broker.Register(ctx, "A", id, handlerA)
 		_ = broker.Register(ctx, "B", id, handlerB)
 
@@ -195,7 +226,35 @@ func TestBroker(t *testing.T) {
 
 		// verify
 		assert.NoError(t, err)
-		assert.Equal(t, 3, handlerA.count)
-		assert.Equal(t, 1, handlerB.count)
+		assert.Equal(t, 3, handlerA.count, "count A")
+		assert.Equal(t, 1, handlerB.count, "count B")
+		mockStore.verifyPosition(t, "A", 3)
+		mockStore.verifyPosition(t, "B", 3)
+	})
+
+	t.Run("one failing", func(t *testing.T) {
+		// setup
+		mockStore := newMockStore(t,
+			[]store.SubscriptionPosition{{"A", 0}, {"B", 0}},
+			Rs(id, 0, 4),
+		)
+		protocol := &mockProtocol{publisher: RecordHandlerFunc(func(ctx context.Context, record record.Record) (bool, error) {
+			return true, nil
+		})}
+		handlerA := newCountingHandler()
+		handlerB := newFailingHandler(1)
+		broker := New(mockStore, registry, protocol)
+		_ = broker.Register(ctx, "A", id, handlerA)
+		_ = broker.Register(ctx, "B", id, handlerB)
+
+		// execute
+		_, err := protocol.publish(t, R(id, 3, 3))
+
+		// verify
+		assert.NoError(t, err)
+		assert.Equal(t, 3, handlerA.count, "count A")
+		assert.Equal(t, 2, handlerB.count, "count B")
+		mockStore.verifyPosition(t, "A", 3)
+		mockStore.verifyPosition(t, "B", 1)
 	})
 }

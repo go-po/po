@@ -2,7 +2,6 @@ package broker
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/go-po/po/internal/pager"
@@ -60,48 +59,19 @@ func (sub *subscription) Handle(ctx context.Context, record record.Record) (bool
 		to = record.Number
 	}
 
-	err = pager.FromTo(min, to, 50, pager.Func(
-		func(from, to, limit int64) (int, error) {
-			records, err := sub.store.ReadRecords(ctx, sub.stream, from, to, limit)
-			if err != nil {
-				return 0, err
-			}
+	boxes, wg := sub.startSubscriptionProcessors(ctx, tx)
 
-			// TODO Use Channels instead
-			// Potential performance gain of splitting this into
-			// concurrent channels
-			for _, r := range records {
-				msg, err := sub.registry.ToMessage(r)
-				if err != nil {
-					return 0, err
-				}
-				for _, s := range sub.subscriptions {
-					err = s.Handle(ctx, msg)
-					if err != nil {
-						return 0, err
-					}
-				}
-			}
-			return len(records), nil
-		}))
+	err = pager.FromTo(min, to, 50, sub.readRecordsPaged(ctx, boxes))
+
+	// Done writing, now close the inboxes
+	for _, box := range boxes {
+		close(box)
+	}
+
+	wg.Wait()
 
 	if err != nil {
 		return false, err
-	}
-
-	var errs []error
-	for id, s := range sub.subscriptions {
-		err = sub.store.SetSubscriptionPosition(tx, sub.stream, store.SubscriptionPosition{
-			SubscriptionId: id,
-			Position:       s.position,
-		})
-		if err != nil {
-			errs = append(errs, err)
-		}
-	}
-	if len(errs) > 0 {
-		// TODO Add Custom error
-		return false, fmt.Errorf("could not write positions")
 	}
 
 	err = tx.Commit()
@@ -115,8 +85,45 @@ func (sub *subscription) Handle(ctx context.Context, record record.Record) (bool
 func (sub *subscription) AddSubscriber(id streams.Id, subscriberId string, subscriber Handler) {
 	sub.mu.Lock()
 	defer sub.mu.Unlock()
-	sub.subscriptions[subscriberId] = newStreamHandler(id, subscriber)
+	sub.subscriptions[subscriberId] = newStreamHandler(id, subscriberId, sub.store, subscriber)
 	sub.ids = append(sub.ids, subscriberId)
+}
+
+func (sub *subscription) readRecordsPaged(ctx context.Context, boxes []chan streams.Message) pager.Func {
+	return func(from, to, limit int64) (int, error) {
+		records, err := sub.store.ReadRecords(ctx, sub.stream, from, to, limit)
+		if err != nil {
+			return 0, err
+		}
+
+		for _, r := range records {
+			msg, err := sub.registry.ToMessage(r)
+			if err != nil {
+				return 0, err
+			}
+			for _, box := range boxes {
+				box <- msg
+			}
+		}
+		return len(records), nil
+	}
+}
+
+func (sub *subscription) startSubscriptionProcessors(ctx context.Context, tx store.Tx) ([]chan streams.Message, *sync.WaitGroup) {
+	var boxes []chan streams.Message
+	wg := &sync.WaitGroup{}
+	for _, s := range sub.subscriptions {
+		inbox := make(chan streams.Message)
+
+		wg.Add(1)
+		go func(handler *streamHandler) {
+			handler.Process(ctx, tx, inbox)
+			wg.Done()
+		}(s)
+
+		boxes = append(boxes, inbox)
+	}
+	return boxes, wg
 }
 
 func updatePosition(dao Store, tx store.Tx, id streams.Id, subs map[string]*streamHandler) (int64, error) {
