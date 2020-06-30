@@ -62,7 +62,7 @@ func (sub *subscription) Handle(ctx context.Context, record record.Record) (bool
 
 	err = pager.FromTo(min, to, 50, pager.Func(
 		func(from, to, limit int64) (int, error) {
-			records, err := sub.store.ReadRecords(ctx, sub.stream, from, to)
+			records, err := sub.store.ReadRecords(ctx, sub.stream, from, to, limit)
 			if err != nil {
 				return 0, err
 			}

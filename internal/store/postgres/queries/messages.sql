@@ -14,7 +14,8 @@ FROM po_messages
 WHERE stream = $1
   AND no > $2
   AND no <= $3
-ORDER BY no ASC;
+ORDER BY no ASC
+LIMIT $4;
 
 -- name: ReadRecordsByGroup :many
 SELECT *
@@ -22,4 +23,5 @@ FROM po_messages
 WHERE grp = $1
   AND id > $2
   AND id <= $3
-ORDER BY id ASC;
+ORDER BY id ASC
+LIMIT $4;

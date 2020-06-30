@@ -25,7 +25,7 @@ func (mock *mockStore) SubscriptionPositionLock(tx store.Tx, id streams.Id, subs
 	return mock.positions, nil
 }
 
-func (mock *mockStore) ReadRecords(ctx context.Context, id streams.Id, from, to int64) ([]record.Record, error) {
+func (mock *mockStore) ReadRecords(ctx context.Context, id streams.Id, from, to, limit int64) ([]record.Record, error) {
 	return mock.records, nil
 }
 

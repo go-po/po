@@ -24,10 +24,10 @@ func (store *Storage) WriteRecordsFrom(ctx context.Context, id streams.Id, posit
 	return writeRecords(ctx, store.conn, id, position, data...)
 }
 
-func (store *Storage) ReadRecords(ctx context.Context, id streams.Id, from int64, to int64) ([]record.Record, error) {
+func (store *Storage) ReadRecords(ctx context.Context, id streams.Id, from int64, to, limit int64) ([]record.Record, error) {
 	done := store.observer.ReadRecords(ctx, id)
 	defer done()
-	return readRecords(ctx, store.conn, id, from, to)
+	return readRecords(ctx, store.conn, id, from, to, limit)
 }
 
 func (store *Storage) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error) {

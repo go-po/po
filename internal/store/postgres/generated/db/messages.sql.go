@@ -28,16 +28,23 @@ WHERE grp = $1
   AND id > $2
   AND id <= $3
 ORDER BY id ASC
+LIMIT $4
 `
 
 type ReadRecordsByGroupParams struct {
-	Grp  string `json:"grp"`
-	ID   int64  `json:"id"`
-	ID_2 int64  `json:"id_2"`
+	Grp   string `json:"grp"`
+	ID    int64  `json:"id"`
+	ID_2  int64  `json:"id_2"`
+	Limit int32  `json:"limit"`
 }
 
 func (q *Queries) ReadRecordsByGroup(ctx context.Context, arg ReadRecordsByGroupParams) ([]PoMessage, error) {
-	rows, err := q.db.QueryContext(ctx, readRecordsByGroup, arg.Grp, arg.ID, arg.ID_2)
+	rows, err := q.db.QueryContext(ctx, readRecordsByGroup,
+		arg.Grp,
+		arg.ID,
+		arg.ID_2,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -75,16 +82,23 @@ WHERE stream = $1
   AND no > $2
   AND no <= $3
 ORDER BY no ASC
+LIMIT $4
 `
 
 type ReadRecordsByStreamParams struct {
 	Stream string `json:"stream"`
 	No     int64  `json:"no"`
 	No_2   int64  `json:"no_2"`
+	Limit  int32  `json:"limit"`
 }
 
 func (q *Queries) ReadRecordsByStream(ctx context.Context, arg ReadRecordsByStreamParams) ([]PoMessage, error) {
-	rows, err := q.db.QueryContext(ctx, readRecordsByStream, arg.Stream, arg.No, arg.No_2)
+	rows, err := q.db.QueryContext(ctx, readRecordsByStream,
+		arg.Stream,
+		arg.No,
+		arg.No_2,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -3,13 +3,19 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"math"
 
 	"github.com/go-po/po/internal/record"
 	"github.com/go-po/po/internal/store/postgres/generated/db"
 	"github.com/go-po/po/streams"
 )
 
-func readRecords(ctx context.Context, conn *sql.DB, id streams.Id, from int64, to int64) ([]record.Record, error) {
+func readRecords(ctx context.Context, conn *sql.DB, id streams.Id, from, to, limit int64) ([]record.Record, error) {
+
+	if limit > math.MaxInt32 || limit < 1 {
+		return nil, fmt.Errorf("limit cap: %d", limit)
+	}
 
 	dao := db.New(conn)
 
@@ -22,12 +28,14 @@ func readRecords(ctx context.Context, conn *sql.DB, id streams.Id, from int64, t
 			Stream: id.String(),
 			No:     from,
 			No_2:   to,
+			Limit:  int32(limit),
 		})
 	} else {
 		msgs, err = dao.ReadRecordsByGroup(ctx, db.ReadRecordsByGroupParams{
-			Grp:  id.String(),
-			ID:   from,
-			ID_2: to,
+			Grp:   id.String(),
+			ID:    from,
+			ID_2:  to,
+			Limit: int32(limit),
 		})
 	}
 

@@ -17,7 +17,7 @@ func TestStorage_ReadRecords(t *testing.T) {
 		// setup
 		id := streamId("entity")
 		// execute
-		records, err := readRecords(ctx, conn, id, -1, math.MaxInt64)
+		records, err := readRecords(ctx, conn, id, -1, math.MaxInt64, 100)
 		// verify
 		assert.NoError(t, err)
 		assert.Empty(t, records)
@@ -27,7 +27,7 @@ func TestStorage_ReadRecords(t *testing.T) {
 		// setup
 		id := streamId("")
 		// execute
-		records, err := readRecords(ctx, conn, id, -1, math.MaxInt64)
+		records, err := readRecords(ctx, conn, id, -1, math.MaxInt64, 100)
 		// verify
 		assert.NoError(t, err)
 		assert.Empty(t, records)
@@ -41,7 +41,7 @@ func TestStorage_ReadRecords(t *testing.T) {
 			t.FailNow()
 		}
 		// execute
-		records, err := readRecords(ctx, conn, id, 4, math.MaxInt64)
+		records, err := readRecords(ctx, conn, id, 4, math.MaxInt64, 100)
 		// verify
 		assert.NoError(t, err)
 		if assert.Equal(t, 5, len(records)) {
@@ -78,7 +78,7 @@ func TestStorage_ReadRecords(t *testing.T) {
 
 		t.Logf("MIDDLE: %d", middle)
 		// execute
-		records, err := readRecords(ctx, conn, group, middle, math.MaxInt64)
+		records, err := readRecords(ctx, conn, group, middle, math.MaxInt64, 100)
 		// verify
 		assert.NoError(t, err)
 		if assert.Equal(t, 5, len(records)) {
