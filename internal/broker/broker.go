@@ -39,8 +39,8 @@ type Protocol interface {
 	Register(ctx context.Context, group string, input RecordHandler) (RecordHandler, error)
 }
 
-func New(store Store, registry Registry, protocol Protocol) *OptimisticBroker {
-	return &OptimisticBroker{
+func New(store Store, registry Registry, protocol Protocol) *Broker {
+	return &Broker{
 		store:         store,
 		registry:      registry,
 		protocol:      protocol,
@@ -49,7 +49,7 @@ func New(store Store, registry Registry, protocol Protocol) *OptimisticBroker {
 	}
 }
 
-type OptimisticBroker struct {
+type Broker struct {
 	store    Store
 	registry Registry
 	protocol Protocol
@@ -58,7 +58,7 @@ type OptimisticBroker struct {
 	subscriptions map[string]*subscription
 }
 
-func (broker *OptimisticBroker) Notify(ctx context.Context, records ...record.Record) error {
+func (broker *Broker) Notify(ctx context.Context, records ...record.Record) error {
 	for _, record := range records {
 		err := broker.notify(ctx, record)
 		if err != nil {
@@ -68,7 +68,7 @@ func (broker *OptimisticBroker) Notify(ctx context.Context, records ...record.Re
 	return nil
 }
 
-func (broker *OptimisticBroker) notify(ctx context.Context, r record.Record) error {
+func (broker *Broker) notify(ctx context.Context, r record.Record) error {
 	h, found := broker.subscriptions[r.Group]
 	if !found {
 		return fmt.Errorf("missing subscriber: %s", r.Group)
@@ -83,7 +83,7 @@ func (broker *OptimisticBroker) notify(ctx context.Context, r record.Record) err
 	return nil
 }
 
-func (broker *OptimisticBroker) Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber streams.Handler) error {
+func (broker *Broker) Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber streams.Handler) error {
 	broker.mu.Lock()
 	defer broker.mu.Unlock()
 
