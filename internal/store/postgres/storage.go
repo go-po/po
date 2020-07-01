@@ -11,6 +11,20 @@ import (
 	"github.com/go-po/po/streams"
 )
 
+func NewFromUrl(databaseUrl string) (*Storage, error) {
+	db, err := sql.Open("postgres", databaseUrl)
+	if err != nil {
+		return nil, err
+	}
+	return NewFromConn(db), nil
+}
+
+func NewFromConn(conn *sql.DB) *Storage {
+	return &Storage{
+		conn: conn,
+	}
+}
+
 type Storage struct {
 	conn     *sql.DB
 	db       *db.Queries

@@ -29,12 +29,12 @@ type Store interface {
 
 type Broker interface {
 	Notify(ctx context.Context, records ...record.Record) error
-	Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber interface{}) error
+	Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber broker.Handler) error
 }
 
 type OBroker interface {
 	Notify(ctx context.Context, positions ...record.Record) error
-	Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber Handler) error
+	Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber streams.Handler) error
 }
 
 type Registry interface {
@@ -68,6 +68,15 @@ type CommandHandler interface {
 	Execute(appender TransactionAppender) error
 }
 
+// Append to a transaction.
+//Messages will be written to the store on commit
+type TransactionAppender interface {
+	// appends tot he stream
+	Append(messages ...interface{})
+	// current size of the stream
+	Size() int64
+}
+
 type Handler interface {
 	// Receives messages from a stream
 	Handle(ctx context.Context, msg streams.Message) error
@@ -95,27 +104,15 @@ type Po struct {
 	obs      poObserver
 	builder  *observer.Builder
 	logger   Logger
-	store    Store
-	broker   Broker
+	store    OStore
+	broker   OBroker
 	registry Registry
 }
 
-func (po *Po) Stream(ctx context.Context, id streams.Id) *Stream {
+func (po *Po) Stream(ctx context.Context, id streams.Id) *OptimisticLockingStream {
 	done := po.obs.Stream.Observe(ctx)
 	defer done()
-
-	return &Stream{
-		obs: streamObserver{
-			Project: po.builder.Nullary().Build(),
-		},
-		logger:   po.logger,
-		ID:       id,
-		ctx:      ctx,
-		registry: po.registry,
-		broker:   po.broker,
-		store:    po.store,
-		position: -1,
-	}
+	return NewOptimisticLockingStream(ctx, id, po.store, po.broker, po.registry)
 }
 
 // convenience method to load a stream and project it

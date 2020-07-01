@@ -83,7 +83,7 @@ func (broker *OptimisticBroker) notify(ctx context.Context, r record.Record) err
 	return nil
 }
 
-func (broker *OptimisticBroker) Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber Handler) error {
+func (broker *OptimisticBroker) Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber streams.Handler) error {
 	broker.mu.Lock()
 	defer broker.mu.Unlock()
 

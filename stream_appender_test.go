@@ -2,14 +2,30 @@ package po
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/internal/registry"
 	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/streams"
 	"github.com/stretchr/testify/assert"
 )
+
+type Msg struct {
+	Name string
+}
+
+var testRegistry = registry.New()
+
+func init() {
+	testRegistry.Register(func(b []byte) (interface{}, error) {
+		msg := Msg{}
+		err := json.Unmarshal(b, &msg)
+		return msg, err
+	})
+}
 
 var _ appenderStore = &stubAppenderStore{}
 

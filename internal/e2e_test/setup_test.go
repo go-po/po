@@ -10,7 +10,6 @@ import (
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/broker/channels"
 	"github.com/go-po/po/internal/broker/rabbitmq"
-	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/internal/store/inmemory"
 	"github.com/go-po/po/internal/store/postgres"
 	"github.com/go-po/po/streams"
@@ -21,34 +20,34 @@ const (
 	rabbitmqUrl = "amqp://po:po@localhost:5671/"
 )
 
-type StoreBuilder func() (po.Store, error)
+type StoreBuilder func() (po.OStore, error)
 
 func pg() StoreBuilder {
-	return func() (po.Store, error) {
-		return postgres.NewFromUrl(postgresUrl, store.StubObserver())
+	return func() (po.OStore, error) {
+		return postgres.NewFromUrl(postgresUrl)
 	}
 }
 
 func inmem() StoreBuilder {
-	return func() (store po.Store, err error) {
+	return func() (store po.OStore, err error) {
 		return inmemory.New(), nil
 	}
 }
 
-type ProtocolBuilder func(id int) broker.Protocol
+type ProtocolBuilder func(id int) broker.OProtocol
 
 func rabbit() ProtocolBuilder {
-	return func(id int) broker.Protocol {
-		return rabbitmq.New(rabbitmq.Config{
+	return func(id int) broker.OProtocol {
+		return rabbitmq.NewTransport(rabbitmq.Config{
 			AmqpUrl:  rabbitmqUrl,
 			Exchange: "highway",
 			Id:       fmt.Sprintf("app-%d", id),
-		})
+		}, nil)
 	}
 }
 
 func channel() ProtocolBuilder {
-	return func(id int) broker.Protocol {
+	return func(id int) broker.OProtocol {
 		return channels.New()
 	}
 }

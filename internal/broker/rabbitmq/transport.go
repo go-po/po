@@ -14,11 +14,11 @@ type Logger interface {
 	Errorf(template string, args ...interface{})
 }
 
-func NewTransport(cfg Config, log Logger) (*Transport, error) {
+func NewTransport(cfg Config, log Logger) *Transport {
 	return &Transport{
 		cfg: cfg,
 		log: log,
-	}, nil
+	}
 }
 
 type Transport struct {
