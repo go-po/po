@@ -50,10 +50,6 @@ type Logger interface {
 	Errf(err error, template string, args ...interface{})
 }
 
-type Distributor interface {
-	broker.Distributor
-}
-
 // Implemented by commands.
 // Contract is that the CommandHandler is hydrated with all
 // messages on the stream is applied to. Thereafter the Execute

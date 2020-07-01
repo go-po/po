@@ -10,6 +10,12 @@ import (
 	"github.com/streadway/amqp"
 )
 
+type Config struct {
+	AmqpUrl  string
+	Exchange string
+	Id       string
+}
+
 type Logger interface {
 	Errorf(template string, args ...interface{})
 }
