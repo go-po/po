@@ -26,9 +26,8 @@ func NewFromConn(conn *sql.DB) *Storage {
 }
 
 type Storage struct {
-	conn     *sql.DB
-	db       *db.Queries
-	observer store.Observer
+	conn *sql.DB
+	db   *db.Queries
 }
 
 func (store *Storage) Begin(ctx context.Context) (store.Tx, error) {
@@ -60,22 +59,15 @@ func (store *Storage) WriteRecordsFrom(ctx context.Context, id streams.Id, posit
 }
 
 func (store *Storage) ReadRecords(ctx context.Context, id streams.Id, from int64, to, limit int64) ([]record.Record, error) {
-	done := store.observer.ReadRecords(ctx, id)
-	defer done()
 	return readRecords(ctx, store.conn, id, from, to, limit)
 }
 
 func (store *Storage) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error) {
-	done := store.observer.ReadSnapshot(ctx, id, snapshotId)
-	defer done()
 	return readSnapshot(ctx, store.conn, id, snapshotId)
 
 }
 
 func (store *Storage) UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string, snapshot record.Snapshot) error {
-	done := store.observer.UpdateSnapshot(ctx, id, snapshotId)
-	defer done()
-
 	return updateSnapshot(ctx, store.conn, id, snapshotId, snapshot)
 }
 

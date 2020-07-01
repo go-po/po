@@ -10,7 +10,6 @@ import (
 	"github.com/go-po/po/internal/logger"
 	"github.com/go-po/po/internal/observer"
 	"github.com/go-po/po/internal/registry"
-	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/internal/store/inmemory"
 	"github.com/go-po/po/internal/store/postgres"
 	"github.com/prometheus/client_golang/prometheus"
@@ -140,7 +139,7 @@ func WithRegistry(registry Registry) Option {
 func WithStorePostgresUrl(connectionUrl string) Option {
 	return func(opt *Options) (err error) {
 		opt.store = func(obs *observer.Builder) (Store, error) {
-			return NewStorePostgresUrl(connectionUrl, store.DefaultObserver(obs, "store/postgres"))
+			return NewStorePostgresUrl(connectionUrl)
 		}
 		return
 	}
@@ -179,7 +178,7 @@ func NewProtocolChannels() *channels.Channels {
 	return channels.New()
 }
 
-func NewStorePostgresUrl(connectionUrl string, obs store.Observer) (*postgres.Storage, error) {
+func NewStorePostgresUrl(connectionUrl string) (*postgres.Storage, error) {
 	return postgres.NewFromUrl(connectionUrl)
 }
 
