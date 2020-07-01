@@ -8,42 +8,42 @@ import (
 	"github.com/go-po/po/streams"
 )
 
-func observeStore(store Store) *storeObserver {
-	return &storeObserver{store: store}
+func observeStore(store Store) *observesStore {
+	return &observesStore{store: store}
 }
 
-type storeObserver struct {
+type observesStore struct {
 	store Store
 }
 
-func (obs *storeObserver) WriteRecords(ctx context.Context, id streams.Id, data ...record.Data) ([]record.Record, error) {
+func (obs *observesStore) WriteRecords(ctx context.Context, id streams.Id, data ...record.Data) ([]record.Record, error) {
 	return obs.store.WriteRecords(ctx, id, data...)
 }
 
-func (obs *storeObserver) WriteRecordsFrom(ctx context.Context, id streams.Id, position int64, data ...record.Data) ([]record.Record, error) {
+func (obs *observesStore) WriteRecordsFrom(ctx context.Context, id streams.Id, position int64, data ...record.Data) ([]record.Record, error) {
 	return obs.store.WriteRecordsFrom(ctx, id, position, data...)
 }
 
-func (obs *storeObserver) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error) {
+func (obs *observesStore) ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error) {
 	return obs.store.ReadSnapshot(ctx, id, snapshotId)
 }
 
-func (obs *storeObserver) UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string, snapshot record.Snapshot) error {
+func (obs *observesStore) UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string, snapshot record.Snapshot) error {
 	return obs.store.UpdateSnapshot(ctx, id, snapshotId, snapshot)
 }
 
-func (obs *storeObserver) Begin(ctx context.Context) (store.Tx, error) {
+func (obs *observesStore) Begin(ctx context.Context) (store.Tx, error) {
 	return obs.store.Begin(ctx)
 }
 
-func (obs *storeObserver) SubscriptionPositionLock(tx store.Tx, id streams.Id, subscriptionIds ...string) ([]store.SubscriptionPosition, error) {
+func (obs *observesStore) SubscriptionPositionLock(tx store.Tx, id streams.Id, subscriptionIds ...string) ([]store.SubscriptionPosition, error) {
 	return obs.store.SubscriptionPositionLock(tx, id, subscriptionIds...)
 }
 
-func (obs *storeObserver) ReadRecords(ctx context.Context, id streams.Id, from, to, limit int64) ([]record.Record, error) {
+func (obs *observesStore) ReadRecords(ctx context.Context, id streams.Id, from, to, limit int64) ([]record.Record, error) {
 	return obs.store.ReadRecords(ctx, id, from, to, limit)
 }
 
-func (obs *storeObserver) SetSubscriptionPosition(tx store.Tx, id streams.Id, position store.SubscriptionPosition) error {
+func (obs *observesStore) SetSubscriptionPosition(tx store.Tx, id streams.Id, position store.SubscriptionPosition) error {
 	return obs.store.SetSubscriptionPosition(tx, id, position)
 }
