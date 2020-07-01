@@ -69,7 +69,10 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 }
 
 func newPo(store Store, protocol broker.Protocol, registry Registry, logger Logger, builder *observer.Builder) *Po {
-	broker := broker.New(store, registry, protocol)
+	store = observeStore(store, builder)
+	broker := observeBroker(
+		broker.New(store, registry, protocol),
+		builder)
 	return &Po{
 		obs: poObserver{
 			Stream:  builder.Nullary().Build(),
@@ -77,8 +80,8 @@ func newPo(store Store, protocol broker.Protocol, registry Registry, logger Logg
 		},
 		logger:   logger,
 		builder:  builder,
-		store:    observeStore(store, builder),
-		broker:   observeBroker(broker, builder),
+		store:    store,
+		broker:   broker,
 		registry: registry,
 	}
 }
