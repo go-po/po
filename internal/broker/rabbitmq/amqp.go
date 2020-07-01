@@ -1,36 +1,9 @@
 package rabbitmq
 
 import (
-	"strings"
-
 	"github.com/go-po/po/streams"
 	"github.com/streadway/amqp"
 )
-
-func connect(cfg Config) (*amqp.Channel, error) {
-	conn, err := amqp.Dial(cfg.AmqpUrl)
-	if err != nil {
-		return nil, err
-	}
-
-	channel, err := conn.Channel()
-	if err != nil {
-		return nil, err
-	}
-	return channel, channel.ExchangeDeclare(
-		cfg.Exchange, // name
-		"direct",     // type
-		true,         // durable
-		false,        // auto-deleted
-		false,        // internal
-		false,        // noWait
-		nil,          // arguments
-	)
-}
-
-func routingKey(exchange, flow, group string) string {
-	return strings.Join([]string{exchange, flow, group}, ".")
-}
 
 func newAssignChannel(cfg Config, id streams.Id) (*amqpChan, error) {
 	channel, err := connect(cfg)
