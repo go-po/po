@@ -3,7 +3,6 @@ package po
 import (
 	"context"
 
-	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/observer"
 	"github.com/go-po/po/internal/observer/nullary"
 	"github.com/go-po/po/internal/record"
@@ -24,11 +23,6 @@ type Store interface {
 }
 
 type Broker interface {
-	Notify(ctx context.Context, records ...record.Record) error
-	Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber broker.Handler) error
-}
-
-type OBroker interface {
 	Notify(ctx context.Context, positions ...record.Record) error
 	Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber streams.Handler) error
 }
@@ -97,7 +91,7 @@ type Po struct {
 	builder  *observer.Builder
 	logger   Logger
 	store    Store
-	broker   OBroker
+	broker   Broker
 	registry Registry
 }
 
