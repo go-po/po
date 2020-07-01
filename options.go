@@ -15,10 +15,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type storeBuilder func(obs *observer.Builder) (Store, error)
-
 type Options struct {
-	store    storeBuilder
+	store    Store
 	protocol broker.Protocol
 	registry Registry
 	logger   Logger
@@ -57,10 +55,6 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 	if options.store == nil {
 		return nil, fmt.Errorf("po: no store provided")
 	}
-	store, err := options.store(builder)
-	if err != nil {
-		return nil, err
-	}
 	if options.protocol == nil {
 		return nil, fmt.Errorf("po: no protocol provided")
 	}
@@ -71,10 +65,11 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 		return nil, fmt.Errorf("po: no logger provided")
 	}
 
-	return newPo(store, options.protocol, options.registry, options.logger, builder), nil
+	return newPo(options.store, options.protocol, options.registry, options.logger, builder), nil
 }
 
 func newPo(store Store, protocol broker.Protocol, registry Registry, logger Logger, builder *observer.Builder) *Po {
+	broker := broker.New(store, registry, protocol)
 	return &Po{
 		obs: poObserver{
 			Stream:  builder.Nullary().Build(),
@@ -82,8 +77,8 @@ func newPo(store Store, protocol broker.Protocol, registry Registry, logger Logg
 		},
 		logger:   logger,
 		builder:  builder,
-		store:    store,
-		broker:   broker.New(store, registry, protocol),
+		store:    observeStore(store, builder),
+		broker:   observeBroker(broker, builder),
 		registry: registry,
 	}
 }
@@ -106,9 +101,7 @@ func WithLogger(logger Logger) Option {
 
 func WithStore(store Store) Option {
 	return func(opt *Options) error {
-		opt.store = func(obs *observer.Builder) (Store, error) {
-			return store, nil
-		}
+		opt.store = store
 		return nil
 	}
 }
@@ -122,9 +115,7 @@ func WithProtocol(protocol broker.Protocol) Option {
 
 func WithStoreInMemory() Option {
 	return func(opt *Options) error {
-		opt.store = func(_ *observer.Builder) (Store, error) {
-			return NewStoreInMemory(), nil
-		}
+		opt.store = NewStoreInMemory()
 		return nil
 	}
 }
@@ -138,18 +129,14 @@ func WithRegistry(registry Registry) Option {
 
 func WithStorePostgresUrl(connectionUrl string) Option {
 	return func(opt *Options) (err error) {
-		opt.store = func(obs *observer.Builder) (Store, error) {
-			return NewStorePostgresUrl(connectionUrl)
-		}
-		return
+		opt.store, err = NewStorePostgresUrl(connectionUrl)
+		return err
 	}
 }
 
 func WithStorePostgresDB(db *sql.DB) Option {
 	return func(opt *Options) error {
-		opt.store = func(obs *observer.Builder) (Store, error) {
-			return NewStorePostgresDB(db, obs)
-		}
+		opt.store = NewStorePostgresDB(db)
 		return nil
 	}
 }
@@ -182,8 +169,8 @@ func NewStorePostgresUrl(connectionUrl string) (*postgres.Storage, error) {
 	return postgres.NewFromUrl(connectionUrl)
 }
 
-func NewStorePostgresDB(db *sql.DB, obs *observer.Builder) (*postgres.Storage, error) {
-	return postgres.NewFromConn(db), nil
+func NewStorePostgresDB(db *sql.DB) *postgres.Storage {
+	return postgres.NewFromConn(db)
 }
 
 func NewProtocolRabbitMQ(url, exchange, id string) *rabbitmq.Transport {
