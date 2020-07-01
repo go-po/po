@@ -16,7 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type storeBuilder func(obs *observer.Builder) (OStore, error)
+type storeBuilder func(obs *observer.Builder) (Store, error)
 
 type Options struct {
 	store    storeBuilder
@@ -28,7 +28,7 @@ type Options struct {
 
 type Option func(opt *Options) error
 
-func New(store OStore, protocol broker.OProtocol) *Po {
+func New(store Store, protocol broker.OProtocol) *Po {
 	logger := &logger.NoopLogger{}
 	return newPo(
 		store,
@@ -75,7 +75,7 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 	return newPo(store, options.protocol, options.registry, options.logger, builder), nil
 }
 
-func newPo(store OStore, protocol broker.OProtocol, registry Registry, logger Logger, builder *observer.Builder) *Po {
+func newPo(store Store, protocol broker.OProtocol, registry Registry, logger Logger, builder *observer.Builder) *Po {
 	return &Po{
 		obs: poObserver{
 			Stream:  builder.Nullary().Build(),
@@ -105,9 +105,9 @@ func WithLogger(logger Logger) Option {
 	}
 }
 
-func WithStore(store OStore) Option {
+func WithStore(store Store) Option {
 	return func(opt *Options) error {
-		opt.store = func(obs *observer.Builder) (OStore, error) {
+		opt.store = func(obs *observer.Builder) (Store, error) {
 			return store, nil
 		}
 		return nil
@@ -123,7 +123,7 @@ func WithProtocol(protocol broker.OProtocol) Option {
 
 func WithStoreInMemory() Option {
 	return func(opt *Options) error {
-		opt.store = func(_ *observer.Builder) (OStore, error) {
+		opt.store = func(_ *observer.Builder) (Store, error) {
 			return NewStoreInMemory(), nil
 		}
 		return nil
@@ -139,7 +139,7 @@ func WithRegistry(registry Registry) Option {
 
 func WithStorePostgresUrl(connectionUrl string) Option {
 	return func(opt *Options) (err error) {
-		opt.store = func(obs *observer.Builder) (OStore, error) {
+		opt.store = func(obs *observer.Builder) (Store, error) {
 			return NewStorePostgresUrl(connectionUrl, store.DefaultObserver(obs, "store/postgres"))
 		}
 		return
@@ -148,7 +148,7 @@ func WithStorePostgresUrl(connectionUrl string) Option {
 
 func WithStorePostgresDB(db *sql.DB) Option {
 	return func(opt *Options) error {
-		opt.store = func(obs *observer.Builder) (OStore, error) {
+		opt.store = func(obs *observer.Builder) (Store, error) {
 			return NewStorePostgresDB(db, obs)
 		}
 		return nil

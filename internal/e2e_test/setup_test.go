@@ -20,16 +20,16 @@ const (
 	rabbitmqUrl = "amqp://po:po@localhost:5671/"
 )
 
-type StoreBuilder func() (po.OStore, error)
+type StoreBuilder func() (po.Store, error)
 
 func pg() StoreBuilder {
-	return func() (po.OStore, error) {
+	return func() (po.Store, error) {
 		return postgres.NewFromUrl(postgresUrl)
 	}
 }
 
 func inmem() StoreBuilder {
-	return func() (store po.OStore, err error) {
+	return func() (store po.Store, err error) {
 		return inmemory.New(), nil
 	}
 }

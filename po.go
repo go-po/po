@@ -13,18 +13,14 @@ import (
 )
 
 type Store interface {
-	ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error)
-	AssignGroup(ctx context.Context, id streams.Id, number int64) (record.Record, error)
-
-	Begin(ctx context.Context) (store.Tx, error)
-	StoreRecord(tx store.Tx, id streams.Id, number int64, contentType string, data []byte) (record.Record, error)
-
+	WriteRecords(ctx context.Context, id streams.Id, data ...record.Data) ([]record.Record, error)
+	WriteRecordsFrom(ctx context.Context, id streams.Id, position int64, data ...record.Data) ([]record.Record, error)
 	ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error)
 	UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string, snapshot record.Snapshot) error
-
-	GetSubscriberPosition(tx store.Tx, subscriberId string, id streams.Id) (int64, error)
-	SetSubscriberPosition(tx store.Tx, subscriberId string, stream streams.Id, position int64) error
-	GetStreamPosition(ctx context.Context, id streams.Id) (int64, error)
+	Begin(ctx context.Context) (store.Tx, error)
+	SubscriptionPositionLock(tx store.Tx, id streams.Id, subscriptionIds ...string) ([]store.SubscriptionPosition, error)
+	ReadRecords(ctx context.Context, id streams.Id, from, to, limit int64) ([]record.Record, error)
+	SetSubscriptionPosition(tx store.Tx, id streams.Id, position store.SubscriptionPosition) error
 }
 
 type Broker interface {
@@ -100,7 +96,7 @@ type Po struct {
 	obs      poObserver
 	builder  *observer.Builder
 	logger   Logger
-	store    OStore
+	store    Store
 	broker   OBroker
 	registry Registry
 }
