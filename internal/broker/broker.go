@@ -35,11 +35,11 @@ func (fn RecordHandlerFunc) Handle(ctx context.Context, record record.Record) (b
 	return fn(ctx, record)
 }
 
-type OProtocol interface {
+type Protocol interface {
 	Register(ctx context.Context, group string, input RecordHandler) (RecordHandler, error)
 }
 
-func New(store Store, registry Registry, protocol OProtocol) *OptimisticBroker {
+func New(store Store, registry Registry, protocol Protocol) *OptimisticBroker {
 	return &OptimisticBroker{
 		store:         store,
 		registry:      registry,
@@ -52,7 +52,7 @@ func New(store Store, registry Registry, protocol OProtocol) *OptimisticBroker {
 type OptimisticBroker struct {
 	store    Store
 	registry Registry
-	protocol OProtocol
+	protocol Protocol
 
 	mu            sync.Mutex
 	subscriptions map[string]*subscription

@@ -34,10 +34,10 @@ func inmem() StoreBuilder {
 	}
 }
 
-type ProtocolBuilder func(id int) broker.OProtocol
+type ProtocolBuilder func(id int) broker.Protocol
 
 func rabbit() ProtocolBuilder {
-	return func(id int) broker.OProtocol {
+	return func(id int) broker.Protocol {
 		return rabbitmq.NewTransport(rabbitmq.Config{
 			AmqpUrl:  rabbitmqUrl,
 			Exchange: "highway",
@@ -47,7 +47,7 @@ func rabbit() ProtocolBuilder {
 }
 
 func channel() ProtocolBuilder {
-	return func(id int) broker.OProtocol {
+	return func(id int) broker.Protocol {
 		return channels.New()
 	}
 }

@@ -19,7 +19,7 @@ type storeBuilder func(obs *observer.Builder) (Store, error)
 
 type Options struct {
 	store    storeBuilder
-	protocol broker.OProtocol
+	protocol broker.Protocol
 	registry Registry
 	logger   Logger
 	prom     prometheus.Registerer
@@ -27,7 +27,7 @@ type Options struct {
 
 type Option func(opt *Options) error
 
-func New(store Store, protocol broker.OProtocol) *Po {
+func New(store Store, protocol broker.Protocol) *Po {
 	logger := &logger.NoopLogger{}
 	return newPo(
 		store,
@@ -74,7 +74,7 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 	return newPo(store, options.protocol, options.registry, options.logger, builder), nil
 }
 
-func newPo(store Store, protocol broker.OProtocol, registry Registry, logger Logger, builder *observer.Builder) *Po {
+func newPo(store Store, protocol broker.Protocol, registry Registry, logger Logger, builder *observer.Builder) *Po {
 	return &Po{
 		obs: poObserver{
 			Stream:  builder.Nullary().Build(),
@@ -113,7 +113,7 @@ func WithStore(store Store) Option {
 	}
 }
 
-func WithProtocol(protocol broker.OProtocol) Option {
+func WithProtocol(protocol broker.Protocol) Option {
 	return func(opt *Options) error {
 		opt.protocol = protocol
 		return nil
