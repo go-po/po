@@ -95,10 +95,10 @@ type Po struct {
 	registry Registry
 }
 
-func (po *Po) Stream(ctx context.Context, id streams.Id) *OptimisticLockingStream {
+func (po *Po) Stream(ctx context.Context, id streams.Id) *Stream {
 	done := po.obs.Stream.Observe(ctx)
 	defer done()
-	return NewOptimisticLockingStream(ctx, id, po.store, po.broker, po.registry)
+	return NewStream(ctx, id, po.store, po.broker, po.registry)
 }
 
 // convenience method to load a stream and project it

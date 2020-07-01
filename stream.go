@@ -7,14 +7,14 @@ import (
 	"github.com/go-po/po/streams"
 )
 
-var _ messageStream = &OptimisticLockingStream{}
+var _ messageStream = &Stream{}
 
-func NewOptimisticLockingStream(ctx context.Context, streamId streams.Id, store Store, broker Broker, registry Registry) *OptimisticLockingStream {
+func NewStream(ctx context.Context, streamId streams.Id, store Store, broker Broker, registry Registry) *Stream {
 	projector := newProjectorFunc(store, registry)
 	snapshotter := newSnapshots(store, projector)
 	appender := newAppenderFunc(store, broker, registry)
 	executioner := newRetryExecutor(3, newExecutor(projector, appender))
-	return &OptimisticLockingStream{
+	return &Stream{
 		Id:  streamId,
 		ctx: ctx,
 
@@ -29,7 +29,7 @@ func NewOptimisticLockingStream(ctx context.Context, streamId streams.Id, store 
 
 // Stream that uses Optimistic locking when
 // appending to the message stream
-type OptimisticLockingStream struct {
+type Stream struct {
 	Id        streams.Id
 	ctx       context.Context // to use for the operation
 	projector projector
@@ -40,7 +40,7 @@ type OptimisticLockingStream struct {
 	lockPosition int64        // last known position
 }
 
-func (stream *OptimisticLockingStream) Append(messages ...interface{}) (int64, error) {
+func (stream *Stream) Append(messages ...interface{}) (int64, error) {
 	stream.mu.Lock()
 	defer stream.mu.Unlock()
 
@@ -59,7 +59,7 @@ func (stream *OptimisticLockingStream) Append(messages ...interface{}) (int64, e
 //
 // The projection will also lock this Stream instance to the most recently read
 // message number for the stream.
-func (stream *OptimisticLockingStream) Project(projection Handler) error {
+func (stream *Stream) Project(projection Handler) error {
 	// TODO add observability
 	stream.mu.Lock()
 	defer stream.mu.Unlock()
@@ -72,7 +72,7 @@ func (stream *OptimisticLockingStream) Project(projection Handler) error {
 	return nil
 }
 
-func (stream *OptimisticLockingStream) Execute(exec CommandHandler) error {
+func (stream *Stream) Execute(exec CommandHandler) error {
 	// TODO add observability
 	stream.mu.Lock()
 	defer stream.mu.Unlock()
