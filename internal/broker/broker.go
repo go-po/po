@@ -39,13 +39,19 @@ type Protocol interface {
 	Register(ctx context.Context, group string, input RecordHandler) (RecordHandler, error)
 }
 
+type Subscription interface {
+	Handle(ctx context.Context, record record.Record) (bool, error)
+	AddSubscriber(id streams.Id, subscriptionId string, subscriber streams.Handler)
+}
+
 func New(store Store, registry Registry, protocol Protocol) *Broker {
 	return &Broker{
-		store:         store,
-		registry:      registry,
-		protocol:      protocol,
-		mu:            sync.Mutex{},
-		subscriptions: make(map[string]*subscription),
+		store:       store,
+		registry:    registry,
+		protocol:    protocol,
+		mu:          sync.Mutex{},
+		subscribers: make(map[string]Subscription),
+		publishers:  make(map[string]RecordHandler),
 	}
 }
 
@@ -54,8 +60,9 @@ type Broker struct {
 	registry Registry
 	protocol Protocol
 
-	mu            sync.Mutex
-	subscriptions map[string]*subscription
+	mu          sync.Mutex
+	subscribers map[string]Subscription
+	publishers  map[string]RecordHandler
 }
 
 func (broker *Broker) Notify(ctx context.Context, records ...record.Record) error {
@@ -69,11 +76,11 @@ func (broker *Broker) Notify(ctx context.Context, records ...record.Record) erro
 }
 
 func (broker *Broker) notify(ctx context.Context, r record.Record) error {
-	h, found := broker.subscriptions[r.Group]
+	h, found := broker.publishers[r.Group]
 	if !found {
 		return fmt.Errorf("missing subscriber: %s", r.Group)
 	}
-	send, err := h.publisher.Handle(ctx, r)
+	send, err := h.Handle(ctx, r)
 	if err != nil {
 		return err
 	}
@@ -87,15 +94,19 @@ func (broker *Broker) Register(ctx context.Context, subscriberId string, streamI
 	broker.mu.Lock()
 	defer broker.mu.Unlock()
 
-	sub, found := broker.subscriptions[streamId.Group]
+	sub, found := broker.subscribers[streamId.Group]
 	if !found {
 		sub = newSub(broker.registry, broker.store, streamId.Group)
+		broker.subscribers[streamId.Group] = sub
+	}
+
+	_, found = broker.publishers[streamId.Group]
+	if !found {
 		publisher, err := broker.protocol.Register(ctx, streamId.Group, sub)
 		if err != nil {
 			return err
 		}
-		sub.publisher = publisher
-		broker.subscriptions[streamId.Group] = sub
+		broker.publishers[streamId.Group] = publisher
 	}
 
 	sub.AddSubscriber(streamId, subscriberId, subscriber)

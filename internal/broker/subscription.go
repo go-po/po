@@ -16,7 +16,6 @@ func newSub(registry Registry, store Store, group string) *subscription {
 		subscriptions: make(map[string]*streamHandler),
 		stream:        streams.ParseId(group),
 		ids:           nil,
-		publisher:     nil,
 		store:         store,
 		registry:      registry,
 	}
@@ -26,7 +25,6 @@ type subscription struct {
 	mu            sync.Mutex
 	subscriptions map[string]*streamHandler
 	ids           []string
-	publisher     RecordHandler
 	stream        streams.Id
 	store         Store
 	registry      Registry
@@ -82,7 +80,7 @@ func (sub *subscription) Handle(ctx context.Context, record record.Record) (bool
 	return true, nil
 }
 
-func (sub *subscription) AddSubscriber(id streams.Id, subscriberId string, subscriber Handler) {
+func (sub *subscription) AddSubscriber(id streams.Id, subscriberId string, subscriber streams.Handler) {
 	sub.mu.Lock()
 	defer sub.mu.Unlock()
 	sub.subscriptions[subscriberId] = newStreamHandler(id, subscriberId, sub.store, subscriber)

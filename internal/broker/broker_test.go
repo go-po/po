@@ -84,6 +84,7 @@ func (mock *mockProtocol) Register(ctx context.Context, group string, input Reco
 }
 
 func (mock *mockProtocol) publish(t *testing.T, record record.Record) (bool, error) {
+	t.Helper()
 	if !assert.NotNil(t, mock.input, "not registered") {
 		t.FailNow()
 	}
