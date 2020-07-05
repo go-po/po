@@ -23,7 +23,7 @@ type Store interface {
 }
 
 type Broker interface {
-	Notify(ctx context.Context, positions ...record.Record) error
+	Notify(ctx context.Context, records ...record.Record) error
 	Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber streams.Handler) error
 }
 
