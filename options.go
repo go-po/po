@@ -78,7 +78,7 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 func newPo(store Store, protocol broker.Protocol, registry Registry, logger Logger, builder *observer.Builder) *Po {
 	store = observeStore(store, builder)
 	broker := observeBroker(
-		broker.New(store, registry, protocol),
+		broker.New(store, registry, observeProtocol(protocol, builder)),
 		builder)
 	return &Po{
 		obs: poObserver{

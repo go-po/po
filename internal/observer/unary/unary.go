@@ -46,14 +46,14 @@ func Noop() ClientTrace {
 
 func LogDebugf(logger Logger, format string, args ...interface{}) ClientTrace {
 	return ClientTraceFunc(func(ctx context.Context, a string) func() {
-		logger.Debugf(format, append(args, a))
+		logger.Debugf(format, append(args, a)...)
 		return func() {}
 	})
 }
 
 func LogInfof(logger Logger, format string, args ...interface{}) ClientTrace {
 	return ClientTraceFunc(func(ctx context.Context, a string) func() {
-		logger.Infof(format, append(args, a))
+		logger.Infof(format, append(args, a)...)
 		return func() {}
 	})
 }

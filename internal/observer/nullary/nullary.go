@@ -48,7 +48,7 @@ func Noop() ClientTrace {
 
 func LogDebugf(logger Logger, format string, args ...interface{}) ClientTrace {
 	return ClientTraceFunc(func(ctx context.Context) func() {
-		logger.Debugf(format, args)
+		logger.Debugf(format, args...)
 		return func() {
 
 		}
@@ -57,7 +57,7 @@ func LogDebugf(logger Logger, format string, args ...interface{}) ClientTrace {
 
 func LogInfof(logger Logger, format string, args ...interface{}) ClientTrace {
 	return ClientTraceFunc(func(ctx context.Context) func() {
-		logger.Infof(format, append(args))
+		logger.Infof(format, args...)
 		return func() {
 
 		}
@@ -66,7 +66,7 @@ func LogInfof(logger Logger, format string, args ...interface{}) ClientTrace {
 
 func LogErrorf(logger Logger, format string, args ...interface{}) ClientTrace {
 	return ClientTraceFunc(func(ctx context.Context) func() {
-		logger.Errorf(format, append(args))
+		logger.Errorf(format, args...)
 		return func() {
 
 		}
