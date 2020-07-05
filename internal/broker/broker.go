@@ -101,6 +101,7 @@ func (broker *Broker) Register(ctx context.Context, subscriberId string, streamI
 	defer func() {
 		_ = tx.Rollback()
 	}()
+	// rely on SetSubscriptionPosition to ignore this command if the new position is lower
 	err = broker.store.SetSubscriptionPosition(tx, streamId, store.SubscriptionPosition{
 		SubscriptionId: subscriberId,
 		Position:       -1,

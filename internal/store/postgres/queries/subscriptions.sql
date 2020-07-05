@@ -3,6 +3,7 @@ SELECT subscriber_id, no
 FROM po_subscriptions
 WHERE stream = @stream
   AND subscriber_id = ANY (@subscriber_id::varchar[])
+ORDER BY stream DESC, subscriber_id DESC -- to avoid deadlock
     FOR UPDATE;
 
 -- name: SetSubscriberPosition :exec

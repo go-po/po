@@ -14,6 +14,7 @@ SELECT subscriber_id, no
 FROM po_subscriptions
 WHERE stream = $1
   AND subscriber_id = ANY ($2::varchar[])
+ORDER BY stream DESC, subscriber_id DESC -- to avoid deadlock
     FOR UPDATE
 `
 
