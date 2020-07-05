@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS po_snapshots
     updated      timestamp with time zone default NOW() NOT NULL,
     stream       varchar                                NOT NULL,
     snapshot_id  varchar                                NOT NULL,
-    no           bigint                                 NOT NULL,
+    no           bigint                   DEFAULT -1    NOT NULL,
     data         bytea                                  NOT NULL,
     content_type varchar                                NOT NULL
 );

@@ -94,6 +94,25 @@ func (broker *Broker) Register(ctx context.Context, subscriberId string, streamI
 	broker.mu.Lock()
 	defer broker.mu.Unlock()
 
+	tx, err := broker.store.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+	err = broker.store.SetSubscriptionPosition(tx, streamId, store.SubscriptionPosition{
+		SubscriptionId: subscriberId,
+		Position:       -1,
+	})
+	if err != nil {
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
 	sub, found := broker.subscribers[streamId.Group]
 	if !found {
 		sub = newSub(broker.registry, broker.store, streamId.Group)

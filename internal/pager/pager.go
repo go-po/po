@@ -41,7 +41,7 @@ func FromTo(start int64, to int64, size int, cb Pager) error {
 		end = to
 	}
 
-	done, err := cb.Page(start, end, int64(size))
+	done, err := cb.Page(start, to, int64(size))
 	if err != nil {
 		return err
 	}

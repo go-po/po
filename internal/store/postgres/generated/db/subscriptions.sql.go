@@ -51,19 +51,23 @@ func (q *Queries) LockSubscriberPosition(ctx context.Context, arg LockSubscriber
 }
 
 const setSubscriberPosition = `-- name: SetSubscriberPosition :exec
-UPDATE po_subscriptions
-SET no = $1
-WHERE stream = $2
-  AND subscriber_id = $3
+INSERT INTO po_subscriptions (updated, no, subscriber_id, stream)
+VALUES (NOW(), -1, $1, $2)
+ON CONFLICT (stream, subscriber_id) DO UPDATE
+    SET no      = $3,
+        updated = NOW()
+WHERE po_subscriptions.stream = $2
+  AND po_subscriptions.subscriber_id = $1
+  AND po_subscriptions.no < $3
 `
 
 type SetSubscriberPositionParams struct {
-	No           int64  `json:"no"`
-	Stream       string `json:"stream"`
 	SubscriberID string `json:"subscriber_id"`
+	Stream       string `json:"stream"`
+	No           int64  `json:"no"`
 }
 
 func (q *Queries) SetSubscriberPosition(ctx context.Context, arg SetSubscriberPositionParams) error {
-	_, err := q.db.ExecContext(ctx, setSubscriberPosition, arg.No, arg.Stream, arg.SubscriberID)
+	_, err := q.db.ExecContext(ctx, setSubscriberPosition, arg.SubscriberID, arg.Stream, arg.No)
 	return err
 }

@@ -31,8 +31,7 @@ func subscriberPositionLock(ctx context.Context, conn db.DBTX, id streams.Id, id
 }
 
 func updateSubscriberPosition(ctx context.Context, conn db.DBTX, id streams.Id, position store.SubscriptionPosition) error {
-	dao := db.New(conn)
-	return dao.SetSubscriberPosition(ctx, db.SetSubscriberPositionParams{
+	return db.New(conn).SetSubscriberPosition(ctx, db.SetSubscriberPositionParams{
 		No:           position.Position,
 		Stream:       id.String(),
 		SubscriberID: position.SubscriptionId,

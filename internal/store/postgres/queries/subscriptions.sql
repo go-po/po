@@ -6,7 +6,11 @@ WHERE stream = @stream
     FOR UPDATE;
 
 -- name: SetSubscriberPosition :exec
-UPDATE po_subscriptions
-SET no = @no
-WHERE stream = @stream
-  AND subscriber_id = @subscriber_id;
+INSERT INTO po_subscriptions (updated, no, subscriber_id, stream)
+VALUES (NOW(), -1, $1, $2)
+ON CONFLICT (stream, subscriber_id) DO UPDATE
+    SET no      = $3,
+        updated = NOW()
+WHERE po_subscriptions.stream = $2
+  AND po_subscriptions.subscriber_id = $1
+  AND po_subscriptions.no < $3;

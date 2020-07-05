@@ -32,7 +32,7 @@ func readRecords(ctx context.Context, conn *sql.DB, id streams.Id, from, to, lim
 		})
 	} else {
 		msgs, err = dao.ReadRecordsByGroup(ctx, db.ReadRecordsByGroupParams{
-			Grp:   id.String(),
+			Grp:   id.Group,
 			ID:    from,
 			ID_2:  to,
 			Limit: int32(limit),
@@ -42,6 +42,7 @@ func readRecords(ctx context.Context, conn *sql.DB, id streams.Id, from, to, lim
 	if err != nil {
 		return nil, err
 	}
+
 	for _, msg := range msgs {
 		records = append(records, msgToRecord(msg))
 	}
