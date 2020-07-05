@@ -12,8 +12,10 @@ import (
 func observeProtocol(protocol broker.Protocol, builder *observer.Builder) *observesProtocol {
 	return &observesProtocol{
 		protocol: protocol,
-		onIn:     builder.Unary().LogDebugf("po/protocol in-bound: %s").Build(),
-		onOut:    builder.Unary().LogDebugf("po/protocol out-bound: %s").Build(),
+		//onIn:     builder.Unary().LogDebugf("po/protocol in-bound: %s").Build(),
+		onIn: builder.Unary().Build(),
+		//onOut:    builder.Unary().LogDebugf("po/protocol out-bound: %s").Build(),
+		onOut: builder.Unary().Build(),
 	}
 }
 

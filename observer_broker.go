@@ -15,10 +15,10 @@ func observeBroker(broker Broker, obs *observer.Builder) *observesBroker {
 	return &observesBroker{
 		broker: broker,
 		onNotify: obs.Unary().
-			LogDebugf("po/broker notify records: %s").
+			//LogDebugf("po/broker notify records: %s").
 			Build(),
 		onRegister: obs.Binary().
-			LogInfof("po/broker register stream [%s] subscriber [%s]").
+			//LogInfof("po/broker register stream [%s] subscriber [%s]").
 			Build(),
 	}
 }
