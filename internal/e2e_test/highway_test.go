@@ -194,12 +194,12 @@ func (counter *CarCounter) Handle(ctx context.Context, msg streams.Message) erro
 	counter.mu.Lock()
 	defer counter.mu.Unlock()
 
-	if counter.last+1 > msg.GroupNumber {
+	if counter.last+1 > msg.GlobalNumber {
 		// handle messages with idempotence
 		return nil
 	}
 
-	counter.last = msg.GroupNumber
+	counter.last = msg.GlobalNumber
 
 	switch msg.Data.(type) {
 	case Car:

@@ -55,13 +55,13 @@ func (stub *stubAppenderStore) WriteRecords(ctx context.Context, id streams.Id, 
 	for _, data := range datas {
 		stub.incCount()
 		written = append(written, record.Record{
-			Stream:      id,
-			Number:      stub.messageCount,
-			GroupNumber: stub.messageCount,
-			Data:        data.Data,
-			Group:       id.Group,
-			ContentType: data.ContentType,
-			Time:        time.Now(),
+			Stream:       id,
+			Number:       stub.messageCount,
+			GlobalNumber: stub.messageCount,
+			Data:         data.Data,
+			Group:        id.Group,
+			ContentType:  data.ContentType,
+			Time:         time.Now(),
 		})
 	}
 	stub.records = append(stub.records, written...)

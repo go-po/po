@@ -50,12 +50,12 @@ func (mock *MockStore) Begin(ctx context.Context) (store.Tx, error) {
 
 func (mock *MockStore) StoreRecord(tx store.Tx, id streams.Id, number int64, contentType string, data []byte) (record.Record, error) {
 	r := record.Record{
-		Number:      number,
-		Stream:      id,
-		Data:        data,
-		ContentType: contentType,
-		GroupNumber: 0,
-		Time:        time.Time{},
+		Number:       number,
+		Stream:       id,
+		Data:         data,
+		ContentType:  contentType,
+		GlobalNumber: 0,
+		Time:         time.Time{},
 	}
 	mock.Records = append(mock.Records, r)
 	return r, nil

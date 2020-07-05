@@ -10,9 +10,9 @@ import (
 
 func Test_ParseMessageId(t *testing.T) {
 	messageId := ToMessageId(record.Record{
-		Number:      5,
-		Stream:      streams.ParseId("my stream name"),
-		GroupNumber: 15,
+		Number:       5,
+		Stream:       streams.ParseId("my stream name"),
+		GlobalNumber: 15,
 	})
 
 	assert.Equal(t, "5#15#my stream name", messageId)

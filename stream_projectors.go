@@ -59,7 +59,7 @@ func newProjectorFunc(store projectorStore, registry Registry) projectorFunc {
 			if id.HasEntity() {
 				lockPosition = message.Number
 			} else {
-				lockPosition = message.GroupNumber
+				lockPosition = message.GlobalNumber
 			}
 
 			return len(messages), nil

@@ -64,12 +64,12 @@ type mockRegistry struct{}
 
 func (m mockRegistry) ToMessage(r record.Record) (streams.Message, error) {
 	return streams.Message{
-		Number:      r.Number,
-		Stream:      r.Stream,
-		Type:        r.Group,
-		Data:        r.Data,
-		GroupNumber: r.GroupNumber,
-		Time:        r.Time,
+		Number:       r.Number,
+		Stream:       r.Stream,
+		Type:         r.Group,
+		Data:         r.Data,
+		GlobalNumber: r.GlobalNumber,
+		Time:         r.Time,
 	}, nil
 }
 
@@ -136,7 +136,7 @@ func TestBroker(t *testing.T) {
 			Data:          []byte(`{}`),
 			Group:         id.Group,
 			ContentType:   "application/json",
-			GroupNumber:   globalNumber,
+			GlobalNumber:  globalNumber,
 			Time:          time.Now(),
 			CorrelationId: "correlation id",
 		}

@@ -119,7 +119,7 @@ func (t *Transport) consumeMessage(msg amqp.Delivery, input broker.RecordHandler
 		Data:          msg.Body,
 		Group:         stream.Group,
 		ContentType:   msg.ContentType,
-		GroupNumber:   globalNumber,
+		GlobalNumber:  globalNumber,
 		Time:          msg.Timestamp,
 		CorrelationId: msg.CorrelationId,
 	})

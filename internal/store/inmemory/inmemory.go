@@ -105,7 +105,7 @@ func (mem *InMemory) AssignGroup(ctx context.Context, id streams.Id, number int6
 	}
 	for i, item := range groupData {
 		if item.Stream.String() == id.String() && item.Number == number {
-			if item.GroupNumber != 0 {
+			if item.GlobalNumber != 0 {
 				return record.Record{}, fmt.Errorf("already assigned")
 			}
 			groupNumber, found := mem.groupIndex[id.Group]
@@ -114,7 +114,7 @@ func (mem *InMemory) AssignGroup(ctx context.Context, id streams.Id, number int6
 			}
 			mem.groupIndex[id.Group] = groupNumber + 1
 			r := groupData[i]
-			r.GroupNumber = groupNumber
+			r.GlobalNumber = groupNumber
 			groupData[i] = r
 			return r, nil
 		}
@@ -165,13 +165,13 @@ func (mem *InMemory) StoreRecord(tx store.Tx, id streams.Id, number int64, msgTy
 	}
 
 	r := record.Record{
-		Number:      number,
-		Stream:      id,
-		Data:        data,
-		Group:       id.Group,
-		ContentType: msgType,
-		GroupNumber: 0,
-		Time:        time.Now(),
+		Number:       number,
+		Stream:       id,
+		Data:         data,
+		Group:        id.Group,
+		ContentType:  msgType,
+		GlobalNumber: 0,
+		Time:         time.Now(),
 	}
 	inTx.records = append(inTx.records, r)
 	return r, nil

@@ -47,13 +47,13 @@ func writeRecords(ctx context.Context, conn *sql.DB, id streams.Id, position int
 
 func msgToRecord(msg db.PoMessage) record.Record {
 	return record.Record{
-		Number:      msg.No,
-		Stream:      streams.ParseId(msg.Stream),
-		Data:        msg.Data,
-		Group:       msg.Grp,
-		ContentType: msg.ContentType,
-		GroupNumber: msg.ID,
-		Time:        msg.Created,
+		Number:       msg.No,
+		Stream:       streams.ParseId(msg.Stream),
+		Data:         msg.Data,
+		Group:        msg.Grp,
+		ContentType:  msg.ContentType,
+		GlobalNumber: msg.ID,
+		Time:         msg.Created,
 	}
 }
 

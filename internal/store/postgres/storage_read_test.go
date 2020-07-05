@@ -68,7 +68,7 @@ func TestStorage_ReadRecords(t *testing.T) {
 			}
 			if i == 2 {
 				// middle
-				middle = r[0].GroupNumber
+				middle = r[0].GlobalNumber
 			}
 			_, err = writeRecords(ctx, conn, id2, i, data(1)...)
 			if !assert.NoError(t, err) {

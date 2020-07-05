@@ -36,10 +36,10 @@ func (sh *streamHandler) Handle(ctx context.Context, msg streams.Message) error 
 		}
 		nextPosition = msg.Number
 	} else {
-		if msg.GroupNumber <= sh.position {
+		if msg.GlobalNumber <= sh.position {
 			return nil
 		}
-		nextPosition = msg.GroupNumber
+		nextPosition = msg.GlobalNumber
 	}
 	err := sh.handler.Handle(ctx, msg)
 	if err != nil {

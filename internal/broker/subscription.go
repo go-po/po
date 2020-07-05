@@ -52,7 +52,7 @@ func (sub *subscription) Handle(ctx context.Context, record record.Record) (bool
 		return false, err
 	}
 
-	var to int64 = record.GroupNumber
+	var to int64 = record.GlobalNumber
 	if sub.stream.HasEntity() {
 		to = record.Number
 	}
