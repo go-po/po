@@ -2,7 +2,7 @@
 SELECT subscriber_id, no
 FROM po_subscriptions
 WHERE stream = @stream
-  AND subscriber_id IN (@subscriber_id::varchar[])
+  AND subscriber_id = ANY (@subscriber_id::varchar[])
     FOR UPDATE;
 
 -- name: SetSubscriberPosition :exec

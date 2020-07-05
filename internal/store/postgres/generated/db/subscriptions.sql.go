@@ -13,7 +13,7 @@ const lockSubscriberPosition = `-- name: LockSubscriberPosition :many
 SELECT subscriber_id, no
 FROM po_subscriptions
 WHERE stream = $1
-  AND subscriber_id IN ($2::varchar[])
+  AND subscriber_id = ANY ($2::varchar[])
     FOR UPDATE
 `
 
