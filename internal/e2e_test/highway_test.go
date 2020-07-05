@@ -97,8 +97,14 @@ func (app *highwayApp) start(t *testing.T) {
 	if !assert.NoError(t, err, "setup store") {
 		t.Fail()
 	}
-
-	app.es = po.New(store, app.test.protocol(app.id))
+	app.es, err = po.NewFromOptions(
+		po.WithProtocol(app.test.protocol(app.id)),
+		po.WithLogger(logger.WrapLogger(t)),
+		po.WithStore(store),
+	)
+	if !assert.NoError(t, err, "setup po") {
+		t.Fail()
+	}
 
 	for subId, counter := range app.counters {
 		err = app.es.Subscribe(context.Background(), subId, app.streamId, counter)
