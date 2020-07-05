@@ -16,13 +16,17 @@ func NewFromUrl(databaseUrl string) (*Storage, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewFromConn(db), nil
+	return NewFromConn(db)
 }
 
-func NewFromConn(conn *sql.DB) *Storage {
+func NewFromConn(conn *sql.DB) (*Storage, error) {
+	err := migrateDatabase(conn)
+	if err != nil {
+		return nil, err
+	}
 	return &Storage{
 		conn: conn,
-	}
+	}, nil
 }
 
 type Storage struct {

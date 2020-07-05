@@ -145,9 +145,9 @@ func WithStorePostgresUrl(connectionUrl string) Option {
 }
 
 func WithStorePostgresDB(db *sql.DB) Option {
-	return func(opt *Options) error {
-		opt.store = NewStorePostgresDB(db)
-		return nil
+	return func(opt *Options) (err error) {
+		opt.store, err = NewStorePostgresDB(db)
+		return
 	}
 }
 
@@ -183,7 +183,7 @@ func NewStorePostgresUrl(connectionUrl string) (*postgres.Storage, error) {
 	return postgres.NewFromUrl(connectionUrl)
 }
 
-func NewStorePostgresDB(db *sql.DB) *postgres.Storage {
+func NewStorePostgresDB(db *sql.DB) (*postgres.Storage, error) {
 	return postgres.NewFromConn(db)
 }
 
