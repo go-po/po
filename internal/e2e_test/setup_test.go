@@ -10,6 +10,7 @@ import (
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/broker/channels"
 	"github.com/go-po/po/internal/broker/rabbitmq"
+	"github.com/go-po/po/internal/logger"
 	"github.com/go-po/po/internal/store/inmemory"
 	"github.com/go-po/po/internal/store/postgres"
 	"github.com/go-po/po/streams"
@@ -42,7 +43,7 @@ func rabbit() ProtocolBuilder {
 			AmqpUrl:  rabbitmqUrl,
 			Exchange: "highway",
 			Id:       fmt.Sprintf("app-%d", id),
-		}, nil)
+		}, &logger.NoopLogger{})
 	}
 }
 

@@ -16,11 +16,12 @@ import (
 )
 
 type Options struct {
-	store    Store
-	protocol broker.Protocol
-	registry Registry
-	logger   Logger
-	prom     prometheus.Registerer
+	store     Store
+	registry  Registry
+	logger    Logger
+	prom      prometheus.Registerer
+	protocol  broker.Protocol
+	rabbitCfg *rabbitmq.Config
 }
 
 type Option func(opt *Options) error
@@ -55,9 +56,6 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 	if options.store == nil {
 		return nil, fmt.Errorf("po: no store provided")
 	}
-	if options.protocol == nil {
-		return nil, fmt.Errorf("po: no protocol provided")
-	}
 	if options.registry == nil {
 		return nil, fmt.Errorf("po: no registry provided")
 	}
@@ -65,7 +63,16 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 		return nil, fmt.Errorf("po: no logger provided")
 	}
 
-	return newPo(options.store, options.protocol, options.registry, options.logger, builder), nil
+	var protocol broker.Protocol
+	if options.rabbitCfg != nil {
+		protocol = rabbitmq.NewTransport(*options.rabbitCfg, options.logger)
+	} else if options.protocol != nil {
+		protocol = options.protocol
+	} else {
+		return nil, fmt.Errorf("po: no broker protocol provided")
+	}
+
+	return newPo(options.store, protocol, options.registry, options.logger, builder), nil
 }
 
 func newPo(store Store, protocol broker.Protocol, registry Registry, logger Logger, builder *observer.Builder) *Po {
@@ -153,7 +160,11 @@ func WithProtocolChannels() Option {
 
 func WithProtocolRabbitMQ(url, exchange, id string) Option {
 	return func(opt *Options) (err error) {
-		opt.protocol = NewProtocolRabbitMQ(url, exchange, id)
+		opt.rabbitCfg = &rabbitmq.Config{
+			AmqpUrl:  url,
+			Exchange: exchange,
+			Id:       id,
+		}
 		return
 	}
 }

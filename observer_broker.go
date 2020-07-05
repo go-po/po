@@ -36,5 +36,5 @@ func (obs *observesBroker) Notify(ctx context.Context, positions ...record.Recor
 func (obs *observesBroker) Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber streams.Handler) error {
 	done := obs.onRegister.Observe(ctx, streamId.String(), subscriberId)
 	defer done()
-	return obs.Register(ctx, subscriberId, streamId, subscriber)
+	return obs.broker.Register(ctx, subscriberId, streamId, subscriber)
 }
