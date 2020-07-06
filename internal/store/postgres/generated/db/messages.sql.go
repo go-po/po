@@ -8,165 +8,9 @@ import (
 	"database/sql"
 )
 
-const getRecordByStream = `-- name: GetRecordByStream :one
-SELECT created, updated, stream, no, grp, grp_no, content_type, data
-FROM po_msgs
-WHERE stream = $1
-  AND no = $2
-`
-
-type GetRecordByStreamParams struct {
-	Stream string `json:"stream"`
-	No     int64  `json:"no"`
-}
-
-func (q *Queries) GetRecordByStream(ctx context.Context, arg GetRecordByStreamParams) (PoMsg, error) {
-	row := q.db.QueryRowContext(ctx, getRecordByStream, arg.Stream, arg.No)
-	var i PoMsg
-	err := row.Scan(
-		&i.Created,
-		&i.Updated,
-		&i.Stream,
-		&i.No,
-		&i.Grp,
-		&i.GrpNo,
-		&i.ContentType,
-		&i.Data,
-	)
-	return i, err
-}
-
-const getRecords = `-- name: GetRecords :many
-select created, updated, stream, no, grp, grp_no, content_type, data
-from po_msgs
-`
-
-func (q *Queries) GetRecords(ctx context.Context) ([]PoMsg, error) {
-	rows, err := q.db.QueryContext(ctx, getRecords)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PoMsg
-	for rows.Next() {
-		var i PoMsg
-		if err := rows.Scan(
-			&i.Created,
-			&i.Updated,
-			&i.Stream,
-			&i.No,
-			&i.Grp,
-			&i.GrpNo,
-			&i.ContentType,
-			&i.Data,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getRecordsByGroup = `-- name: GetRecordsByGroup :many
-SELECT created, updated, stream, no, grp, grp_no, content_type, data
-FROM po_msgs
-WHERE grp = $1
-  AND grp_no IS NOT NULL
-  AND grp_no > $2
-ORDER BY grp_no
-`
-
-type GetRecordsByGroupParams struct {
-	Grp   string        `json:"grp"`
-	GrpNo sql.NullInt64 `json:"grp_no"`
-}
-
-func (q *Queries) GetRecordsByGroup(ctx context.Context, arg GetRecordsByGroupParams) ([]PoMsg, error) {
-	rows, err := q.db.QueryContext(ctx, getRecordsByGroup, arg.Grp, arg.GrpNo)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PoMsg
-	for rows.Next() {
-		var i PoMsg
-		if err := rows.Scan(
-			&i.Created,
-			&i.Updated,
-			&i.Stream,
-			&i.No,
-			&i.Grp,
-			&i.GrpNo,
-			&i.ContentType,
-			&i.Data,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getRecordsByStream = `-- name: GetRecordsByStream :many
-SELECT created, updated, stream, no, grp, grp_no, content_type, data
-FROM po_msgs
-WHERE stream = $1
-  AND no > $2
-ORDER BY no
-`
-
-type GetRecordsByStreamParams struct {
-	Stream string `json:"stream"`
-	No     int64  `json:"no"`
-}
-
-func (q *Queries) GetRecordsByStream(ctx context.Context, arg GetRecordsByStreamParams) ([]PoMsg, error) {
-	rows, err := q.db.QueryContext(ctx, getRecordsByStream, arg.Stream, arg.No)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PoMsg
-	for rows.Next() {
-		var i PoMsg
-		if err := rows.Scan(
-			&i.Created,
-			&i.Updated,
-			&i.Stream,
-			&i.No,
-			&i.Grp,
-			&i.GrpNo,
-			&i.ContentType,
-			&i.Data,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getStreamPosition = `-- name: GetStreamPosition :one
-SELECT GREATEST(MAX(no), 0)::bigint
-FROM po_msgs
+SELECT GREATEST(MAX(no), -1)::bigint
+FROM po_messages
 WHERE stream = $1
 `
 
@@ -177,58 +21,148 @@ func (q *Queries) GetStreamPosition(ctx context.Context, stream string) (int64, 
 	return column_1, err
 }
 
-const insert = `-- name: Insert :exec
-INSERT INTO po_msgs (stream, no, grp, content_type, data)
-VALUES ($1, $2, $3, $4, $5)
+const readRecordsByGroup = `-- name: ReadRecordsByGroup :many
+SELECT id, created, stream, no, grp, content_type, data, correlation_id
+FROM po_messages
+WHERE grp = $1
+  AND id > $2
+  AND id <= $3
+ORDER BY id ASC
+LIMIT $4
 `
 
-type InsertParams struct {
-	Stream      string `json:"stream"`
-	No          int64  `json:"no"`
-	Grp         string `json:"grp"`
-	ContentType string `json:"content_type"`
-	Data        []byte `json:"data"`
+type ReadRecordsByGroupParams struct {
+	Grp   string `json:"grp"`
+	ID    int64  `json:"id"`
+	ID_2  int64  `json:"id_2"`
+	Limit int32  `json:"limit"`
 }
 
-func (q *Queries) Insert(ctx context.Context, arg InsertParams) error {
-	_, err := q.db.ExecContext(ctx, insert,
+func (q *Queries) ReadRecordsByGroup(ctx context.Context, arg ReadRecordsByGroupParams) ([]PoMessage, error) {
+	rows, err := q.db.QueryContext(ctx, readRecordsByGroup,
+		arg.Grp,
+		arg.ID,
+		arg.ID_2,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PoMessage
+	for rows.Next() {
+		var i PoMessage
+		if err := rows.Scan(
+			&i.ID,
+			&i.Created,
+			&i.Stream,
+			&i.No,
+			&i.Grp,
+			&i.ContentType,
+			&i.Data,
+			&i.CorrelationID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const readRecordsByStream = `-- name: ReadRecordsByStream :many
+SELECT id, created, stream, no, grp, content_type, data, correlation_id
+FROM po_messages
+WHERE stream = $1
+  AND no > $2
+  AND no <= $3
+ORDER BY no ASC
+LIMIT $4
+`
+
+type ReadRecordsByStreamParams struct {
+	Stream string `json:"stream"`
+	No     int64  `json:"no"`
+	No_2   int64  `json:"no_2"`
+	Limit  int32  `json:"limit"`
+}
+
+func (q *Queries) ReadRecordsByStream(ctx context.Context, arg ReadRecordsByStreamParams) ([]PoMessage, error) {
+	rows, err := q.db.QueryContext(ctx, readRecordsByStream,
+		arg.Stream,
+		arg.No,
+		arg.No_2,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PoMessage
+	for rows.Next() {
+		var i PoMessage
+		if err := rows.Scan(
+			&i.ID,
+			&i.Created,
+			&i.Stream,
+			&i.No,
+			&i.Grp,
+			&i.ContentType,
+			&i.Data,
+			&i.CorrelationID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const storeRecord = `-- name: StoreRecord :one
+INSERT INTO po_messages (stream, no, grp, content_type, data, correlation_id)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, created, stream, no, grp, content_type, data, correlation_id
+`
+
+type StoreRecordParams struct {
+	Stream        string         `json:"stream"`
+	No            int64          `json:"no"`
+	Grp           string         `json:"grp"`
+	ContentType   string         `json:"content_type"`
+	Data          []byte         `json:"data"`
+	CorrelationID sql.NullString `json:"correlation_id"`
+}
+
+func (q *Queries) StoreRecord(ctx context.Context, arg StoreRecordParams) (PoMessage, error) {
+	row := q.db.QueryRowContext(ctx, storeRecord,
 		arg.Stream,
 		arg.No,
 		arg.Grp,
 		arg.ContentType,
 		arg.Data,
+		arg.CorrelationID,
 	)
-	return err
-}
-
-const setGroupNumber = `-- name: SetGroupNumber :one
-UPDATE po_msgs
-SET grp_no  = $1,
-    updated = NOW()
-WHERE stream = $2
-  AND no = $3
-  AND grp_no IS NULL
-RETURNING created, updated, stream, no, grp, grp_no, content_type, data
-`
-
-type SetGroupNumberParams struct {
-	GrpNo  sql.NullInt64 `json:"grp_no"`
-	Stream string        `json:"stream"`
-	No     int64         `json:"no"`
-}
-
-func (q *Queries) SetGroupNumber(ctx context.Context, arg SetGroupNumberParams) (PoMsg, error) {
-	row := q.db.QueryRowContext(ctx, setGroupNumber, arg.GrpNo, arg.Stream, arg.No)
-	var i PoMsg
+	var i PoMessage
 	err := row.Scan(
+		&i.ID,
 		&i.Created,
-		&i.Updated,
 		&i.Stream,
 		&i.No,
 		&i.Grp,
-		&i.GrpNo,
 		&i.ContentType,
 		&i.Data,
+		&i.CorrelationID,
 	)
 	return i, err
 }

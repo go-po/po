@@ -7,24 +7,21 @@ import (
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/broker/channels"
 	"github.com/go-po/po/internal/broker/rabbitmq"
-	"github.com/go-po/po/internal/distributor"
 	"github.com/go-po/po/internal/logger"
 	"github.com/go-po/po/internal/observer"
 	"github.com/go-po/po/internal/registry"
-	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/internal/store/inmemory"
 	"github.com/go-po/po/internal/store/postgres"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type storeBuilder func(obs *observer.Builder) (Store, error)
-
 type Options struct {
-	store    storeBuilder
-	protocol broker.Protocol
-	registry Registry
-	logger   Logger
-	prom     prometheus.Registerer
+	store     Store
+	registry  Registry
+	logger    Logger
+	prom      prometheus.Registerer
+	protocol  broker.Protocol
+	rabbitCfg *rabbitmq.Config
 }
 
 type Option func(opt *Options) error
@@ -59,13 +56,6 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 	if options.store == nil {
 		return nil, fmt.Errorf("po: no store provided")
 	}
-	store, err := options.store(builder)
-	if err != nil {
-		return nil, err
-	}
-	if options.protocol == nil {
-		return nil, fmt.Errorf("po: no protocol provided")
-	}
 	if options.registry == nil {
 		return nil, fmt.Errorf("po: no registry provided")
 	}
@@ -73,24 +63,32 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 		return nil, fmt.Errorf("po: no logger provided")
 	}
 
-	return newPo(store, options.protocol, options.registry, options.logger, builder), nil
+	var protocol broker.Protocol
+	if options.rabbitCfg != nil {
+		protocol = rabbitmq.NewTransport(*options.rabbitCfg, options.logger)
+	} else if options.protocol != nil {
+		protocol = options.protocol
+	} else {
+		return nil, fmt.Errorf("po: no broker protocol provided")
+	}
+
+	return newPo(options.store, protocol, options.registry, options.logger, builder), nil
 }
 
 func newPo(store Store, protocol broker.Protocol, registry Registry, logger Logger, builder *observer.Builder) *Po {
+	store = observeStore(store, builder)
+	broker := observeBroker(
+		broker.New(store, registry, observeProtocol(protocol, builder)),
+		builder)
 	return &Po{
 		obs: poObserver{
 			Stream:  builder.Nullary().Build(),
 			Project: builder.Nullary().Build(),
 		},
-		logger:  logger,
-		builder: builder,
-		store:   store,
-		broker: broker.New(
-			protocol,
-			distributor.New(registry, store),
-			store,
-			broker.NewDefaultObserver(builder),
-		),
+		logger:   logger,
+		builder:  builder,
+		store:    store,
+		broker:   broker,
 		registry: registry,
 	}
 }
@@ -113,9 +111,7 @@ func WithLogger(logger Logger) Option {
 
 func WithStore(store Store) Option {
 	return func(opt *Options) error {
-		opt.store = func(obs *observer.Builder) (Store, error) {
-			return store, nil
-		}
+		opt.store = store
 		return nil
 	}
 }
@@ -129,9 +125,7 @@ func WithProtocol(protocol broker.Protocol) Option {
 
 func WithStoreInMemory() Option {
 	return func(opt *Options) error {
-		opt.store = func(_ *observer.Builder) (Store, error) {
-			return NewStoreInMemory(), nil
-		}
+		opt.store = NewStoreInMemory()
 		return nil
 	}
 }
@@ -145,19 +139,15 @@ func WithRegistry(registry Registry) Option {
 
 func WithStorePostgresUrl(connectionUrl string) Option {
 	return func(opt *Options) (err error) {
-		opt.store = func(obs *observer.Builder) (Store, error) {
-			return NewStorePostgresUrl(connectionUrl, store.DefaultObserver(obs, "store/postgres"))
-		}
-		return
+		opt.store, err = NewStorePostgresUrl(connectionUrl)
+		return err
 	}
 }
 
 func WithStorePostgresDB(db *sql.DB) Option {
-	return func(opt *Options) error {
-		opt.store = func(obs *observer.Builder) (Store, error) {
-			return NewStorePostgresDB(db, obs)
-		}
-		return nil
+	return func(opt *Options) (err error) {
+		opt.store, err = NewStorePostgresDB(db)
+		return
 	}
 }
 
@@ -170,7 +160,11 @@ func WithProtocolChannels() Option {
 
 func WithProtocolRabbitMQ(url, exchange, id string) Option {
 	return func(opt *Options) (err error) {
-		opt.protocol = NewProtocolRabbitMQ(url, exchange, id)
+		opt.rabbitCfg = &rabbitmq.Config{
+			AmqpUrl:  url,
+			Exchange: exchange,
+			Id:       id,
+		}
 		return
 	}
 }
@@ -185,18 +179,18 @@ func NewProtocolChannels() *channels.Channels {
 	return channels.New()
 }
 
-func NewStorePostgresUrl(connectionUrl string, obs store.Observer) (*postgres.PGStore, error) {
-	return postgres.NewFromUrl(connectionUrl, obs)
+func NewStorePostgresUrl(connectionUrl string) (*postgres.Storage, error) {
+	return postgres.NewFromUrl(connectionUrl)
 }
 
-func NewStorePostgresDB(db *sql.DB, obs *observer.Builder) (*postgres.PGStore, error) {
-	return postgres.New(db, store.DefaultObserver(obs, "store/postgres"))
+func NewStorePostgresDB(db *sql.DB) (*postgres.Storage, error) {
+	return postgres.NewFromConn(db)
 }
 
-func NewProtocolRabbitMQ(url, exchange, id string) *rabbitmq.Protocol {
-	return rabbitmq.New(rabbitmq.Config{
+func NewProtocolRabbitMQ(url, exchange, id string) *rabbitmq.Transport {
+	return rabbitmq.NewTransport(rabbitmq.Config{
 		AmqpUrl:  url,
 		Exchange: exchange,
 		Id:       id,
-	})
+	}, nil)
 }

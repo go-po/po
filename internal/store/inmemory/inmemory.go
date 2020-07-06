@@ -31,6 +31,26 @@ type InMemory struct {
 	groupIndex  map[string]int64
 }
 
+func (mem *InMemory) WriteRecords(ctx context.Context, id streams.Id, data ...record.Data) ([]record.Record, error) {
+	panic("implement me")
+}
+
+func (mem *InMemory) WriteRecordsFrom(ctx context.Context, id streams.Id, position int64, data ...record.Data) ([]record.Record, error) {
+	panic("implement me")
+}
+
+func (mem *InMemory) SubscriptionPositionLock(tx store.Tx, id streams.Id, subscriptionIds ...string) ([]store.SubscriptionPosition, error) {
+	panic("implement me")
+}
+
+func (mem *InMemory) ReadRecords(ctx context.Context, id streams.Id, from, to, limit int64) ([]record.Record, error) {
+	panic("implement me")
+}
+
+func (mem *InMemory) SetSubscriptionPosition(tx store.Tx, id streams.Id, position store.SubscriptionPosition) error {
+	panic("implement me")
+}
+
 var emptySnapshot = record.Snapshot{
 	Data:        []byte("{}"),
 	Position:    0,
@@ -85,7 +105,7 @@ func (mem *InMemory) AssignGroup(ctx context.Context, id streams.Id, number int6
 	}
 	for i, item := range groupData {
 		if item.Stream.String() == id.String() && item.Number == number {
-			if item.GroupNumber != 0 {
+			if item.GlobalNumber != 0 {
 				return record.Record{}, fmt.Errorf("already assigned")
 			}
 			groupNumber, found := mem.groupIndex[id.Group]
@@ -94,34 +114,12 @@ func (mem *InMemory) AssignGroup(ctx context.Context, id streams.Id, number int6
 			}
 			mem.groupIndex[id.Group] = groupNumber + 1
 			r := groupData[i]
-			r.GroupNumber = groupNumber
+			r.GlobalNumber = groupNumber
 			groupData[i] = r
 			return r, nil
 		}
 	}
 	return record.Record{}, fmt.Errorf("number %d not found in stream %s", number, id.Group)
-}
-
-func (mem *InMemory) ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error) {
-	mem.mu.RLock()
-	defer mem.mu.RUnlock()
-	data, found := mem.data[id.Group]
-	if !found {
-		return nil, nil
-	}
-	var result []record.Record
-	for _, r := range data {
-		if id.HasEntity() {
-			if r.Stream.String() == id.String() && r.Number > from {
-				result = append(result, r)
-			}
-		} else {
-			if r.GroupNumber > from {
-				result = append(result, r)
-			}
-		}
-	}
-	return result, nil
 }
 
 func (mem *InMemory) GetSubscriberPosition(tx store.Tx, subscriberId string, stream streams.Id) (int64, error) {
@@ -167,13 +165,13 @@ func (mem *InMemory) StoreRecord(tx store.Tx, id streams.Id, number int64, msgTy
 	}
 
 	r := record.Record{
-		Number:      number,
-		Stream:      id,
-		Data:        data,
-		Group:       id.Group,
-		ContentType: msgType,
-		GroupNumber: 0,
-		Time:        time.Now(),
+		Number:       number,
+		Stream:       id,
+		Data:         data,
+		Group:        id.Group,
+		ContentType:  msgType,
+		GlobalNumber: 0,
+		Time:         time.Now(),
 	}
 	inTx.records = append(inTx.records, r)
 	return r, nil

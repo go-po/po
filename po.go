@@ -3,7 +3,6 @@ package po
 import (
 	"context"
 
-	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/observer"
 	"github.com/go-po/po/internal/observer/nullary"
 	"github.com/go-po/po/internal/record"
@@ -13,23 +12,19 @@ import (
 )
 
 type Store interface {
-	ReadRecords(ctx context.Context, id streams.Id, from int64) ([]record.Record, error)
-	AssignGroup(ctx context.Context, id streams.Id, number int64) (record.Record, error)
-
-	Begin(ctx context.Context) (store.Tx, error)
-	StoreRecord(tx store.Tx, id streams.Id, number int64, contentType string, data []byte) (record.Record, error)
-
+	WriteRecords(ctx context.Context, id streams.Id, data ...record.Data) ([]record.Record, error)
+	WriteRecordsFrom(ctx context.Context, id streams.Id, position int64, data ...record.Data) ([]record.Record, error)
 	ReadSnapshot(ctx context.Context, id streams.Id, snapshotId string) (record.Snapshot, error)
 	UpdateSnapshot(ctx context.Context, id streams.Id, snapshotId string, snapshot record.Snapshot) error
-
-	GetSubscriberPosition(tx store.Tx, subscriberId string, id streams.Id) (int64, error)
-	SetSubscriberPosition(tx store.Tx, subscriberId string, stream streams.Id, position int64) error
-	GetStreamPosition(ctx context.Context, id streams.Id) (int64, error)
+	Begin(ctx context.Context) (store.Tx, error)
+	SubscriptionPositionLock(tx store.Tx, id streams.Id, subscriptionIds ...string) ([]store.SubscriptionPosition, error)
+	ReadRecords(ctx context.Context, id streams.Id, from, to, limit int64) ([]record.Record, error)
+	SetSubscriptionPosition(tx store.Tx, id streams.Id, position store.SubscriptionPosition) error
 }
 
 type Broker interface {
 	Notify(ctx context.Context, records ...record.Record) error
-	Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber interface{}) error
+	Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber streams.Handler) error
 }
 
 type Registry interface {
@@ -45,10 +40,6 @@ type Logger interface {
 	Errf(err error, template string, args ...interface{})
 }
 
-type Distributor interface {
-	broker.Distributor
-}
-
 // Implemented by commands.
 // Contract is that the CommandHandler is hydrated with all
 // messages on the stream is applied to. Thereafter the Execute
@@ -61,6 +52,15 @@ type CommandHandler interface {
 	Handle(ctx context.Context, msg streams.Message) error
 	// Applies the command
 	Execute(appender TransactionAppender) error
+}
+
+// Append to a transaction.
+//Messages will be written to the store on commit
+type TransactionAppender interface {
+	// appends tot he stream
+	Append(messages ...interface{})
+	// current size of the stream
+	Size() int64
 }
 
 type Handler interface {
@@ -80,6 +80,12 @@ type poObserver struct {
 	Project nullary.ClientTrace
 }
 
+type messageStream interface {
+	Project(projection Handler) error
+	Execute(exec CommandHandler) error
+	Append(messages ...interface{}) (int64, error)
+}
+
 type Po struct {
 	obs      poObserver
 	builder  *observer.Builder
@@ -92,19 +98,7 @@ type Po struct {
 func (po *Po) Stream(ctx context.Context, id streams.Id) *Stream {
 	done := po.obs.Stream.Observe(ctx)
 	defer done()
-
-	return &Stream{
-		obs: streamObserver{
-			Project: po.builder.Nullary().Build(),
-		},
-		logger:   po.logger,
-		ID:       id,
-		ctx:      ctx,
-		registry: po.registry,
-		broker:   po.broker,
-		store:    po.store,
-		position: -1,
-	}
+	return NewStream(ctx, id, po.store, po.broker, po.registry)
 }
 
 // convenience method to load a stream and project it

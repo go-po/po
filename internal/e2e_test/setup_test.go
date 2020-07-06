@@ -10,7 +10,7 @@ import (
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/broker/channels"
 	"github.com/go-po/po/internal/broker/rabbitmq"
-	"github.com/go-po/po/internal/store"
+	"github.com/go-po/po/internal/logger"
 	"github.com/go-po/po/internal/store/inmemory"
 	"github.com/go-po/po/internal/store/postgres"
 	"github.com/go-po/po/streams"
@@ -25,7 +25,7 @@ type StoreBuilder func() (po.Store, error)
 
 func pg() StoreBuilder {
 	return func() (po.Store, error) {
-		return postgres.NewFromUrl(postgresUrl, store.StubObserver())
+		return postgres.NewFromUrl(postgresUrl)
 	}
 }
 
@@ -39,11 +39,11 @@ type ProtocolBuilder func(id int) broker.Protocol
 
 func rabbit() ProtocolBuilder {
 	return func(id int) broker.Protocol {
-		return rabbitmq.New(rabbitmq.Config{
+		return rabbitmq.NewTransport(rabbitmq.Config{
 			AmqpUrl:  rabbitmqUrl,
 			Exchange: "highway",
 			Id:       fmt.Sprintf("app-%d", id),
-		})
+		}, &logger.NoopLogger{})
 	}
 }
 

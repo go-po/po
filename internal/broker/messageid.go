@@ -34,5 +34,5 @@ func ParseMessageId(messageId string) (stream string, number, groupNumber int64,
 }
 
 func ToMessageId(record record.Record) string {
-	return fmt.Sprintf("%d#%d#%s", record.Number, record.GroupNumber, record.Stream)
+	return fmt.Sprintf("%d#%d#%s", record.Number, record.GlobalNumber, record.Stream)
 }

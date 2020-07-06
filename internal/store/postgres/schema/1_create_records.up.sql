@@ -1,50 +1,49 @@
 -- initial schema for the messages
-CREATE TABLE IF NOT EXISTS po_msgs
+CREATE TABLE IF NOT EXISTS po_messages
 (
-
-    created      timestamp WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    updated      timestamp WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    stream       VARCHAR                                NOT NULL,
-    no           BIGINT                   DEFAULT 0     NOT NULL,
-    grp          varchar                                NOT NULL, -- group in Go
-    grp_no       BIGINT                                 NULL,
-    content_type varchar                                NOT NULL,
-    data         bytea                                  NOT NULL
+    id             bigserial                              NOT NULL,
+    created        timestamp WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    stream         VARCHAR                                NOT NULL,
+    no             BIGINT                   DEFAULT 0     NOT NULL,
+    grp            varchar                                NOT NULL, -- group in Go
+    content_type   varchar                                NOT NULL,
+    data           bytea                                  NOT NULL,
+    correlation_id varchar                                NULL,
+    PRIMARY KEY (id)
 );
 
-comment on table po_msgs is 'contains messages';
+comment on table po_messages is 'contains messages';
 
-CREATE INDEX IF NOT EXISTS po_msgs_stream_index ON po_msgs (stream);
-CREATE INDEX IF NOT EXISTS po_msgs_grp_index ON po_msgs (grp);
-CREATE UNIQUE INDEX IF NOT EXISTS po_msgs_stream_number_uindex ON po_msgs (stream, no);
-CREATE UNIQUE INDEX IF NOT EXISTS po_msgs_grp_grp_number_uindex ON po_msgs (grp, grp_no);
+CREATE INDEX IF NOT EXISTS po_messages_stream_index ON po_messages (stream);
+CREATE INDEX IF NOT EXISTS po_messages_grp_index ON po_messages (grp);
+CREATE UNIQUE INDEX IF NOT EXISTS po_messages_stream_number_uindex ON po_messages (stream, no);
 
-CREATE TABLE IF NOT EXISTS po_msg_index
+CREATE TABLE IF NOT EXISTS po_subscriptions
 (
-    updated timestamp with time zone default NOW() not null,
-    created timestamp with time zone default NOW() not null,
-    stream  VARCHAR                                NOT NULL,
-    next    bigint                   default 0     not null,
-    grp     bool                     default FALSE not null
+    created       timestamp with time zone default NOW() NOT NULL,
+    updated       timestamp with time zone default NOW() NOT NULL,
+    stream        varchar                                NOT NULL,
+    subscriber_id varchar                                NOT NULL,
+    no            bigint                                 NOT NULL
 );
 
-comment on table po_msg_index is 'contains the next number assigned to a stream';
+comment on table po_subscriptions is 'position of a stream subscribers';
 
-CREATE UNIQUE INDEX IF NOT EXISTS po_msg_index_stream_grp_uindex ON po_msg_index (stream, grp);
+CREATE UNIQUE INDEX IF NOT EXISTS po_subscriptions_stream_subscriber_id_uindex
+    on po_subscriptions (stream, subscriber_id);
 
-CREATE TABLE IF NOT EXISTS po_pos
+CREATE TABLE IF NOT EXISTS po_snapshots
 (
-    updated      timestamp with time zone default NOW() NOT NULL,
     created      timestamp with time zone default NOW() NOT NULL,
+    updated      timestamp with time zone default NOW() NOT NULL,
     stream       varchar                                NOT NULL,
-    listener     varchar                                NOT NULL,
-    no           bigint                                 NOT NULL,
+    snapshot_id  varchar                                NOT NULL,
+    no           bigint                   DEFAULT -1    NOT NULL,
     data         bytea                                  NOT NULL,
     content_type varchar                                NOT NULL
 );
 
-comment on table po_pos is 'position of a stream listener';
+comment on table po_snapshots is 'snapshot position and data';
 
-CREATE UNIQUE INDEX IF NOT EXISTS po_pos_stream_listener_uindex
-    on po_pos (stream, listener);
-
+CREATE UNIQUE INDEX IF NOT EXISTS po_snapshots_stream_snapshot_id_uindex
+    on po_snapshots (stream, snapshot_id);

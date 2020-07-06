@@ -40,10 +40,10 @@ func TestHighwayApp(t *testing.T) {
 			store: pg(), protocol: rabbit(), apps: 5, subs: 2, cars: 10, timeout: time.Second * 5},
 		{name: "channel broker",
 			store: pg(), protocol: channel(), apps: 1, subs: 2, cars: 10, timeout: time.Second * 2},
-		{name: "inmemory/channel",
+		/*{name: "inmemory/channel",
 			store: inmem(), protocol: channel(), apps: 1, subs: 5, cars: 10, timeout: time.Second},
 		{name: "inmemory/rabbit",
-			store: inmem(), protocol: rabbit(), apps: 1, subs: 5, cars: 10, timeout: time.Second * 5},
+			store: inmem(), protocol: rabbit(), apps: 1, subs: 5, cars: 10, timeout: time.Second * 5},*/
 	}
 
 	for _, test := range tests {
@@ -97,8 +97,14 @@ func (app *highwayApp) start(t *testing.T) {
 	if !assert.NoError(t, err, "setup store") {
 		t.Fail()
 	}
-
-	app.es = po.New(store, app.test.protocol(app.id))
+	app.es, err = po.NewFromOptions(
+		po.WithProtocol(app.test.protocol(app.id)),
+		po.WithLogger(logger.WrapLogger(t)),
+		po.WithStore(store),
+	)
+	if !assert.NoError(t, err, "setup po") {
+		t.Fail()
+	}
 
 	for subId, counter := range app.counters {
 		err = app.es.Subscribe(context.Background(), subId, app.streamId, counter)
@@ -188,12 +194,12 @@ func (counter *CarCounter) Handle(ctx context.Context, msg streams.Message) erro
 	counter.mu.Lock()
 	defer counter.mu.Unlock()
 
-	if counter.last+1 > msg.GroupNumber {
+	if counter.last+1 > msg.GlobalNumber {
 		// handle messages with idempotence
 		return nil
 	}
 
-	counter.last = msg.GroupNumber
+	counter.last = msg.GlobalNumber
 
 	switch msg.Data.(type) {
 	case Car:

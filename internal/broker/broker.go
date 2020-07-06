@@ -6,53 +6,68 @@ import (
 	"sync"
 
 	"github.com/go-po/po/internal/record"
+	"github.com/go-po/po/internal/store"
 	"github.com/go-po/po/streams"
 )
 
-type RecordAck func() (record.Record, func() error)
-type MessageIdAck func() (string, func() error)
-
-type ProtocolPipes interface {
-	AssignNotify() chan<- string // message id
-	Assign() <-chan MessageIdAck
-	StreamNotify() chan<- record.Record
-	Stream() <-chan RecordAck
-	Err() <-chan error
-	Ctx() context.Context
+type Handler interface {
+	// Receives messages from a stream
+	Handle(ctx context.Context, msg streams.Message) error
 }
 
-// abstract the used distribution
-// protocol away from the Broker logic
+type Registry interface {
+	ToMessage(r record.Record) (streams.Message, error)
+}
+
+type Store interface {
+	Begin(ctx context.Context) (store.Tx, error)
+	SubscriptionPositionLock(tx store.Tx, id streams.Id, subscriptionIds ...string) ([]store.SubscriptionPosition, error)
+	ReadRecords(ctx context.Context, id streams.Id, from, to, limit int64) ([]record.Record, error)
+	SetSubscriptionPosition(tx store.Tx, id streams.Id, position store.SubscriptionPosition) error
+}
+
+type RecordHandler interface {
+	Handle(ctx context.Context, record record.Record) (bool, error)
+}
+type RecordHandlerFunc func(ctx context.Context, record record.Record) (bool, error)
+
+func (fn RecordHandlerFunc) Handle(ctx context.Context, record record.Record) (bool, error) {
+	return fn(ctx, record)
+}
+
 type Protocol interface {
-	// // Start listening for channels relevant to the id
-	Register(ctx context.Context, id streams.Id) (ProtocolPipes, error)
+	Register(ctx context.Context, group string, input RecordHandler) (RecordHandler, error)
 }
 
-func New(protocol Protocol, distributor Distributor, groupAssigner GroupAssigner, observer Observer) *Broker {
+type Subscription interface {
+	Handle(ctx context.Context, record record.Record) (bool, error)
+	AddSubscriber(id streams.Id, subscriptionId string, subscriber streams.Handler)
+}
+
+func New(store Store, registry Registry, protocol Protocol) *Broker {
 	return &Broker{
-		protocol:      protocol,
-		distributor:   distributor,
-		groupAssigner: groupAssigner,
-		mu:            sync.RWMutex{},
-		pipes:         make(map[string]ProtocolPipes),
-		observer:      observer,
+		store:       store,
+		registry:    registry,
+		protocol:    protocol,
+		mu:          sync.Mutex{},
+		subscribers: make(map[string]Subscription),
+		publishers:  make(map[string]RecordHandler),
 	}
 }
 
 type Broker struct {
-	protocol      Protocol
-	distributor   Distributor
-	groupAssigner GroupAssigner
-	mu            sync.RWMutex             // protects the pipes
-	pipes         map[string]ProtocolPipes // group id to the pipes
-	observer      Observer
+	store    Store
+	registry Registry
+	protocol Protocol
+
+	mu          sync.Mutex
+	subscribers map[string]Subscription
+	publishers  map[string]RecordHandler
 }
 
 func (broker *Broker) Notify(ctx context.Context, records ...record.Record) error {
-	broker.mu.RLock()
-	defer broker.mu.RUnlock()
-	for _, r := range records {
-		err := broker.notifyRecord(ctx, r)
+	for _, record := range records {
+		err := broker.notify(ctx, record)
 		if err != nil {
 			return err
 		}
@@ -60,107 +75,61 @@ func (broker *Broker) Notify(ctx context.Context, records ...record.Record) erro
 	return nil
 }
 
-func (broker *Broker) notifyRecord(ctx context.Context, r record.Record) error {
-	done := broker.observer.AssignNotify(ctx, r.Stream)
-	defer done()
-
-	pipe, found := broker.pipes[r.Group]
+func (broker *Broker) notify(ctx context.Context, r record.Record) error {
+	h, found := broker.publishers[r.Group]
 	if !found {
-		return fmt.Errorf("internal/broker group not subscribed: %s", r.Group)
+		return fmt.Errorf("missing subscriber: %s", r.Group)
 	}
-	pipe.AssignNotify() <- ToMessageId(r)
-	return nil
-}
-
-func (broker *Broker) Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber interface{}) error {
-
-	err := broker.distributor.Register(ctx, subscriberId, streamId, subscriber)
+	send, err := h.Handle(ctx, r)
 	if err != nil {
 		return err
 	}
+	if !send {
+		return fmt.Errorf("failed to publish %s:%d", r.Stream, r.Number)
+	}
+	return nil
+}
 
+func (broker *Broker) Register(ctx context.Context, subscriberId string, streamId streams.Id, subscriber streams.Handler) error {
 	broker.mu.Lock()
 	defer broker.mu.Unlock()
 
-	if broker.pipes[streamId.Group] != nil {
-		// already registered
-		return nil
-	}
-
-	pipe, err := broker.protocol.Register(ctx, streamId)
+	tx, err := broker.store.Begin(ctx)
 	if err != nil {
 		return err
 	}
-	broker.pipes[streamId.Group] = pipe
+	defer func() {
+		_ = tx.Rollback()
+	}()
+	// rely on SetSubscriptionPosition to ignore this command if the new position is lower
+	err = broker.store.SetSubscriptionPosition(tx, streamId, store.SubscriptionPosition{
+		SubscriptionId: subscriberId,
+		Position:       -1,
+	})
+	if err != nil {
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
 
-	go broker.flowAssign(pipe)
-	go broker.flowStream(pipe)
+	sub, found := broker.subscribers[streamId.Group]
+	if !found {
+		sub = newSub(broker.registry, broker.store, streamId.Group)
+		broker.subscribers[streamId.Group] = sub
+	}
+
+	_, found = broker.publishers[streamId.Group]
+	if !found {
+		publisher, err := broker.protocol.Register(ctx, streamId.Group, sub)
+		if err != nil {
+			return err
+		}
+		broker.publishers[streamId.Group] = publisher
+	}
+
+	sub.AddSubscriber(streamId, subscriberId, subscriber)
 
 	return nil
-}
-
-func (broker *Broker) flowAssign(pipe ProtocolPipes) {
-	for {
-		select {
-		case <-pipe.Ctx().Done():
-			break
-		case msgIdAck := <-pipe.Assign():
-			broker.onAssignMessage(pipe, msgIdAck)
-		}
-	}
-}
-
-func (broker *Broker) onAssignMessage(pipe ProtocolPipes, msgIdAck MessageIdAck) {
-	// TODO Add Start Span here
-	ctx := context.Background()
-	msgId, ack := msgIdAck()
-	streamId, number, _, err := ParseMessageId(msgId)
-	if err != nil {
-		done := broker.observer.AssignErrorParseId(ctx, err)
-		defer done()
-	}
-
-	id := streams.ParseId(streamId)
-
-	done := broker.observer.AssignNotifyReceived(ctx, id)
-	defer done()
-
-	r, err := broker.groupAssigner.AssignGroup(ctx, id, number)
-	if err != nil {
-		done := broker.observer.AssignErrorGroupNumber(ctx, id, err)
-		defer done()
-		return
-	}
-
-	streamDone := broker.observer.StreamNotify(ctx, id)
-	defer streamDone()
-	pipe.StreamNotify() <- r
-
-	_ = ack()
-}
-
-func (broker *Broker) flowStream(pipe ProtocolPipes) {
-	for {
-		select {
-		case <-pipe.Ctx().Done():
-			break
-		case recordAck := <-pipe.Stream():
-			broker.onStreamMessage(recordAck)
-		}
-	}
-}
-
-func (broker *Broker) onStreamMessage(recordAck RecordAck) {
-	// TODO Add Start Span here
-	ctx := context.Background()
-
-	r, ack := recordAck()
-	done := broker.observer.StreamNotifyReceived(ctx, r.Stream)
-	defer done()
-
-	_, err := broker.distributor.Distribute(ctx, r)
-	if err != nil {
-		broker.observer.StreamErrorDistribute(ctx, r.Stream, err)
-	}
-	_ = ack()
 }

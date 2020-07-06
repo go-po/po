@@ -59,12 +59,13 @@ func (reg *Registry) ToMessage(r record.Record) (streams.Message, error) {
 		return streams.Message{}, err
 	}
 	return streams.Message{
-		Number:      r.Number,
-		Stream:      r.Stream,
-		Data:        data,
-		Type:        typeName,
-		GroupNumber: r.GroupNumber,
-		Time:        r.Time,
+		Number:        r.Number,
+		Stream:        r.Stream,
+		Data:          data,
+		Type:          typeName,
+		GlobalNumber:  r.GlobalNumber,
+		Time:          r.Time,
+		CorrelationId: r.CorrelationId,
 	}, nil
 }
 
