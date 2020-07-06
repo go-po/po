@@ -10,6 +10,9 @@ import (
 const databaseUrl = "postgres://po:po@localhost:5431/po?sslmode=disable"
 
 func databaseConnection(t *testing.T) *sql.DB {
+	if testing.Short() {
+		t.SkipNow()
+	}
 	t.Helper()
 	db, err := sql.Open("postgres", databaseUrl)
 	if !assert.NoError(t, err, "database connection") {
