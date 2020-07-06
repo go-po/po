@@ -34,7 +34,7 @@ func TestFromTo(t *testing.T) {
 		t.Helper()
 		err := FromTo(start, to, size, cb)
 		assert.NoError(t, err)
-		assert.Equal(t, expected, cb.calls)
+		assert.Equal(t, expected, cb.calls, "calls made to handler")
 	}
 
 	t.Run("zero size", func(t *testing.T) {
@@ -50,7 +50,7 @@ func TestFromTo(t *testing.T) {
 	t.Run("two loops", func(t *testing.T) {
 		verify(t, 0, 10, 5,
 			callback(5, 3),
-			[][3]int64{{0, 5, 5}, {5, 10, 5}})
+			[][3]int64{{0, 10, 5}, {5, 10, 5}})
 	})
 
 	t.Run("reach end", func(t *testing.T) {
@@ -62,13 +62,13 @@ func TestFromTo(t *testing.T) {
 	t.Run("reach end second loop", func(t *testing.T) {
 		verify(t, 0, 10, 5,
 			callback(5, 5),
-			[][3]int64{{0, 5, 5}, {5, 10, 5}})
+			[][3]int64{{0, 10, 5}, {5, 10, 5}})
 	})
 
 	t.Run("beyond end second loop", func(t *testing.T) {
 		verify(t, 0, 8, 5,
 			callback(5, 3),
-			[][3]int64{{0, 5, 5}, {5, 8, 5}})
+			[][3]int64{{0, 8, 5}, {5, 8, 5}})
 	})
 }
 
