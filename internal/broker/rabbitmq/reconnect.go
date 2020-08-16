@@ -28,10 +28,10 @@ func dial(cfg config) (*Connection, error) {
 			reason, ok := <-connection.Connection.NotifyClose(make(chan *amqp.Error))
 			// exit this goroutine if closed by developer
 			if !ok {
-				cfg.Log.Errorf("connection closed")
+				cfg.Log.Infof("connection closed")
 				break
 			}
-			cfg.Log.Errorf("connection closed: %s", reason)
+			cfg.Log.Infof("connection closed: %s", reason)
 
 			// reconnect if not closed by developer
 			for {
@@ -41,10 +41,10 @@ func dial(cfg config) (*Connection, error) {
 				conn, err := amqp.Dial(cfg.AmqpUrl)
 				if err == nil {
 					connection.Connection = conn
-					cfg.Log.Errorf("reconnect success")
+					cfg.Log.Infof("reconnect success")
 					break
 				}
-				cfg.Log.Errorf("reconnect failed: %v", err)
+				cfg.Log.Infof("reconnect failed: %v", err)
 			}
 		}
 	}()
@@ -73,7 +73,7 @@ func (c *Connection) Channel() (*Channel, error) {
 			reason, ok := <-channel.Channel.NotifyClose(make(chan *amqp.Error))
 			// exit this goroutine if closed by graceful shutdown
 			if !ok || channel.IsClosed() {
-				c.cfg.Log.Errorf("channel closed")
+				c.cfg.Log.Infof("channel closed")
 				channel.Close() // close again, ensure closed flag set when connection closed
 				break
 			}
@@ -86,12 +86,12 @@ func (c *Connection) Channel() (*Channel, error) {
 
 				ch, err := c.Connection.Channel()
 				if err == nil {
-					c.cfg.Log.Errorf("channel recreated")
+					c.cfg.Log.Infof("channel recreated")
 					channel.Channel = ch
 					break
 				}
 
-				c.cfg.Log.Errorf("channel recreate failed: %v", err)
+				c.cfg.Log.Infof("channel recreate failed: %v", err)
 			}
 		}
 
@@ -126,7 +126,7 @@ func (ch *Channel) Consume(queue, consumer string, autoAck, exclusive, noLocal, 
 		for {
 			d, err := ch.Channel.Consume(queue, consumer, autoAck, exclusive, noLocal, noWait, args)
 			if err != nil {
-				ch.cfg.Log.Errorf("consume failed: %v", err)
+				ch.cfg.Log.Infof("consume failed: %v", err)
 				time.Sleep(ch.cfg.ReconnectDelay)
 				continue
 			}
