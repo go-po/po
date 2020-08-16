@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/broker/channels"
-	"github.com/go-po/po/internal/broker/rabbitmq"
 	"github.com/go-po/po/internal/logger"
 	"github.com/go-po/po/internal/observer"
 	"github.com/go-po/po/internal/registry"
@@ -16,13 +15,11 @@ import (
 )
 
 type Options struct {
-	store                 Store
-	registry              Registry
-	logger                Logger
-	prom                  prometheus.Registerer
-	protocol              broker.Protocol
-	rabbitCfg             *rabbitmq.Config
-	rabbitQueueNamePrefix string
+	store    Store
+	registry Registry
+	logger   Logger
+	prom     prometheus.Registerer
+	protocol broker.Protocol
 }
 
 type Option func(opt *Options) error
@@ -64,17 +61,11 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 		return nil, fmt.Errorf("po: no logger provided")
 	}
 
-	var protocol broker.Protocol
-	if options.rabbitCfg != nil {
-		options.rabbitCfg.QueueNamePrefix = options.rabbitQueueNamePrefix
-		protocol = rabbitmq.NewTransport(*options.rabbitCfg, options.logger)
-	} else if options.protocol != nil {
-		protocol = options.protocol
-	} else {
+	if options.protocol == nil {
 		return nil, fmt.Errorf("po: no broker protocol provided")
 	}
 
-	return newPo(options.store, protocol, options.registry, options.logger, builder), nil
+	return newPo(options.store, options.protocol, options.registry, options.logger, builder), nil
 }
 
 func newPo(store Store, protocol broker.Protocol, registry Registry, logger Logger, builder *observer.Builder) *Po {
@@ -160,24 +151,6 @@ func WithProtocolChannels() Option {
 	}
 }
 
-func WithProtocolRabbitMQ(url, exchange, id string) Option {
-	return func(opt *Options) (err error) {
-		opt.rabbitCfg = &rabbitmq.Config{
-			AmqpUrl:  url,
-			Exchange: exchange,
-			Id:       id,
-		}
-		return
-	}
-}
-
-func WithProtocolRabbitMQQueueNamePrefix(prefix string) Option {
-	return func(opt *Options) (err error) {
-		opt.rabbitQueueNamePrefix = prefix
-		return
-	}
-}
-
 // Constructors to main components
 
 func NewStoreInMemory() *inmemory.InMemory {
@@ -194,12 +167,4 @@ func NewStorePostgresUrl(connectionUrl string) (*postgres.Storage, error) {
 
 func NewStorePostgresDB(db *sql.DB) (*postgres.Storage, error) {
 	return postgres.NewFromConn(db)
-}
-
-func NewProtocolRabbitMQ(url, exchange, id string) *rabbitmq.Transport {
-	return rabbitmq.NewTransport(rabbitmq.Config{
-		AmqpUrl:  url,
-		Exchange: exchange,
-		Id:       id,
-	}, nil)
 }

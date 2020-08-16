@@ -2,7 +2,9 @@ package rabbitmq
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/record"
@@ -10,27 +12,32 @@ import (
 	"github.com/streadway/amqp"
 )
 
-type Config struct {
-	AmqpUrl         string
-	Exchange        string
-	Id              string
-	QueueNamePrefix string
-}
+func New(amqpUrl string, exchange string, instanceId string, opts ...Option) *Transport {
+	var defaultConfig = config{
+		Log:             noopLogger{},
+		AmqpUrl:         amqpUrl,
+		Exchange:        exchange,
+		Id:              instanceId,
+		QueueNamePrefix: "",
+		MiddlewarePublish: func(ctx context.Context, msg amqp.Publishing, next func(context.Context, amqp.Publishing) error) error {
+			return next(ctx, msg)
+		},
+		MiddlewareConsume: func(ctx context.Context, msg amqp.Delivery, next func(context.Context, amqp.Delivery) error) error {
+			return next(ctx, msg)
+		},
+	}
 
-type Logger interface {
-	Errorf(template string, args ...interface{})
-}
+	for _, opt := range opts {
+		opt(&defaultConfig)
+	}
 
-func NewTransport(cfg Config, log Logger) *Transport {
 	return &Transport{
-		cfg: cfg,
-		log: log,
+		cfg: defaultConfig,
 	}
 }
 
 type Transport struct {
-	cfg Config
-	log Logger
+	cfg config
 }
 
 func (t *Transport) Register(ctx context.Context, group string, consumer broker.RecordHandler) (broker.RecordHandler, error) {
@@ -95,7 +102,7 @@ func (t *Transport) newConsume(ctx context.Context, group string, input broker.R
 			case <-ctx.Done():
 				break
 			case msg := <-deliveries:
-				t.consumeMessage(msg, input)
+				t.consumeMessage(context.Background(), msg, input)
 			}
 		}
 	}()
@@ -103,18 +110,40 @@ func (t *Transport) newConsume(ctx context.Context, group string, input broker.R
 	return nil
 }
 
-func (t *Transport) consumeMessage(msg amqp.Delivery, input broker.RecordHandler) {
-	streamId, number, globalNumber, err := broker.ParseMessageId(msg.MessageId)
+func (t *Transport) consumeMessage(ctx context.Context, delivery amqp.Delivery, input broker.RecordHandler) {
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	err := t.cfg.MiddlewareConsume(ctx, delivery, func(ctx context.Context, msg amqp.Delivery) error {
+		defer wg.Done()
+		return t.deliverMessage(ctx, delivery, input)
+	})
+
+	wg.Wait()
+
 	if err != nil {
-		t.log.Errorf("parse message id: %s", err)
-		err = msg.Nack(false, false)
+		t.cfg.Log.Errorf("po/rabbit handle message: %s", err)
+		err = delivery.Nack(false, true)
 		if err != nil {
-			t.log.Errorf("nack message: %s", err)
+			t.cfg.Log.Errorf("po/rabbit nack message: %s", err)
 		}
 		return
 	}
+}
+
+func (t *Transport) deliverMessage(ctx context.Context, msg amqp.Delivery, input broker.RecordHandler) error {
+
+	streamId, number, globalNumber, err := broker.ParseMessageId(msg.MessageId)
+	if err != nil {
+		err = msg.Nack(false, false)
+		if err != nil {
+			t.cfg.Log.Errorf("nack message: %s", err)
+		}
+		return fmt.Errorf("po/rabbit parse message id: %w", err)
+	}
 	stream := streams.ParseId(streamId)
-	ack, err := input.Handle(context.Background(), record.Record{
+
+	ack, err := input.Handle(ctx, record.Record{
 		Number:        number,
 		Stream:        stream,
 		Data:          msg.Body,
@@ -125,52 +154,54 @@ func (t *Transport) consumeMessage(msg amqp.Delivery, input broker.RecordHandler
 		CorrelationId: msg.CorrelationId,
 	})
 	if err != nil {
-		t.log.Errorf("handle message: %s", err)
-		err = msg.Nack(false, true)
-		if err != nil {
-			t.log.Errorf("nack message: %s", err)
-		}
-		return
+		return err
 	}
+
 	if ack {
 		err = msg.Ack(true)
 		if err != nil {
-			t.log.Errorf("ack message: %s", err)
+			return fmt.Errorf("po/rabbit failed ack: %w", err)
 		}
 	}
+	return nil
 }
 
-func newPublish(cfg Config, group string) (broker.RecordHandlerFunc, error) {
+func newPublish(cfg config, group string) (broker.RecordHandlerFunc, error) {
 	ch, err := connect(cfg)
 	if err != nil {
 		return nil, err
 	}
-
 	return func(ctx context.Context, r record.Record) (bool, error) {
-		err := ch.Publish(cfg.Exchange,
-			routingKey(cfg.Exchange, "stream", group), // routing key,
-			false, // mandatory
-			false, // immediate
-			amqp.Publishing{
-				Headers:         amqp.Table{},
-				ContentType:     r.ContentType,
-				ContentEncoding: "",
-				DeliveryMode:    amqp.Transient,
-				Priority:        0,
-				CorrelationId:   r.CorrelationId,
-				Expiration:      "",
-				MessageId:       broker.ToMessageId(r),
-				Timestamp:       r.Time,
-				Type:            r.Group,
-				UserId:          "",
-				AppId:           "",
-				Body:            r.Data,
-			})
+		var wg sync.WaitGroup
+		wg.Add(1)
+		err := cfg.MiddlewarePublish(ctx, amqp.Publishing{
+			Headers:         amqp.Table{},
+			ContentType:     r.ContentType,
+			ContentEncoding: "",
+			DeliveryMode:    amqp.Transient,
+			Priority:        0,
+			CorrelationId:   r.CorrelationId,
+			Expiration:      "",
+			MessageId:       broker.ToMessageId(r),
+			Timestamp:       r.Time,
+			Type:            r.Group,
+			UserId:          "",
+			AppId:           "",
+			Body:            r.Data,
+		}, func(ctx context.Context, msg amqp.Publishing) error {
+			defer wg.Done()
+			return ch.Publish(cfg.Exchange,
+				routingKey(cfg.Exchange, "stream", group), // routing key,
+				false, // mandatory
+				false, // immediate
+				msg)
+		})
+		wg.Wait()
 		return true, err
 	}, nil
 }
 
-func connect(cfg Config) (*amqp.Channel, error) {
+func connect(cfg config) (*amqp.Channel, error) {
 	conn, err := amqp.Dial(cfg.AmqpUrl)
 	if err != nil {
 		return nil, err
