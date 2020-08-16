@@ -2,6 +2,7 @@ package rabbitmq
 
 import (
 	"context"
+	"time"
 
 	"github.com/streadway/amqp"
 )
@@ -17,6 +18,7 @@ type config struct {
 	QueueNamePrefix   string
 	MiddlewarePublish MiddlewarePublish
 	MiddlewareConsume MiddlewareConsume
+	ReconnectDelay    time.Duration
 }
 
 type Option func(opt *config)
@@ -42,5 +44,11 @@ func WithConsumerMiddleware(middleware MiddlewareConsume) Option {
 func WithLogger(log Logger) Option {
 	return func(opt *config) {
 		opt.Log = log
+	}
+}
+
+func WithReconnectDelay(delay time.Duration) Option {
+	return func(opt *config) {
+		opt.ReconnectDelay = delay
 	}
 }

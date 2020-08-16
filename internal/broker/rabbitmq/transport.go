@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-po/po/internal/broker"
 	"github.com/go-po/po/internal/record"
@@ -25,6 +26,7 @@ func New(amqpUrl string, exchange string, instanceId string, opts ...Option) *Tr
 		MiddlewareConsume: func(ctx context.Context, msg amqp.Delivery, next func(context.Context, amqp.Delivery) error) error {
 			return next(ctx, msg)
 		},
+		ReconnectDelay: time.Second,
 	}
 
 	for _, opt := range opts {
@@ -201,8 +203,8 @@ func newPublish(cfg config, group string) (broker.RecordHandlerFunc, error) {
 	}, nil
 }
 
-func connect(cfg config) (*amqp.Channel, error) {
-	conn, err := amqp.Dial(cfg.AmqpUrl)
+func connect(cfg config) (*Channel, error) {
+	conn, err := dial(cfg)
 	if err != nil {
 		return nil, err
 	}
