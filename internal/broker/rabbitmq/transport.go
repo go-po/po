@@ -11,9 +11,10 @@ import (
 )
 
 type Config struct {
-	AmqpUrl  string
-	Exchange string
-	Id       string
+	AmqpUrl         string
+	Exchange        string
+	Id              string
+	QueueNamePrefix string
 }
 
 type Logger interface {
@@ -52,12 +53,12 @@ func (t *Transport) newConsume(ctx context.Context, group string, input broker.R
 	}
 
 	queue, err := ch.QueueDeclare(
-		"po.stream."+group, // name of the queue
-		true,               // durable
-		false,              // delete when unused
-		false,              // exclusive
-		false,              // noWait
-		nil,                // arguments
+		t.cfg.QueueNamePrefix+"po."+group, // name of the queue
+		true,                              // durable
+		false,                             // delete when unused
+		false,                             // exclusive
+		false,                             // noWait
+		nil,                               // arguments
 
 	)
 	if err != nil {

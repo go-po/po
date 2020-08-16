@@ -40,9 +40,10 @@ type ProtocolBuilder func(id int) broker.Protocol
 func rabbit() ProtocolBuilder {
 	return func(id int) broker.Protocol {
 		return rabbitmq.NewTransport(rabbitmq.Config{
-			AmqpUrl:  rabbitmqUrl,
-			Exchange: "highway",
-			Id:       fmt.Sprintf("app-%d", id),
+			AmqpUrl:         rabbitmqUrl,
+			Exchange:        "highway",
+			Id:              fmt.Sprintf("app-%d", id),
+			QueueNamePrefix: "e2e-",
 		}, &logger.NoopLogger{})
 	}
 }

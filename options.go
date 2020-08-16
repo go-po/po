@@ -16,12 +16,13 @@ import (
 )
 
 type Options struct {
-	store     Store
-	registry  Registry
-	logger    Logger
-	prom      prometheus.Registerer
-	protocol  broker.Protocol
-	rabbitCfg *rabbitmq.Config
+	store                 Store
+	registry              Registry
+	logger                Logger
+	prom                  prometheus.Registerer
+	protocol              broker.Protocol
+	rabbitCfg             *rabbitmq.Config
+	rabbitQueueNamePrefix string
 }
 
 type Option func(opt *Options) error
@@ -65,6 +66,7 @@ func NewFromOptions(opts ...Option) (*Po, error) {
 
 	var protocol broker.Protocol
 	if options.rabbitCfg != nil {
+		options.rabbitCfg.QueueNamePrefix = options.rabbitQueueNamePrefix
 		protocol = rabbitmq.NewTransport(*options.rabbitCfg, options.logger)
 	} else if options.protocol != nil {
 		protocol = options.protocol
@@ -165,6 +167,13 @@ func WithProtocolRabbitMQ(url, exchange, id string) Option {
 			Exchange: exchange,
 			Id:       id,
 		}
+		return
+	}
+}
+
+func WithProtocolRabbitMQQueueNamePrefix(prefix string) Option {
+	return func(opt *Options) (err error) {
+		opt.rabbitQueueNamePrefix = prefix
 		return
 	}
 }
